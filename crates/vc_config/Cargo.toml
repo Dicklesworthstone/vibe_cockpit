@@ -1,0 +1,22 @@
+[package]
+name = "vc_config"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Configuration parsing and validation for Vibe Cockpit"
+
+[lints]
+workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+dirs = "6"
+
+[dev-dependencies]

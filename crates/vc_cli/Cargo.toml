@@ -1,0 +1,32 @@
+[package]
+name = "vc_cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "CLI commands for Vibe Cockpit"
+
+[lints]
+workspace = true
+
+[dependencies]
+vc_config.workspace = true
+vc_store.workspace = true
+vc_query.workspace = true
+vc_collect.workspace = true
+vc_oracle.workspace = true
+vc_guardian.workspace = true
+vc_alert.workspace = true
+vc_tui.workspace = true
+vc_web.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+anyhow.workspace = true
+
+[dev-dependencies]

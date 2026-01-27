@@ -1,0 +1,22 @@
+[package]
+name = "vc_knowledge"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Knowledge base for Vibe Cockpit"
+
+[lints]
+workspace = true
+
+[dependencies]
+vc_config.workspace = true
+vc_store.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]

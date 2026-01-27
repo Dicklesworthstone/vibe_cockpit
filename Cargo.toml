@@ -1,0 +1,109 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/vc_config",
+    "crates/vc_collect",
+    "crates/vc_store",
+    "crates/vc_query",
+    "crates/vc_oracle",
+    "crates/vc_guardian",
+    "crates/vc_knowledge",
+    "crates/vc_alert",
+    "crates/vc_tui",
+    "crates/vc_web",
+    "crates/vc_cli",
+    "crates/vc_mcp",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["vibe_cockpit contributors"]
+license = "MIT"
+repository = "https://github.com/Dicklesworthstone/vibe_cockpit"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.44", features = ["full"] }
+
+# Database
+duckdb = { version = "1.1", features = ["bundled"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+
+# CLI
+clap = { version = "4.5", features = ["derive"] }
+
+# TUI
+ratatui = "0.29"
+crossterm = "0.28"
+
+# Web
+axum = "0.8"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "fs", "trace"] }
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Error handling
+thiserror = "2.0"
+anyhow = "1.0"
+
+# Tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Other utilities
+uuid = { version = "1.11", features = ["v4", "serde"] }
+regex = "1.11"
+async-trait = "0.1"
+dashmap = "6.1"
+futures = "0.3"
+
+# Internal crates
+vc_config = { path = "crates/vc_config" }
+vc_collect = { path = "crates/vc_collect" }
+vc_store = { path = "crates/vc_store" }
+vc_query = { path = "crates/vc_query" }
+vc_oracle = { path = "crates/vc_oracle" }
+vc_guardian = { path = "crates/vc_guardian" }
+vc_knowledge = { path = "crates/vc_knowledge" }
+vc_alert = { path = "crates/vc_alert" }
+vc_tui = { path = "crates/vc_tui" }
+vc_web = { path = "crates/vc_web" }
+vc_cli = { path = "crates/vc_cli" }
+vc_mcp = { path = "crates/vc_mcp" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = "warn"
+
+# Binary crate
+[package]
+name = "vc"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Vibe Cockpit - Agent fleet monitoring and orchestration"
+
+[[bin]]
+name = "vc"
+path = "src/main.rs"
+
+[dependencies]
+vc_cli.workspace = true
+vc_config.workspace = true
+tokio.workspace = true
+clap.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+anyhow.workspace = true

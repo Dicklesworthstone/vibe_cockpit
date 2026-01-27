@@ -1,0 +1,27 @@
+[package]
+name = "vc_web"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Web server and API for Vibe Cockpit"
+
+[lints]
+workspace = true
+
+[dependencies]
+vc_config.workspace = true
+vc_store.workspace = true
+vc_query.workspace = true
+axum.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]

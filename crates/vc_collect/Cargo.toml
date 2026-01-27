@@ -1,0 +1,24 @@
+[package]
+name = "vc_collect"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Data collectors for Vibe Cockpit"
+
+[lints]
+workspace = true
+
+[dependencies]
+vc_config.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+async-trait.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+anyhow.workspace = true
+
+[dev-dependencies]
