@@ -198,7 +198,9 @@ impl Default for McpServer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
 
+    // McpServer tests
     #[test]
     fn test_default_tools() {
         let server = McpServer::new();
@@ -211,10 +213,244 @@ mod tests {
         assert!(!server.list_resources().is_empty());
     }
 
+    #[test]
+    fn test_server_default() {
+        let server = McpServer::default();
+        assert!(!server.list_tools().is_empty());
+        assert!(!server.list_resources().is_empty());
+    }
+
+    #[test]
+    fn test_expected_tool_names() {
+        let server = McpServer::new();
+        let tool_names: Vec<&str> = server.list_tools().iter().map(|t| t.name.as_str()).collect();
+
+        assert!(tool_names.contains(&"vc_fleet_status"));
+        assert!(tool_names.contains(&"vc_triage"));
+        assert!(tool_names.contains(&"vc_alerts"));
+        assert!(tool_names.contains(&"vc_oracle"));
+    }
+
+    #[test]
+    fn test_expected_resource_uris() {
+        let server = McpServer::new();
+        let uris: Vec<&str> = server.list_resources().iter().map(|r| r.uri.as_str()).collect();
+
+        assert!(uris.contains(&"vc://fleet/overview"));
+        assert!(uris.contains(&"vc://machines"));
+    }
+
+    // Tool call tests
     #[tokio::test]
-    async fn test_call_tool() {
+    async fn test_call_tool_fleet_status() {
         let server = McpServer::new();
         let result = server.call_tool("vc_fleet_status", serde_json::json!({})).await;
         assert!(result.is_ok());
+
+        let value = result.unwrap();
+        assert!(value.get("total_machines").is_some());
+        assert!(value.get("health_score").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_call_tool_triage() {
+        let server = McpServer::new();
+        let result = server.call_tool("vc_triage", serde_json::json!({})).await;
+        assert!(result.is_ok());
+
+        let value = result.unwrap();
+        assert!(value.get("recommendations").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_call_tool_alerts() {
+        let server = McpServer::new();
+        let result = server.call_tool("vc_alerts", serde_json::json!({})).await;
+        assert!(result.is_ok());
+
+        let value = result.unwrap();
+        assert!(value.get("alerts").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_call_tool_oracle() {
+        let server = McpServer::new();
+        let result = server.call_tool("vc_oracle", serde_json::json!({})).await;
+        assert!(result.is_ok());
+
+        let value = result.unwrap();
+        assert!(value.get("predictions").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_call_tool_not_found() {
+        let server = McpServer::new();
+        let result = server.call_tool("nonexistent_tool", serde_json::json!({})).await;
+        assert!(result.is_err());
+
+        match result.unwrap_err() {
+            McpError::ToolNotFound(name) => assert_eq!(name, "nonexistent_tool"),
+            _ => panic!("Expected ToolNotFound error"),
+        }
+    }
+
+    // Resource read tests
+    #[tokio::test]
+    async fn test_read_resource_fleet_overview() {
+        let server = McpServer::new();
+        let result = server.read_resource("vc://fleet/overview").await;
+        assert!(result.is_ok());
+
+        let value = result.unwrap();
+        assert!(value.get("machines").is_some());
+        assert!(value.get("health").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_read_resource_machines() {
+        let server = McpServer::new();
+        let result = server.read_resource("vc://machines").await;
+        assert!(result.is_ok());
+
+        let value = result.unwrap();
+        assert!(value.is_array());
+    }
+
+    #[tokio::test]
+    async fn test_read_resource_not_found() {
+        let server = McpServer::new();
+        let result = server.read_resource("vc://nonexistent").await;
+        assert!(result.is_err());
+
+        match result.unwrap_err() {
+            McpError::InvalidRequest(msg) => assert!(msg.contains("Unknown resource")),
+            _ => panic!("Expected InvalidRequest error"),
+        }
+    }
+
+    // McpTool tests
+    #[test]
+    fn test_mcp_tool_creation() {
+        let tool = McpTool {
+            name: "test_tool".to_string(),
+            description: "A test tool".to_string(),
+            input_schema: serde_json::json!({
+                "type": "object",
+                "properties": {}
+            }),
+        };
+
+        assert_eq!(tool.name, "test_tool");
+        assert!(tool.input_schema.is_object());
+    }
+
+    #[test]
+    fn test_mcp_tool_serialization() {
+        let tool = McpTool {
+            name: "serialize_test".to_string(),
+            description: "Testing serialization".to_string(),
+            input_schema: serde_json::json!({"type": "object"}),
+        };
+
+        let json = serde_json::to_string(&tool).unwrap();
+        let parsed: McpTool = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed.name, tool.name);
+        assert_eq!(parsed.description, tool.description);
+    }
+
+    // McpResource tests
+    #[test]
+    fn test_mcp_resource_creation() {
+        let resource = McpResource {
+            uri: "vc://test/resource".to_string(),
+            name: "Test Resource".to_string(),
+            description: "A test resource".to_string(),
+            mime_type: "application/json".to_string(),
+        };
+
+        assert_eq!(resource.uri, "vc://test/resource");
+        assert_eq!(resource.mime_type, "application/json");
+    }
+
+    #[test]
+    fn test_mcp_resource_serialization() {
+        let resource = McpResource {
+            uri: "vc://ser/test".to_string(),
+            name: "Serialize Test".to_string(),
+            description: "Testing".to_string(),
+            mime_type: "text/plain".to_string(),
+        };
+
+        let json = serde_json::to_string(&resource).unwrap();
+        let parsed: McpResource = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed.uri, resource.uri);
+        assert_eq!(parsed.mime_type, resource.mime_type);
+    }
+
+    proptest! {
+        #[test]
+        fn test_mcp_tool_roundtrip(
+            name in "[a-zA-Z0-9_]{1,32}",
+            description in ".{0,64}"
+        ) {
+            let tool = McpTool {
+                name,
+                description,
+                input_schema: serde_json::json!({"type": "object"}),
+            };
+
+            let json = serde_json::to_string(&tool).unwrap();
+            let parsed: McpTool = serde_json::from_str(&json).unwrap();
+
+            prop_assert_eq!(parsed.name, tool.name);
+            prop_assert_eq!(parsed.description, tool.description);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn test_mcp_resource_roundtrip(
+            uri in "vc://[a-zA-Z0-9/_-]{1,48}",
+            name in "[a-zA-Z0-9 _-]{1,32}",
+            description in ".{0,64}",
+            mime_type in "application/[a-zA-Z0-9.+-]{1,24}"
+        ) {
+            let resource = McpResource {
+                uri,
+                name,
+                description,
+                mime_type,
+            };
+
+            let json = serde_json::to_string(&resource).unwrap();
+            let parsed: McpResource = serde_json::from_str(&json).unwrap();
+
+            prop_assert_eq!(parsed.uri, resource.uri);
+            prop_assert_eq!(parsed.name, resource.name);
+            prop_assert_eq!(parsed.description, resource.description);
+            prop_assert_eq!(parsed.mime_type, resource.mime_type);
+        }
+    }
+
+    // McpError tests
+    #[test]
+    fn test_error_tool_not_found() {
+        let err = McpError::ToolNotFound("missing_tool".to_string());
+        assert!(err.to_string().contains("Tool not found"));
+        assert!(err.to_string().contains("missing_tool"));
+    }
+
+    #[test]
+    fn test_error_invalid_request() {
+        let err = McpError::InvalidRequest("bad request".to_string());
+        assert!(err.to_string().contains("Invalid request"));
+    }
+
+    #[test]
+    fn test_error_execution_error() {
+        let err = McpError::ExecutionError("timeout".to_string());
+        assert!(err.to_string().contains("Execution error"));
     }
 }

@@ -120,8 +120,231 @@ impl<'a> QueryBuilder<'a> {
 mod tests {
     use super::*;
 
+    // Severity tests
     #[test]
     fn test_severity_ordering() {
         assert!(Severity::Critical != Severity::Healthy);
+    }
+
+    #[test]
+    fn test_severity_variants() {
+        assert_ne!(Severity::Healthy, Severity::Info);
+        assert_ne!(Severity::Info, Severity::Warning);
+        assert_ne!(Severity::Warning, Severity::Critical);
+    }
+
+    #[test]
+    fn test_severity_serialization() {
+        let healthy = Severity::Healthy;
+        let json = serde_json::to_string(&healthy).unwrap();
+        assert_eq!(json, "\"healthy\"");
+
+        let critical = Severity::Critical;
+        let json = serde_json::to_string(&critical).unwrap();
+        assert_eq!(json, "\"critical\"");
+    }
+
+    #[test]
+    fn test_severity_deserialization() {
+        let healthy: Severity = serde_json::from_str("\"healthy\"").unwrap();
+        assert_eq!(healthy, Severity::Healthy);
+
+        let warning: Severity = serde_json::from_str("\"warning\"").unwrap();
+        assert_eq!(warning, Severity::Warning);
+    }
+
+    // HealthScore tests
+    #[test]
+    fn test_health_score_creation() {
+        let score = HealthScore {
+            machine_id: "test-machine".to_string(),
+            overall_score: 0.85,
+            factors: vec![],
+            worst_factor: None,
+        };
+        assert_eq!(score.machine_id, "test-machine");
+        assert!((score.overall_score - 0.85).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_health_score_with_factors() {
+        let factors = vec![
+            HealthFactor {
+                factor_id: "cpu".to_string(),
+                name: "CPU Usage".to_string(),
+                score: 0.9,
+                weight: 1.0,
+                severity: Severity::Healthy,
+                details: "CPU is fine".to_string(),
+            },
+            HealthFactor {
+                factor_id: "mem".to_string(),
+                name: "Memory Usage".to_string(),
+                score: 0.6,
+                weight: 1.0,
+                severity: Severity::Warning,
+                details: "Memory usage high".to_string(),
+            },
+        ];
+
+        let score = HealthScore {
+            machine_id: "machine1".to_string(),
+            overall_score: 0.75,
+            factors: factors.clone(),
+            worst_factor: Some("mem".to_string()),
+        };
+
+        assert_eq!(score.factors.len(), 2);
+        assert_eq!(score.worst_factor, Some("mem".to_string()));
+    }
+
+    #[test]
+    fn test_health_score_serialization() {
+        let score = HealthScore {
+            machine_id: "m1".to_string(),
+            overall_score: 1.0,
+            factors: vec![],
+            worst_factor: None,
+        };
+
+        let json = serde_json::to_string(&score).unwrap();
+        assert!(json.contains("\"machine_id\":\"m1\""));
+        assert!(json.contains("\"overall_score\":1.0"));
+    }
+
+    // HealthFactor tests
+    #[test]
+    fn test_health_factor_creation() {
+        let factor = HealthFactor {
+            factor_id: "disk".to_string(),
+            name: "Disk Space".to_string(),
+            score: 0.5,
+            weight: 2.0,
+            severity: Severity::Critical,
+            details: "Disk almost full".to_string(),
+        };
+
+        assert_eq!(factor.factor_id, "disk");
+        assert_eq!(factor.severity, Severity::Critical);
+        assert!((factor.weight - 2.0).abs() < f64::EPSILON);
+    }
+
+    // FleetOverview tests
+    #[test]
+    fn test_fleet_overview_defaults() {
+        let overview = FleetOverview {
+            total_machines: 5,
+            online_machines: 4,
+            offline_machines: 1,
+            total_agents: 20,
+            active_agents: 18,
+            fleet_health_score: 0.9,
+            worst_machine: Some("machine3".to_string()),
+            active_alerts: 2,
+            pending_approvals: 0,
+        };
+
+        assert_eq!(overview.total_machines, 5);
+        assert_eq!(overview.online_machines + overview.offline_machines, overview.total_machines);
+        assert!(overview.active_agents <= overview.total_agents);
+    }
+
+    #[test]
+    fn test_fleet_overview_serialization() {
+        let overview = FleetOverview {
+            total_machines: 1,
+            online_machines: 1,
+            offline_machines: 0,
+            total_agents: 5,
+            active_agents: 5,
+            fleet_health_score: 1.0,
+            worst_machine: None,
+            active_alerts: 0,
+            pending_approvals: 0,
+        };
+
+        let json = serde_json::to_string(&overview).unwrap();
+        let parsed: FleetOverview = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed.total_machines, overview.total_machines);
+        assert_eq!(parsed.fleet_health_score, overview.fleet_health_score);
+    }
+
+    // QueryBuilder tests (with in-memory store)
+    #[test]
+    fn test_query_builder_fleet_overview() {
+        let store = VcStore::open_memory().unwrap();
+        let builder = QueryBuilder::new(&store);
+
+        let overview = builder.fleet_overview().unwrap();
+        // Default placeholder returns zeros
+        assert_eq!(overview.total_machines, 0);
+        assert_eq!(overview.fleet_health_score, 1.0);
+    }
+
+    #[test]
+    fn test_query_builder_machine_health() {
+        let store = VcStore::open_memory().unwrap();
+        let builder = QueryBuilder::new(&store);
+
+        let health = builder.machine_health("test-machine").unwrap();
+        assert_eq!(health.machine_id, "test-machine");
+        assert_eq!(health.overall_score, 1.0);
+    }
+
+    #[test]
+    fn test_query_builder_recent_alerts_empty() {
+        let store = VcStore::open_memory().unwrap();
+        let builder = QueryBuilder::new(&store);
+
+        let alerts = builder.recent_alerts(10).unwrap();
+        assert!(alerts.is_empty());
+    }
+
+    #[test]
+    fn test_query_builder_recent_alerts_ordering() {
+        let store = VcStore::open_memory().unwrap();
+        store
+            .execute_batch(
+                r#"
+                INSERT INTO alert_history (id, rule_id, fired_at, severity, title)
+                VALUES (1, 'r1', TIMESTAMP '2026-01-01 00:00:00', 'warning', 'First');
+                INSERT INTO alert_history (id, rule_id, fired_at, severity, title)
+                VALUES (2, 'r2', TIMESTAMP '2026-01-02 00:00:00', 'critical', 'Second');
+                "#,
+            )
+            .unwrap();
+
+        let builder = QueryBuilder::new(&store);
+        let alerts = builder.recent_alerts(1).unwrap();
+        assert_eq!(alerts.len(), 1);
+        assert_eq!(alerts[0]["title"].as_str().unwrap(), "Second");
+    }
+
+    #[test]
+    fn test_query_builder_machines_ordering() {
+        let store = VcStore::open_memory().unwrap();
+        store
+            .execute_batch(
+                r#"
+                INSERT INTO machines (machine_id, hostname)
+                VALUES ('m2', 'zulu');
+                INSERT INTO machines (machine_id, hostname)
+                VALUES ('m1', 'alpha');
+                "#,
+            )
+            .unwrap();
+
+        let builder = QueryBuilder::new(&store);
+        let machines = builder.machines().unwrap();
+        assert_eq!(machines.len(), 2);
+        assert_eq!(machines[0]["hostname"].as_str().unwrap(), "alpha");
+    }
+
+    #[test]
+    fn test_query_error_display() {
+        let err = QueryError::InvalidQuery("bad sql".to_string());
+        assert!(err.to_string().contains("Invalid query"));
+        assert!(err.to_string().contains("bad sql"));
     }
 }

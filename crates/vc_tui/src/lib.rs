@@ -7,7 +7,6 @@
 //! - Keyboard navigation
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui::prelude::*;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 

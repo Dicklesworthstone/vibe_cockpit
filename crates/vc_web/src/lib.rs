@@ -91,7 +91,12 @@ async fn alerts_handler(State(_state): State<Arc<AppState>>) -> Result<Json<Vec<
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::body::Body;
+    use axum::http::{Request, StatusCode};
+    use proptest::prelude::*;
+    use tower::ServiceExt;
 
+    // HealthResponse tests
     #[test]
     fn test_health_response() {
         let resp = HealthResponse {
@@ -100,5 +105,156 @@ mod tests {
             uptime_secs: 100,
         };
         assert_eq!(resp.status, "ok");
+    }
+
+    #[test]
+    fn test_health_response_serialization() {
+        let resp = HealthResponse {
+            status: "healthy".to_string(),
+            version: "1.0.0".to_string(),
+            uptime_secs: 3600,
+        };
+
+        let json = serde_json::to_string(&resp).unwrap();
+        assert!(json.contains("healthy"));
+        assert!(json.contains("3600"));
+
+        let parsed: HealthResponse = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.status, resp.status);
+        assert_eq!(parsed.version, resp.version);
+        assert_eq!(parsed.uptime_secs, resp.uptime_secs);
+    }
+
+    #[test]
+    fn test_health_response_deserialization() {
+        let json = r#"{"status":"ok","version":"0.2.0","uptime_secs":500}"#;
+        let resp: HealthResponse = serde_json::from_str(json).unwrap();
+
+        assert_eq!(resp.status, "ok");
+        assert_eq!(resp.version, "0.2.0");
+        assert_eq!(resp.uptime_secs, 500);
+    }
+
+    proptest! {
+        #[test]
+        fn test_health_response_roundtrip(
+            status in "[a-z]{1,16}",
+            version in "[0-9.]{1,12}",
+            uptime_secs in 0u64..1_000_000u64
+        ) {
+            let resp = HealthResponse {
+                status,
+                version,
+                uptime_secs,
+            };
+
+            let json = serde_json::to_string(&resp).unwrap();
+            let parsed: HealthResponse = serde_json::from_str(&json).unwrap();
+
+            prop_assert_eq!(parsed.status, resp.status);
+            prop_assert_eq!(parsed.version, resp.version);
+            prop_assert_eq!(parsed.uptime_secs, resp.uptime_secs);
+        }
+    }
+
+    // WebError tests
+    #[test]
+    fn test_web_error_server_error() {
+        let err = WebError::ServerError("internal failure".to_string());
+        assert!(err.to_string().contains("Server error"));
+        assert!(err.to_string().contains("internal failure"));
+    }
+
+    #[test]
+    fn test_web_error_not_found() {
+        let err = WebError::NotFound("resource/123".to_string());
+        assert!(err.to_string().contains("Not found"));
+        assert!(err.to_string().contains("resource/123"));
+    }
+
+    // AppState tests
+    #[test]
+    fn test_app_state_creation() {
+        let _state = AppState {};
+        // Just ensure it compiles and can be created
+    }
+
+    // Router tests
+    #[test]
+    fn test_create_router() {
+        let state = Arc::new(AppState {});
+        let router = create_router(state);
+        // Router created successfully if we get here
+        let _ = router;
+    }
+
+    #[tokio::test]
+    async fn test_health_endpoint() {
+        let state = Arc::new(AppState {});
+        let app = create_router(state);
+
+        let request = Request::builder()
+            .uri("/api/health")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_fleet_endpoint() {
+        let state = Arc::new(AppState {});
+        let app = create_router(state);
+
+        let request = Request::builder()
+            .uri("/api/fleet")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_machines_endpoint() {
+        let state = Arc::new(AppState {});
+        let app = create_router(state);
+
+        let request = Request::builder()
+            .uri("/api/machines")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_alerts_endpoint() {
+        let state = Arc::new(AppState {});
+        let app = create_router(state);
+
+        let request = Request::builder()
+            .uri("/api/alerts")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_not_found_endpoint() {
+        let state = Arc::new(AppState {});
+        let app = create_router(state);
+
+        let request = Request::builder()
+            .uri("/api/nonexistent")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 }

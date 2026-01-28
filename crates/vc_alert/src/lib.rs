@@ -10,7 +10,6 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 use thiserror::Error;
 
@@ -183,6 +182,18 @@ impl Default for AlertEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use async_trait::async_trait;
+    use mockall::mock;
+
+    mock! {
+        Channel {}
+
+        #[async_trait]
+        impl AlertChannel for Channel {
+            fn name(&self) -> &str;
+            async fn deliver(&self, alert: &Alert) -> Result<(), AlertError>;
+        }
+    }
 
     #[test]
     fn test_threshold_op() {
@@ -204,5 +215,26 @@ mod tests {
         assert!(!engine.is_in_cooldown("test", 60));
         engine.record_fired("test");
         assert!(engine.is_in_cooldown("test", 60));
+    }
+
+    #[tokio::test]
+    async fn test_mock_channel_deliver() {
+        let mut mock = MockChannel::new();
+        mock.expect_name().return_const("mock");
+        mock.expect_deliver().returning(|_| Ok(()));
+
+        let alert = Alert {
+            id: None,
+            rule_id: "test-rule".to_string(),
+            fired_at: Utc::now(),
+            severity: Severity::Info,
+            title: "Test alert".to_string(),
+            message: "Testing delivery".to_string(),
+            machine_id: None,
+            context: serde_json::json!({}),
+        };
+
+        assert_eq!(mock.name(), "mock");
+        assert!(mock.deliver(&alert).await.is_ok());
     }
 }

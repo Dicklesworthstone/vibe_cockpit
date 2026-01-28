@@ -25,3 +25,5 @@ tracing.workspace = true
 chrono.workspace = true
 
 [dev-dependencies]
+proptest.workspace = true
+mockall.workspace = true

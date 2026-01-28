@@ -112,6 +112,7 @@ impl Default for Oracle {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
 
     #[test]
     fn test_calculate_velocity_empty() {
@@ -131,5 +132,13 @@ mod tests {
 
         let conf_low = Oracle::calculate_confidence(2, 1.0);
         assert!(conf_low < conf);
+    }
+
+    proptest! {
+        #[test]
+        fn confidence_is_clamped(sample_count in 0usize..1000, variance in 0.0f64..1000.0) {
+            let conf = Oracle::calculate_confidence(sample_count, variance);
+            prop_assert!((0.1..=0.99).contains(&conf));
+        }
     }
 }

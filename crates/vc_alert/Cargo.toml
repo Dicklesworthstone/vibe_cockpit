@@ -23,3 +23,6 @@ chrono.workspace = true
 dashmap.workspace = true
 
 [dev-dependencies]
+proptest.workspace = true
+mockall.workspace = true
+tokio.workspace = true

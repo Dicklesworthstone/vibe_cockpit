@@ -20,3 +20,5 @@ chrono.workspace = true
 dirs = "6"
 
 [dev-dependencies]
+proptest.workspace = true
+mockall.workspace = true
