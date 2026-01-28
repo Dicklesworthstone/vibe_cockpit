@@ -23,7 +23,8 @@ mkdir -p "$MOCK_BIN_DIR"
 # Test 1: Missing tool should not crash
 test_info "Test 1: Testing missing tool handling"
 # Ensure no mock tools exist, run a collector that needs them
-collect_output=$(run_vc_or_skip collect --collector sysmoni 2>&1) || true
+run_vc_or_skip collect --collector sysmoni 2>&1 || true
+collect_output="$VC_LAST_OUTPUT"
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 # Should complete (with skip) rather than crash
 test_info "PASS: Missing tool handled gracefully"
@@ -38,7 +39,8 @@ chmod +x "$MOCK_BIN_DIR/sysmoni"
 
 export PATH="$MOCK_BIN_DIR:$PATH"
 
-invalid_output=$(run_vc_or_skip collect --collector sysmoni 2>&1) || true
+run_vc_or_skip collect --collector sysmoni 2>&1 || true
+invalid_output="$VC_LAST_OUTPUT"
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 # Should handle gracefully
 test_info "PASS: Invalid JSON handled"
@@ -51,7 +53,8 @@ cat > "$MOCK_BIN_DIR/sysmoni" <<'MOCK_SCRIPT'
 MOCK_SCRIPT
 chmod +x "$MOCK_BIN_DIR/sysmoni"
 
-empty_output=$(run_vc_or_skip collect --collector sysmoni 2>&1) || true
+run_vc_or_skip collect --collector sysmoni 2>&1 || true
+empty_output="$VC_LAST_OUTPUT"
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 test_info "PASS: Empty output handled"
 
@@ -64,13 +67,15 @@ exit 1
 MOCK_SCRIPT
 chmod +x "$MOCK_BIN_DIR/sysmoni"
 
-error_output=$(run_vc_or_skip collect --collector sysmoni 2>&1) || true
+run_vc_or_skip collect --collector sysmoni 2>&1 || true
+error_output="$VC_LAST_OUTPUT"
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 test_info "PASS: Error exit code handled"
 
 # Test 5: Unknown collector name
 test_info "Test 5: Testing unknown collector"
-unknown_output=$(run_vc_or_skip collect --collector nonexistent_collector 2>&1) || true
+run_vc_or_skip collect --collector nonexistent_collector 2>&1 || true
+unknown_output="$VC_LAST_OUTPUT"
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 # Should fail gracefully
 if [[ "$unknown_output" == *"error"* ]] || [[ "$unknown_output" == *"unknown"* ]] || [[ "$unknown_output" == *"not found"* ]]; then
@@ -85,18 +90,22 @@ test_info "Test 6: Verifying database integrity after errors"
 rm -f "$MOCK_BIN_DIR/sysmoni"
 
 # Run a working collector
-working_output=$(run_vc_or_skip collect --collector fallback_probe 2>&1) || {
+run_vc_or_skip collect --collector fallback_probe 2>&1 || {
+    working_output="$VC_LAST_OUTPUT"
     test_warn "Fallback probe had issues after error tests"
 }
+working_output="$VC_LAST_OUTPUT"
 assert_file_exists "$TEST_DB_PATH" "Database should still exist"
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 test_info "PASS: Database still functional after errors"
 
 # Test 7: Health check works after collector errors
 test_info "Test 7: Health check after errors"
-health_output=$(run_vc_or_skip robot health 2>&1) || {
+if run_vc_or_skip robot health 2>&1; then
+    health_output="$VC_LAST_OUTPUT"
+else
     health_output='{"data":{}}'
-}
+fi
 assert_json_valid "$health_output" "Health should still return valid JSON"
 
 # Finalize and output results

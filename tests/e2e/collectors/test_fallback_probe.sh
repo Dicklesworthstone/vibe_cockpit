@@ -31,14 +31,18 @@ assert_contains "$version_output" "0.1.0" "Version should contain version number
 
 # Test 3: Verify vc robot health returns valid JSON
 test_info "Test 3: Checking vc robot health"
-health_output=$(run_vc_or_skip robot health | sed -n '/^{/,$p') || true
+set +x
+health_output=$(run_vc_or_skip robot health 2>&1) || true
+set -x
 assert_json_valid "$health_output" "Health output should be valid JSON"
 assert_json_field "$health_output" ".schema_version" "vc.robot.health.v1" "Schema version should match"
 assert_json_field "$health_output" ".data.overall.severity" "healthy" "Severity should be healthy"
 
 # Test 4: Verify vc robot triage returns valid JSON
 test_info "Test 4: Checking vc robot triage"
-triage_output=$(run_vc_or_skip robot triage | sed -n '/^{/,$p') || true
+set +x
+triage_output=$(run_vc_or_skip robot triage 2>&1) || true
+set -x
 assert_json_valid "$triage_output" "Triage output should be valid JSON"
 assert_json_field "$triage_output" ".schema_version" "vc.robot.triage.v1" "Schema version should match"
 

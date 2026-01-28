@@ -18,10 +18,12 @@ setup_test_env
 
 # Test 1: Verify collect command runs without error
 test_info "Test 1: Running vc collect (fallback_probe)"
-collect_output=$(run_vc_or_skip collect --collector fallback_probe 2>&1) || {
+run_vc_or_skip collect --collector fallback_probe 2>&1 || {
+    collect_output="$VC_LAST_OUTPUT"
     test_error "Collect command failed: $collect_output"
     TEST_FAILURES=$((TEST_FAILURES + 1))
 }
+collect_output="$VC_LAST_OUTPUT"
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 if [[ -z "${collect_output:-}" || "$collect_output" != *"error"* ]]; then
     test_info "PASS: Collect command completed"
@@ -47,17 +49,21 @@ TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 
 # Test 4: Run collect again and verify it doesn't error (incremental safety)
 test_info "Test 4: Running collect a second time (incremental test)"
-collect_output2=$(run_vc_or_skip collect --collector fallback_probe 2>&1) || {
+run_vc_or_skip collect --collector fallback_probe 2>&1 || {
+    collect_output2="$VC_LAST_OUTPUT"
     test_warn "Second collect had warnings (may be expected): $collect_output2"
 }
+collect_output2="$VC_LAST_OUTPUT"
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 test_info "PASS: Second collect completed"
 
 # Test 5: Verify collect with machine filter
 test_info "Test 5: Running collect with machine filter"
-collect_output3=$(run_vc_or_skip collect --machine local 2>&1) || {
+run_vc_or_skip collect --machine local 2>&1 || {
+    collect_output3="$VC_LAST_OUTPUT"
     test_warn "Collect with machine filter had issues: $collect_output3"
 }
+collect_output3="$VC_LAST_OUTPUT"
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 test_info "PASS: Collect with machine filter completed"
 

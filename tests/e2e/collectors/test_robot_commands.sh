@@ -18,10 +18,12 @@ setup_test_env
 
 # Test 1: Robot health returns valid JSON
 test_info "Test 1: Checking vc robot health"
-health_output=$(run_vc_or_skip robot health 2>&1) || {
+if run_vc_or_skip robot health 2>&1; then
+    health_output="$VC_LAST_OUTPUT"
+else
     test_error "Robot health command failed"
     health_output="{}"
-}
+fi
 assert_json_valid "$health_output" "Health output should be valid JSON"
 
 # Test 2: Health JSON has required schema fields
@@ -52,10 +54,12 @@ fi
 
 # Test 5: Robot triage returns valid JSON
 test_info "Test 5: Checking vc robot triage"
-triage_output=$(run_vc_or_skip robot triage 2>&1) || {
+if run_vc_or_skip robot triage 2>&1; then
+    triage_output="$VC_LAST_OUTPUT"
+else
     test_error "Robot triage command failed"
     triage_output="{}"
-}
+fi
 assert_json_valid "$triage_output" "Triage output should be valid JSON"
 
 # Test 6: Triage JSON has required schema fields
@@ -75,10 +79,12 @@ fi
 
 # Test 8: Robot commands work with --format json flag
 test_info "Test 8: Checking --format json flag"
-json_output=$(run_vc_or_skip --format json robot health 2>&1) || {
+if run_vc_or_skip --format json robot health 2>&1; then
+    json_output="$VC_LAST_OUTPUT"
+else
     test_warn "Format flag test had issues"
     json_output="{}"
-}
+fi
 assert_json_valid "$json_output" "JSON format output should be valid"
 
 # Finalize and output results

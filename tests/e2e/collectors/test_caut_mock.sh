@@ -105,9 +105,11 @@ fi
 
 # Test 3: Run caut collector
 test_info "Test 3: Running caut collector"
-collect_output=$(run_vc_or_skip collect --collector caut 2>&1) || {
+run_vc_or_skip collect --collector caut 2>&1 || {
+    collect_output="$VC_LAST_OUTPUT"
     test_warn "CAUT collector had issues: $collect_output"
 }
+collect_output="$VC_LAST_OUTPUT"
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 test_info "PASS: CAUT collector completed"
 
@@ -128,9 +130,11 @@ fi
 
 # Test 6: Run caut collector again
 test_info "Test 6: Running caut collector again"
-collect_output2=$(run_vc_or_skip collect --collector caut 2>&1) || {
+run_vc_or_skip collect --collector caut 2>&1 || {
+    collect_output2="$VC_LAST_OUTPUT"
     test_warn "Second caut collect had issues"
 }
+collect_output2="$VC_LAST_OUTPUT"
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 test_info "PASS: Second caut collect completed"
 

@@ -18,7 +18,8 @@ setup_test_env
 
 # Test 1: Valid config is accepted
 test_info "Test 1: Valid config parsing"
-version_output=$(run_vc_or_skip --version 2>&1) || true
+run_vc_or_skip --version 2>&1 || true
+version_output="$VC_LAST_OUTPUT"
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 if [[ -n "$version_output" ]]; then
     test_info "PASS: Valid config accepted"
@@ -56,9 +57,11 @@ old_config="$TEST_CONFIG_PATH"
 TEST_CONFIG_PATH="$TEST_TEMP_DIR/multi_machine.toml"
 export TEST_CONFIG_PATH
 
-status_output=$(run_vc_or_skip --version 2>&1) || {
+run_vc_or_skip --version 2>&1 || {
+    status_output="$VC_LAST_OUTPUT"
     test_error "Multi-machine config rejected"
 }
+status_output="$VC_LAST_OUTPUT"
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 if [[ -n "$status_output" ]]; then
     test_info "PASS: Multi-machine config parsed"
@@ -99,9 +102,11 @@ EOF
 TEST_CONFIG_PATH="$TEST_TEMP_DIR/collector_config.toml"
 export TEST_CONFIG_PATH
 
-collector_output=$(run_vc_or_skip --version 2>&1) || {
+run_vc_or_skip --version 2>&1 || {
+    collector_output="$VC_LAST_OUTPUT"
     test_warn "Collector config had issues (may need collector config support)"
 }
+collector_output="$VC_LAST_OUTPUT"
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 test_info "PASS: Collector config handling completed"
 
@@ -115,7 +120,8 @@ EOF
 TEST_CONFIG_PATH="$TEST_TEMP_DIR/invalid.toml"
 export TEST_CONFIG_PATH
 
-invalid_output=$(run_vc_or_skip --version 2>&1) || true
+run_vc_or_skip --version 2>&1 || true
+invalid_output="$VC_LAST_OUTPUT"
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 # We expect this to fail or show an error
 if [[ "$invalid_output" == *"error"* ]] || [[ "$invalid_output" == *"Error"* ]] || [[ -z "$invalid_output" ]]; then
@@ -133,7 +139,8 @@ test_info "Test 5: Missing config file handling"
 TEST_CONFIG_PATH="$TEST_TEMP_DIR/nonexistent.toml"
 export TEST_CONFIG_PATH
 
-missing_output=$(run_vc_or_skip --version 2>&1) || true
+run_vc_or_skip --version 2>&1 || true
+missing_output="$VC_LAST_OUTPUT"
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 # Should either error or use defaults
 test_info "PASS: Missing config handling completed"

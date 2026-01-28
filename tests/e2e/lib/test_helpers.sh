@@ -41,6 +41,7 @@ TEST_NAME="${TEST_NAME:-$(basename "$0" .sh)}"
 TEST_ASSERTIONS=0
 TEST_FAILURES=0
 TEST_START_TIME=$(date +%s%N)
+VC_LAST_OUTPUT=""
 
 # Colors
 RED='\033[0;31m'
@@ -291,7 +292,7 @@ run_vc_or_skip() {
         exit 2
     fi
 
-    echo "$output"
+    VC_LAST_OUTPUT="$output"
     return "$status"
 }
 
