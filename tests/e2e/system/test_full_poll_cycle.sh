@@ -19,9 +19,11 @@ setup_test_env
 
 # Test 1: Run initial collect to set up database
 test_info "Test 1: Running initial collect"
-collect_output=$(run_vc_or_skip collect 2>&1) || {
+run_vc_or_skip collect 2>&1 || {
+    collect_output="$VC_LAST_OUTPUT"
     test_warn "Initial collect had issues (expected if no tools): $collect_output"
 }
+collect_output="$VC_LAST_OUTPUT"
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 test_info "PASS: Initial collect completed"
 
@@ -31,10 +33,12 @@ assert_file_exists "$TEST_DB_PATH" "DuckDB should exist after collect"
 
 # Test 3: Check health after data collection
 test_info "Test 3: Checking health status"
-health_output=$(run_vc_or_skip robot health 2>&1) || {
+if run_vc_or_skip robot health 2>&1; then
+    health_output="$VC_LAST_OUTPUT"
+else
     test_error "Health check failed after collect"
     health_output='{"data":{"overall":{"severity":"unknown"}}}'
-}
+fi
 assert_json_valid "$health_output" "Health should be valid JSON"
 
 severity=$(echo "$health_output" | jq -r '.data.overall.severity // "unknown"')
@@ -44,17 +48,21 @@ test_info "PASS: Health check completed with severity: $severity"
 
 # Test 4: Run triage after data collection
 test_info "Test 4: Checking triage output"
-triage_output=$(run_vc_or_skip robot triage 2>&1) || {
+if run_vc_or_skip robot triage 2>&1; then
+    triage_output="$VC_LAST_OUTPUT"
+else
     test_error "Triage failed after collect"
     triage_output='{}'
-}
+fi
 assert_json_valid "$triage_output" "Triage should be valid JSON"
 
 # Test 5: Run collect again (second poll)
 test_info "Test 5: Running second poll cycle"
-collect_output2=$(run_vc_or_skip collect 2>&1) || {
+run_vc_or_skip collect 2>&1 || {
+    collect_output2="$VC_LAST_OUTPUT"
     test_warn "Second collect had issues: $collect_output2"
 }
+collect_output2="$VC_LAST_OUTPUT"
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 test_info "PASS: Second poll completed"
 
@@ -71,18 +79,22 @@ fi
 
 # Test 7: Run specific collector
 test_info "Test 7: Running specific collector (fallback_probe)"
-specific_output=$(run_vc_or_skip collect --collector fallback_probe 2>&1) || {
+run_vc_or_skip collect --collector fallback_probe 2>&1 || {
+    specific_output="$VC_LAST_OUTPUT"
     test_warn "Specific collector had issues"
 }
+specific_output="$VC_LAST_OUTPUT"
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 test_info "PASS: Specific collector completed"
 
 # Test 8: Verify status command works
 test_info "Test 8: Checking status command"
-status_output=$(run_vc_or_skip status 2>&1) || {
+if run_vc_or_skip status 2>&1; then
+    status_output="$VC_LAST_OUTPUT"
+else
     test_warn "Status command had issues"
     status_output="status unavailable"
-}
+fi
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 test_info "PASS: Status command completed"
 

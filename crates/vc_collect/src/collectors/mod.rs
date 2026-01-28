@@ -46,6 +46,9 @@ pub use pt::PtCollector;
 pub mod beads;
 pub use beads::BeadsCollector;
 
+pub mod github;
+pub use github::GhCollector;
+
 // Future collectors will be added here as submodules:
 // pub mod pt;
 // pub mod bv_br;

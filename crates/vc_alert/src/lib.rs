@@ -865,4 +865,274 @@ mod tests {
         assert!(result.is_err());
         assert!(matches!(result, Err(AlertError::DeliveryFailed(_))));
     }
+
+    // ==========================================================================
+    // Additional Default Rules Tests
+    // ==========================================================================
+
+    #[test]
+    fn test_default_rules_dcg_critical() {
+        let engine = AlertEngine::new();
+        let rules = engine.rules();
+
+        let dcg_rule = rules.iter().find(|r| r.rule_id == "dcg-critical-block");
+        assert!(dcg_rule.is_some());
+        let dcg_rule = dcg_rule.unwrap();
+        assert_eq!(dcg_rule.severity, Severity::Critical);
+        assert!(matches!(dcg_rule.condition, AlertCondition::Pattern { .. }));
+    }
+
+    #[test]
+    fn test_default_rules_agent_stuck() {
+        let engine = AlertEngine::new();
+        let rules = engine.rules();
+
+        let agent_rule = rules.iter().find(|r| r.rule_id == "agent-stuck");
+        assert!(agent_rule.is_some());
+        let agent_rule = agent_rule.unwrap();
+        assert_eq!(agent_rule.severity, Severity::Warning);
+        assert!(matches!(agent_rule.condition, AlertCondition::Absence { .. }));
+    }
+
+    #[test]
+    fn test_default_rules_rch_queue() {
+        let engine = AlertEngine::new();
+        let rules = engine.rules();
+
+        let rch_rule = rules.iter().find(|r| r.rule_id == "rch-queue-pressure");
+        assert!(rch_rule.is_some());
+        let rch_rule = rch_rule.unwrap();
+        assert_eq!(rch_rule.severity, Severity::Warning);
+        assert!(matches!(rch_rule.condition, AlertCondition::Threshold { .. }));
+    }
+
+    #[test]
+    fn test_default_rules_memory_critical() {
+        let engine = AlertEngine::new();
+        let rules = engine.rules();
+
+        let mem_rule = rules.iter().find(|r| r.rule_id == "memory-critical");
+        assert!(mem_rule.is_some());
+        let mem_rule = mem_rule.unwrap();
+        assert_eq!(mem_rule.severity, Severity::Critical);
+    }
+
+    #[test]
+    fn test_default_rules_count() {
+        let engine = AlertEngine::new();
+        // We now have 6 default rules
+        assert_eq!(engine.rules().len(), 6);
+    }
+
+    // ==========================================================================
+    // Memory Channel Tests
+    // ==========================================================================
+
+    #[tokio::test]
+    async fn test_memory_channel() {
+        let channel = MemoryChannel::new();
+        assert_eq!(channel.count(), 0);
+
+        let alert = Alert {
+            id: None,
+            rule_id: "test".to_string(),
+            fired_at: Utc::now(),
+            severity: Severity::Info,
+            title: "Test".to_string(),
+            message: "Test message".to_string(),
+            machine_id: None,
+            context: serde_json::json!({}),
+        };
+
+        channel.deliver(&alert).await.unwrap();
+        assert_eq!(channel.count(), 1);
+
+        channel.deliver(&alert).await.unwrap();
+        assert_eq!(channel.count(), 2);
+
+        let alerts = channel.alerts();
+        assert_eq!(alerts.len(), 2);
+        assert_eq!(alerts[0].rule_id, "test");
+    }
+
+    #[tokio::test]
+    async fn test_memory_channel_clear() {
+        let channel = MemoryChannel::new();
+        let alert = Alert {
+            id: None,
+            rule_id: "test".to_string(),
+            fired_at: Utc::now(),
+            severity: Severity::Info,
+            title: "Test".to_string(),
+            message: "Test".to_string(),
+            machine_id: None,
+            context: serde_json::json!({}),
+        };
+
+        channel.deliver(&alert).await.unwrap();
+        assert_eq!(channel.count(), 1);
+
+        channel.clear();
+        assert_eq!(channel.count(), 0);
+    }
+
+    #[test]
+    fn test_memory_channel_name() {
+        let channel = MemoryChannel::new();
+        assert_eq!(channel.name(), "memory");
+    }
+
+    // ==========================================================================
+    // Log Channel Tests
+    // ==========================================================================
+
+    #[test]
+    fn test_log_channel_levels() {
+        let warn_channel = LogChannel::warning();
+        assert_eq!(warn_channel.level, tracing::Level::WARN);
+
+        let info_channel = LogChannel::info();
+        assert_eq!(info_channel.level, tracing::Level::INFO);
+
+        let custom_channel = LogChannel::new(tracing::Level::ERROR);
+        assert_eq!(custom_channel.level, tracing::Level::ERROR);
+    }
+
+    #[test]
+    fn test_log_channel_default() {
+        let channel = LogChannel::default();
+        assert_eq!(channel.level, tracing::Level::WARN);
+    }
+
+    #[test]
+    fn test_log_channel_name() {
+        let channel = LogChannel::new(tracing::Level::INFO);
+        assert_eq!(channel.name(), "log");
+    }
+
+    #[tokio::test]
+    async fn test_log_channel_deliver() {
+        let channel = LogChannel::info();
+        let alert = Alert {
+            id: None,
+            rule_id: "test".to_string(),
+            fired_at: Utc::now(),
+            severity: Severity::Info,
+            title: "Test".to_string(),
+            message: "Test".to_string(),
+            machine_id: None,
+            context: serde_json::json!({}),
+        };
+
+        // Should not error
+        assert!(channel.deliver(&alert).await.is_ok());
+    }
+
+    // ==========================================================================
+    // TUI Channel Tests
+    // ==========================================================================
+
+    #[tokio::test]
+    async fn test_tui_channel() {
+        let (tx, mut rx) = tokio::sync::mpsc::channel(10);
+        let channel = TuiChannel::new(tx);
+
+        assert_eq!(channel.name(), "tui");
+
+        let alert = Alert {
+            id: None,
+            rule_id: "test".to_string(),
+            fired_at: Utc::now(),
+            severity: Severity::Warning,
+            title: "Test Alert".to_string(),
+            message: "This is a test".to_string(),
+            machine_id: Some("test-machine".to_string()),
+            context: serde_json::json!({"key": "value"}),
+        };
+
+        channel.deliver(&alert).await.unwrap();
+
+        // Verify the alert was received
+        let received = rx.try_recv().unwrap();
+        assert_eq!(received.rule_id, "test");
+        assert_eq!(received.title, "Test Alert");
+    }
+
+    // ==========================================================================
+    // Webhook Channel Tests
+    // ==========================================================================
+
+    #[test]
+    fn test_webhook_channel_creation() {
+        let channel = WebhookChannel::new("https://example.com/webhook");
+        assert_eq!(channel.name(), "webhook");
+        assert_eq!(channel.url, "https://example.com/webhook");
+    }
+
+    #[test]
+    fn test_webhook_channel_with_custom_client() {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap();
+
+        let channel = WebhookChannel::with_client("https://example.com/webhook", client);
+        assert_eq!(channel.url, "https://example.com/webhook");
+    }
+
+    // ==========================================================================
+    // Alert Builder Tests
+    // ==========================================================================
+
+    #[test]
+    fn test_alert_from_rule() {
+        let rule = AlertRule {
+            rule_id: "test-rule".to_string(),
+            name: "Test Rule".to_string(),
+            description: None,
+            severity: Severity::Warning,
+            enabled: true,
+            condition: AlertCondition::Threshold {
+                query: "SELECT 1".to_string(),
+                operator: ThresholdOp::Gt,
+                value: 0.0,
+            },
+            cooldown_secs: 60,
+            channels: vec!["tui".to_string()],
+        };
+
+        let alert = Alert::from_rule(&rule, "Value exceeded threshold");
+        assert_eq!(alert.rule_id, "test-rule");
+        assert_eq!(alert.title, "Test Rule");
+        assert_eq!(alert.severity, Severity::Warning);
+        assert_eq!(alert.message, "Value exceeded threshold");
+        assert!(alert.id.is_none());
+        assert!(alert.machine_id.is_none());
+    }
+
+    #[test]
+    fn test_alert_builder_chain() {
+        let rule = AlertRule {
+            rule_id: "test".to_string(),
+            name: "Test".to_string(),
+            description: None,
+            severity: Severity::Critical,
+            enabled: true,
+            condition: AlertCondition::Threshold {
+                query: "SELECT 1".to_string(),
+                operator: ThresholdOp::Gt,
+                value: 0.0,
+            },
+            cooldown_secs: 60,
+            channels: vec![],
+        };
+
+        let alert = Alert::from_rule(&rule, "Test message")
+            .with_machine_id("server-1")
+            .with_context(serde_json::json!({"metric": 95.5, "threshold": 90.0}));
+
+        assert_eq!(alert.machine_id, Some("server-1".to_string()));
+        assert_eq!(alert.context["metric"], 95.5);
+        assert_eq!(alert.context["threshold"], 90.0);
+    }
 }
