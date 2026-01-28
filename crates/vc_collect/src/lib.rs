@@ -556,6 +556,7 @@ impl CollectorRegistry {
         registry.register(Arc::new(collectors::RanoCollector::new()));
         registry.register(Arc::new(collectors::DcgCollector::new()));
         registry.register(Arc::new(collectors::BeadsCollector));
+        registry.register(Arc::new(collectors::GhCollector));
 
         // More collectors will be registered here as they're implemented
         // etc.

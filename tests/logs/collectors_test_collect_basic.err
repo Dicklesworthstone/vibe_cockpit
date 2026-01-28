@@ -22,7 +22,8 @@
 ++ TEST_ASSERTIONS=0
 ++ TEST_FAILURES=0
 +++ date +%s%N
-++ TEST_START_TIME=1769621021475558770
+++ TEST_START_TIME=1769623452384373940
+++ VC_LAST_OUTPUT=
 ++ RED='\033[0;31m'
 ++ GREEN='\033[0;32m'
 ++ YELLOW='\033[1;33m'
@@ -33,114 +34,36 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:41-05:00] [INFO] Starting basic collect E2E test'
-[2026-01-28T12:23:41-05:00] [INFO] Starting basic collect E2E test
++ echo '[2026-01-28T13:04:12-05:00] [INFO] Starting basic collect E2E test'
+[2026-01-28T13:04:12-05:00] [INFO] Starting basic collect E2E test
 + setup_test_env
 + test_info 'Setting up test environment'
 + test_log INFO 'Setting up test environment'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:41-05:00] [INFO] Setting up test environment'
-[2026-01-28T12:23:41-05:00] [INFO] Setting up test environment
++ echo '[2026-01-28T13:04:12-05:00] [INFO] Setting up test environment'
+[2026-01-28T13:04:12-05:00] [INFO] Setting up test environment
 ++ mktemp -d -t vc_e2e_test_collect_basic_XXXXXX
-+ TEST_TEMP_DIR=/data/tmp/vc_e2e_test_collect_basic_zatOyS
++ TEST_TEMP_DIR=/data/tmp/vc_e2e_test_collect_basic_aEhIDE
 + export TEST_TEMP_DIR
-+ TEST_DB_PATH=/data/tmp/vc_e2e_test_collect_basic_zatOyS/test.duckdb
++ TEST_DB_PATH=/data/tmp/vc_e2e_test_collect_basic_aEhIDE/test.duckdb
 + export TEST_DB_PATH
-+ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_collect_basic_zatOyS/config.toml
++ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_collect_basic_aEhIDE/config.toml
 + cat
 + export TEST_CONFIG_PATH
-+ test_info 'Test temp dir: /data/tmp/vc_e2e_test_collect_basic_zatOyS'
-+ test_log INFO 'Test temp dir: /data/tmp/vc_e2e_test_collect_basic_zatOyS'
++ test_info 'Test temp dir: /data/tmp/vc_e2e_test_collect_basic_aEhIDE'
++ test_log INFO 'Test temp dir: /data/tmp/vc_e2e_test_collect_basic_aEhIDE'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:41-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_collect_basic_zatOyS'
-[2026-01-28T12:23:41-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_collect_basic_zatOyS
++ echo '[2026-01-28T13:04:13-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_collect_basic_aEhIDE'
+[2026-01-28T13:04:13-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_collect_basic_aEhIDE
 + test_info 'Test 1: Running vc collect (fallback_probe)'
 + test_log INFO 'Test 1: Running vc collect (fallback_probe)'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:41-05:00] [INFO] Test 1: Running vc collect (fallback_probe)'
-[2026-01-28T12:23:41-05:00] [INFO] Test 1: Running vc collect (fallback_probe)
-++ run_vc collect --collector fallback_probe
-+ collect_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_collect_basic_zatOyS/config.toml collect --collector fallback_probe
-Command not yet implemented: Collect { collector: Some("fallback_probe"), machine: None }'
-+ TEST_ASSERTIONS=1
-+ [[ -z ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_collect_basic_zatOyS/config.toml collect --collector fallback_probe
-Command not yet implemented: Collect { collector: Some("fallback_probe"), machine: None } ]]
-+ [[ ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_collect_basic_zatOyS/config.toml collect --collector fallback_probe
-Command not yet implemented: Collect { collector: Some("fallback_probe"), machine: None } != *\e\r\r\o\r* ]]
-+ test_info 'PASS: Collect command completed'
-+ test_log INFO 'PASS: Collect command completed'
-+ local level=INFO
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:23:42-05:00] [INFO] PASS: Collect command completed'
-[2026-01-28T12:23:42-05:00] [INFO] PASS: Collect command completed
-+ test_info 'Test 2: Checking DuckDB file creation'
-+ test_log INFO 'Test 2: Checking DuckDB file creation'
-+ local level=INFO
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:23:42-05:00] [INFO] Test 2: Checking DuckDB file creation'
-[2026-01-28T12:23:42-05:00] [INFO] Test 2: Checking DuckDB file creation
-+ assert_file_exists /data/tmp/vc_e2e_test_collect_basic_zatOyS/test.duckdb 'DuckDB file should be created after collect'
-+ local path=/data/tmp/vc_e2e_test_collect_basic_zatOyS/test.duckdb
-+ local 'msg=DuckDB file should be created after collect'
-+ TEST_ASSERTIONS=2
-+ [[ -f /data/tmp/vc_e2e_test_collect_basic_zatOyS/test.duckdb ]]
-+ test_error 'FAIL: DuckDB file should be created after collect'
-+ test_log ERROR 'FAIL: DuckDB file should be created after collect'
-+ local level=ERROR
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:23:42-05:00] [ERROR] FAIL: DuckDB file should be created after collect'
-[2026-01-28T12:23:42-05:00] [ERROR] FAIL: DuckDB file should be created after collect
-+ test_error '  Path: /data/tmp/vc_e2e_test_collect_basic_zatOyS/test.duckdb'
-+ test_log ERROR '  Path: /data/tmp/vc_e2e_test_collect_basic_zatOyS/test.duckdb'
-+ local level=ERROR
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:23:42-05:00] [ERROR]   Path: /data/tmp/vc_e2e_test_collect_basic_zatOyS/test.duckdb'
-[2026-01-28T12:23:42-05:00] [ERROR]   Path: /data/tmp/vc_e2e_test_collect_basic_zatOyS/test.duckdb
-+ TEST_FAILURES=1
-+ test_info 'Test 3: Checking DuckDB has data'
-+ test_log INFO 'Test 3: Checking DuckDB has data'
-+ local level=INFO
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:23:42-05:00] [INFO] Test 3: Checking DuckDB has data'
-[2026-01-28T12:23:42-05:00] [INFO] Test 3: Checking DuckDB has data
-++ stat -c%s /data/tmp/vc_e2e_test_collect_basic_zatOyS/test.duckdb
-++ stat -f%z /data/tmp/vc_e2e_test_collect_basic_zatOyS/test.duckdb
-error: unexpected argument '-%' found
-
-  tip: to pass '-%' as a value, use '-- -%'
-
-Usage: stat [OPTION]... FILE...
-
-For more information, try '--help'.
-+ db_size=
-+ cleanup_test_env
-+ local exit_code=1
-+ test_info 'Cleaning up test environment'
-+ test_log INFO 'Cleaning up test environment'
-+ local level=INFO
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:23:42-05:00] [INFO] Cleaning up test environment'
-[2026-01-28T12:23:42-05:00] [INFO] Cleaning up test environment
-+ [[ -n /data/tmp/vc_e2e_test_collect_basic_zatOyS ]]
-+ [[ -d /data/tmp/vc_e2e_test_collect_basic_zatOyS ]]
-+ [[ 1 -ne 0 ]]
-+ [[ '' == \t\r\u\e ]]
-+ rm -rf /data/tmp/vc_e2e_test_collect_basic_zatOyS
++ echo '[2026-01-28T13:04:13-05:00] [INFO] Test 1: Running vc collect (fallback_probe)'
+[2026-01-28T13:04:13-05:00] [INFO] Test 1: Running vc collect (fallback_probe)
++ run_vc_or_skip collect --collector fallback_probe

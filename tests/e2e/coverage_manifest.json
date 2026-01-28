@@ -9,6 +9,7 @@
     "collectors/test_dcg_collect.sh",
     "collectors/test_fallback_probe.sh",
     "collectors/test_mcp_mail_collect.sh",
+    "collectors/test_rano_collect.sh",
     "collectors/test_rch_collect.sh",
     "collectors/test_robot_commands.sh",
     "collectors/test_ru_collect.sh",

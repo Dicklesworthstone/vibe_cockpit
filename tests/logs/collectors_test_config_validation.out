@@ -1,7 +1,52 @@
++ local output=
++ local status=0
++ local had_xtrace=0
++ [[ ehuxB == *x* ]]
++ had_xtrace=1
++ set +x
++ [[ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z) == *\C\o\m\m\a\n\d\ \n\o\t\ \y\e\t\ \i\m\p\l\e\m\e\n\t\e\d* ]]
++ VC_LAST_OUTPUT='vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
++ return 0
++ local output=
++ local status=0
++ local had_xtrace=0
++ [[ ehuxB == *x* ]]
++ had_xtrace=1
++ set +x
++ [[ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z) == *\C\o\m\m\a\n\d\ \n\o\t\ \y\e\t\ \i\m\p\l\e\m\e\n\t\e\d* ]]
++ VC_LAST_OUTPUT='vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
++ return 0
++ local output=
++ local status=0
++ local had_xtrace=0
++ [[ ehuxB == *x* ]]
++ had_xtrace=1
++ set +x
++ [[ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z) == *\C\o\m\m\a\n\d\ \n\o\t\ \y\e\t\ \i\m\p\l\e\m\e\n\t\e\d* ]]
++ VC_LAST_OUTPUT='vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
++ return 0
++ local output=
++ local status=0
++ local had_xtrace=0
++ [[ ehuxB == *x* ]]
++ had_xtrace=1
++ set +x
++ [[ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z) == *\C\o\m\m\a\n\d\ \n\o\t\ \y\e\t\ \i\m\p\l\e\m\e\n\t\e\d* ]]
++ VC_LAST_OUTPUT='vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
++ return 0
++ local output=
++ local status=0
++ local had_xtrace=0
++ [[ ehuxB == *x* ]]
++ had_xtrace=1
++ set +x
++ [[ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z) == *\C\o\m\m\a\n\d\ \n\o\t\ \y\e\t\ \i\m\p\l\e\m\e\n\t\e\d* ]]
++ VC_LAST_OUTPUT='vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
++ return 0
 {
   "test_name": "test_config_validation",
   "status": "passed",
-  "duration_ms": 1748,
+  "duration_ms": 6546,
   "assertions": 5,
   "failures": 0
 }

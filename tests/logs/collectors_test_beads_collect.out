@@ -1,0 +1,7 @@
+{
+  "test_name": "test_beads_collect",
+  "status": "passed",
+  "duration_ms": 12462,
+  "assertions": 5,
+  "failures": 0
+}

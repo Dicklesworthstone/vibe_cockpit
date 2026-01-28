@@ -22,7 +22,8 @@
 ++ TEST_ASSERTIONS=0
 ++ TEST_FAILURES=0
 +++ date +%s%N
-++ TEST_START_TIME=1769621020167158384
+++ TEST_START_TIME=1769623446340849528
+++ VC_LAST_OUTPUT=
 ++ RED='\033[0;31m'
 ++ GREEN='\033[0;32m'
 ++ YELLOW='\033[1;33m'
@@ -33,64 +34,288 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:40-05:00] [INFO] Starting caut mock E2E test'
-[2026-01-28T12:23:40-05:00] [INFO] Starting caut mock E2E test
++ echo '[2026-01-28T13:04:06-05:00] [INFO] Starting caut mock E2E test'
+[2026-01-28T13:04:06-05:00] [INFO] Starting caut mock E2E test
 + setup_test_env
 + test_info 'Setting up test environment'
 + test_log INFO 'Setting up test environment'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:40-05:00] [INFO] Setting up test environment'
-[2026-01-28T12:23:40-05:00] [INFO] Setting up test environment
++ echo '[2026-01-28T13:04:06-05:00] [INFO] Setting up test environment'
+[2026-01-28T13:04:06-05:00] [INFO] Setting up test environment
 ++ mktemp -d -t vc_e2e_test_caut_mock_XXXXXX
-+ TEST_TEMP_DIR=/data/tmp/vc_e2e_test_caut_mock_MxS1Fd
++ TEST_TEMP_DIR=/data/tmp/vc_e2e_test_caut_mock_jHkVsF
 + export TEST_TEMP_DIR
-+ TEST_DB_PATH=/data/tmp/vc_e2e_test_caut_mock_MxS1Fd/test.duckdb
++ TEST_DB_PATH=/data/tmp/vc_e2e_test_caut_mock_jHkVsF/test.duckdb
 + export TEST_DB_PATH
-+ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_caut_mock_MxS1Fd/config.toml
++ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_caut_mock_jHkVsF/config.toml
 + cat
 + export TEST_CONFIG_PATH
-+ test_info 'Test temp dir: /data/tmp/vc_e2e_test_caut_mock_MxS1Fd'
-+ test_log INFO 'Test temp dir: /data/tmp/vc_e2e_test_caut_mock_MxS1Fd'
++ test_info 'Test temp dir: /data/tmp/vc_e2e_test_caut_mock_jHkVsF'
++ test_log INFO 'Test temp dir: /data/tmp/vc_e2e_test_caut_mock_jHkVsF'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:40-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_caut_mock_MxS1Fd'
-[2026-01-28T12:23:40-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_caut_mock_MxS1Fd
++ echo '[2026-01-28T13:04:07-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_caut_mock_jHkVsF'
+[2026-01-28T13:04:07-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_caut_mock_jHkVsF
 + test_info 'Creating mock caut command'
 + test_log INFO 'Creating mock caut command'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:40-05:00] [INFO] Creating mock caut command'
-[2026-01-28T12:23:40-05:00] [INFO] Creating mock caut command
-+ MOCK_BIN_DIR=/data/tmp/vc_e2e_test_caut_mock_MxS1Fd/bin
-+ mkdir -p /data/tmp/vc_e2e_test_caut_mock_MxS1Fd/bin
++ echo '[2026-01-28T13:04:07-05:00] [INFO] Creating mock caut command'
+[2026-01-28T13:04:07-05:00] [INFO] Creating mock caut command
++ MOCK_BIN_DIR=/data/tmp/vc_e2e_test_caut_mock_jHkVsF/bin
++ mkdir -p /data/tmp/vc_e2e_test_caut_mock_jHkVsF/bin
 + cat
-+ chmod +x /data/tmp/vc_e2e_test_caut_mock_MxS1Fd/bin/caut
-+ export PATH=/data/tmp/vc_e2e_test_caut_mock_MxS1Fd/bin:/home/ubuntu/.codex/tmp/path/codex-arg0eJszyB:/home/ubuntu/.bun/install/global/node_modules/@openai/codex/vendor/x86_64-unknown-linux-musl/path:/data/tmp/.tmpMpmAMF:/data/tmp/.tmpzam3q7:/data/tmp/.tmpoyAfve:/data/tmp/.tmpe6g78I:/data/tmp/.tmpPd69rK:/data/tmp/.tmpGRbjsw:/data/tmp/.tmpz2brVn:/data/tmp/.tmp0PnFJv:/data/tmp/.tmpPoRhAM:/data/tmp/.tmpFfkQ40:/data/tmp/.tmpuxSIpy:/data/tmp/.tmpXjJuNc:/data/tmp/.tmpTZnvXD:/data/tmp/.tmpuK4iIg:/data/tmp/.tmpajeyt7:/data/tmp/.tmpev6kRK:/data/tmp/.tmpiDVpJA:/data/tmp/.tmpnDRhga:/data/tmp/.tmpzxxM5v:/data/tmp/.tmpvKVXKw:/data/tmp/.tmpmNPIdP:/data/tmp/.tmpVFL4Sw:/data/tmp/.tmp7ItVFC:/data/tmp/.tmp0vGjRa:/data/tmp/.tmpBllZzw:/data/tmp/.tmpobicww:/data/tmp/.tmp8f8C2e:/data/tmp/.tmpbD8QBY:/data/tmp/.tmpjzHvSF:/data/tmp/.tmpkjqRCG:/data/tmp/.tmpVzu1zg:/data/tmp/.tmpHO13GV:/data/tmp/.tmprTmBIb:/data/tmp/.tmpRHFAS9:/data/tmp/.tmp84NBm7:/data/tmp/.tmpOXe4sc:/data/tmp/.tmpcOX7LV:/data/tmp/.tmpHmVm2g:/data/tmp/.tmp9gcOZP:/data/tmp/.tmpz4q0R1:/data/tmp/.tmpvkDZiX:/data/tmp/.tmp7Mj5dU:/data/tmp/.tmpdkiSGU:/data/tmp/.tmpDhz6SG:/data/tmp/.tmpxZwXIA:/data/tmp/.tmptoaKcg:/data/tmp/.tmp5WocB2:/data/tmp/.tmpQIUXw6:/data/tmp/.tmp3pRXXR:/data/tmp/.tmpGRxfSM:/data/tmp/.tmpLA8PkL:/data/tmp/.tmpFbmIJR:/data/tmp/.tmpWfLZ76:/data/tmp/.tmpWsTSmr:/data/tmp/.tmpxh3SQx:/data/tmp/.tmp0QcB2I:/data/tmp/.tmpxNatIO:/data/tmp/.tmpupEMqh:/data/tmp/.tmppCYdSE:/data/tmp/.tmpymdjNV:/data/tmp/.tmpCFNqVV:/data/tmp/.tmpdJ2vDZ:/data/tmp/.tmpSewNuz:/data/tmp/.tmpQlKd6y:/data/tmp/.tmprUxpI2:/run/user/1000/fnm_multishells/1141914_1769574439286/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/bin:/run/user/1000/fnm_multishells/1141838_1769574439149/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/.nvm/versions/node/v24.12.0/bin:/home/ubuntu/.local/bin:/home/ubuntu/.atuin/bin:/home/ubuntu/.bun/bin:/home/ubuntu/go/bin:/home/ubuntu/.cargo/bin:/home/ubuntu/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/snap/bin
-+ PATH=/data/tmp/vc_e2e_test_caut_mock_MxS1Fd/bin:/home/ubuntu/.codex/tmp/path/codex-arg0eJszyB:/home/ubuntu/.bun/install/global/node_modules/@openai/codex/vendor/x86_64-unknown-linux-musl/path:/data/tmp/.tmpMpmAMF:/data/tmp/.tmpzam3q7:/data/tmp/.tmpoyAfve:/data/tmp/.tmpe6g78I:/data/tmp/.tmpPd69rK:/data/tmp/.tmpGRbjsw:/data/tmp/.tmpz2brVn:/data/tmp/.tmp0PnFJv:/data/tmp/.tmpPoRhAM:/data/tmp/.tmpFfkQ40:/data/tmp/.tmpuxSIpy:/data/tmp/.tmpXjJuNc:/data/tmp/.tmpTZnvXD:/data/tmp/.tmpuK4iIg:/data/tmp/.tmpajeyt7:/data/tmp/.tmpev6kRK:/data/tmp/.tmpiDVpJA:/data/tmp/.tmpnDRhga:/data/tmp/.tmpzxxM5v:/data/tmp/.tmpvKVXKw:/data/tmp/.tmpmNPIdP:/data/tmp/.tmpVFL4Sw:/data/tmp/.tmp7ItVFC:/data/tmp/.tmp0vGjRa:/data/tmp/.tmpBllZzw:/data/tmp/.tmpobicww:/data/tmp/.tmp8f8C2e:/data/tmp/.tmpbD8QBY:/data/tmp/.tmpjzHvSF:/data/tmp/.tmpkjqRCG:/data/tmp/.tmpVzu1zg:/data/tmp/.tmpHO13GV:/data/tmp/.tmprTmBIb:/data/tmp/.tmpRHFAS9:/data/tmp/.tmp84NBm7:/data/tmp/.tmpOXe4sc:/data/tmp/.tmpcOX7LV:/data/tmp/.tmpHmVm2g:/data/tmp/.tmp9gcOZP:/data/tmp/.tmpz4q0R1:/data/tmp/.tmpvkDZiX:/data/tmp/.tmp7Mj5dU:/data/tmp/.tmpdkiSGU:/data/tmp/.tmpDhz6SG:/data/tmp/.tmpxZwXIA:/data/tmp/.tmptoaKcg:/data/tmp/.tmp5WocB2:/data/tmp/.tmpQIUXw6:/data/tmp/.tmp3pRXXR:/data/tmp/.tmpGRxfSM:/data/tmp/.tmpLA8PkL:/data/tmp/.tmpFbmIJR:/data/tmp/.tmpWfLZ76:/data/tmp/.tmpWsTSmr:/data/tmp/.tmpxh3SQx:/data/tmp/.tmp0QcB2I:/data/tmp/.tmpxNatIO:/data/tmp/.tmpupEMqh:/data/tmp/.tmppCYdSE:/data/tmp/.tmpymdjNV:/data/tmp/.tmpCFNqVV:/data/tmp/.tmpdJ2vDZ:/data/tmp/.tmpSewNuz:/data/tmp/.tmpQlKd6y:/data/tmp/.tmprUxpI2:/run/user/1000/fnm_multishells/1141914_1769574439286/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/bin:/run/user/1000/fnm_multishells/1141838_1769574439149/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/.nvm/versions/node/v24.12.0/bin:/home/ubuntu/.local/bin:/home/ubuntu/.atuin/bin:/home/ubuntu/.bun/bin:/home/ubuntu/go/bin:/home/ubuntu/.cargo/bin:/home/ubuntu/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/snap/bin
++ chmod +x /data/tmp/vc_e2e_test_caut_mock_jHkVsF/bin/caut
++ export PATH=/data/tmp/vc_e2e_test_caut_mock_jHkVsF/bin:/home/ubuntu/.codex/tmp/path/codex-arg0eJszyB:/home/ubuntu/.bun/install/global/node_modules/@openai/codex/vendor/x86_64-unknown-linux-musl/path:/data/tmp/.tmpMpmAMF:/data/tmp/.tmpzam3q7:/data/tmp/.tmpoyAfve:/data/tmp/.tmpe6g78I:/data/tmp/.tmpPd69rK:/data/tmp/.tmpGRbjsw:/data/tmp/.tmpz2brVn:/data/tmp/.tmp0PnFJv:/data/tmp/.tmpPoRhAM:/data/tmp/.tmpFfkQ40:/data/tmp/.tmpuxSIpy:/data/tmp/.tmpXjJuNc:/data/tmp/.tmpTZnvXD:/data/tmp/.tmpuK4iIg:/data/tmp/.tmpajeyt7:/data/tmp/.tmpev6kRK:/data/tmp/.tmpiDVpJA:/data/tmp/.tmpnDRhga:/data/tmp/.tmpzxxM5v:/data/tmp/.tmpvKVXKw:/data/tmp/.tmpmNPIdP:/data/tmp/.tmpVFL4Sw:/data/tmp/.tmp7ItVFC:/data/tmp/.tmp0vGjRa:/data/tmp/.tmpBllZzw:/data/tmp/.tmpobicww:/data/tmp/.tmp8f8C2e:/data/tmp/.tmpbD8QBY:/data/tmp/.tmpjzHvSF:/data/tmp/.tmpkjqRCG:/data/tmp/.tmpVzu1zg:/data/tmp/.tmpHO13GV:/data/tmp/.tmprTmBIb:/data/tmp/.tmpRHFAS9:/data/tmp/.tmp84NBm7:/data/tmp/.tmpOXe4sc:/data/tmp/.tmpcOX7LV:/data/tmp/.tmpHmVm2g:/data/tmp/.tmp9gcOZP:/data/tmp/.tmpz4q0R1:/data/tmp/.tmpvkDZiX:/data/tmp/.tmp7Mj5dU:/data/tmp/.tmpdkiSGU:/data/tmp/.tmpDhz6SG:/data/tmp/.tmpxZwXIA:/data/tmp/.tmptoaKcg:/data/tmp/.tmp5WocB2:/data/tmp/.tmpQIUXw6:/data/tmp/.tmp3pRXXR:/data/tmp/.tmpGRxfSM:/data/tmp/.tmpLA8PkL:/data/tmp/.tmpFbmIJR:/data/tmp/.tmpWfLZ76:/data/tmp/.tmpWsTSmr:/data/tmp/.tmpxh3SQx:/data/tmp/.tmp0QcB2I:/data/tmp/.tmpxNatIO:/data/tmp/.tmpupEMqh:/data/tmp/.tmppCYdSE:/data/tmp/.tmpymdjNV:/data/tmp/.tmpCFNqVV:/data/tmp/.tmpdJ2vDZ:/data/tmp/.tmpSewNuz:/data/tmp/.tmpQlKd6y:/data/tmp/.tmprUxpI2:/run/user/1000/fnm_multishells/1141914_1769574439286/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/bin:/run/user/1000/fnm_multishells/1141838_1769574439149/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/.nvm/versions/node/v24.12.0/bin:/home/ubuntu/.local/bin:/home/ubuntu/.atuin/bin:/home/ubuntu/.bun/bin:/home/ubuntu/go/bin:/home/ubuntu/.cargo/bin:/home/ubuntu/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/snap/bin
++ PATH=/data/tmp/vc_e2e_test_caut_mock_jHkVsF/bin:/home/ubuntu/.codex/tmp/path/codex-arg0eJszyB:/home/ubuntu/.bun/install/global/node_modules/@openai/codex/vendor/x86_64-unknown-linux-musl/path:/data/tmp/.tmpMpmAMF:/data/tmp/.tmpzam3q7:/data/tmp/.tmpoyAfve:/data/tmp/.tmpe6g78I:/data/tmp/.tmpPd69rK:/data/tmp/.tmpGRbjsw:/data/tmp/.tmpz2brVn:/data/tmp/.tmp0PnFJv:/data/tmp/.tmpPoRhAM:/data/tmp/.tmpFfkQ40:/data/tmp/.tmpuxSIpy:/data/tmp/.tmpXjJuNc:/data/tmp/.tmpTZnvXD:/data/tmp/.tmpuK4iIg:/data/tmp/.tmpajeyt7:/data/tmp/.tmpev6kRK:/data/tmp/.tmpiDVpJA:/data/tmp/.tmpnDRhga:/data/tmp/.tmpzxxM5v:/data/tmp/.tmpvKVXKw:/data/tmp/.tmpmNPIdP:/data/tmp/.tmpVFL4Sw:/data/tmp/.tmp7ItVFC:/data/tmp/.tmp0vGjRa:/data/tmp/.tmpBllZzw:/data/tmp/.tmpobicww:/data/tmp/.tmp8f8C2e:/data/tmp/.tmpbD8QBY:/data/tmp/.tmpjzHvSF:/data/tmp/.tmpkjqRCG:/data/tmp/.tmpVzu1zg:/data/tmp/.tmpHO13GV:/data/tmp/.tmprTmBIb:/data/tmp/.tmpRHFAS9:/data/tmp/.tmp84NBm7:/data/tmp/.tmpOXe4sc:/data/tmp/.tmpcOX7LV:/data/tmp/.tmpHmVm2g:/data/tmp/.tmp9gcOZP:/data/tmp/.tmpz4q0R1:/data/tmp/.tmpvkDZiX:/data/tmp/.tmp7Mj5dU:/data/tmp/.tmpdkiSGU:/data/tmp/.tmpDhz6SG:/data/tmp/.tmpxZwXIA:/data/tmp/.tmptoaKcg:/data/tmp/.tmp5WocB2:/data/tmp/.tmpQIUXw6:/data/tmp/.tmp3pRXXR:/data/tmp/.tmpGRxfSM:/data/tmp/.tmpLA8PkL:/data/tmp/.tmpFbmIJR:/data/tmp/.tmpWfLZ76:/data/tmp/.tmpWsTSmr:/data/tmp/.tmpxh3SQx:/data/tmp/.tmp0QcB2I:/data/tmp/.tmpxNatIO:/data/tmp/.tmpupEMqh:/data/tmp/.tmppCYdSE:/data/tmp/.tmpymdjNV:/data/tmp/.tmpCFNqVV:/data/tmp/.tmpdJ2vDZ:/data/tmp/.tmpSewNuz:/data/tmp/.tmpQlKd6y:/data/tmp/.tmprUxpI2:/run/user/1000/fnm_multishells/1141914_1769574439286/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/bin:/run/user/1000/fnm_multishells/1141838_1769574439149/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/.nvm/versions/node/v24.12.0/bin:/home/ubuntu/.local/bin:/home/ubuntu/.atuin/bin:/home/ubuntu/.bun/bin:/home/ubuntu/go/bin:/home/ubuntu/.cargo/bin:/home/ubuntu/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/snap/bin
 + test_info 'Test 1: Verifying mock caut'
 + test_log INFO 'Test 1: Verifying mock caut'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:40-05:00] [INFO] Test 1: Verifying mock caut'
-[2026-01-28T12:23:40-05:00] [INFO] Test 1: Verifying mock caut
-++ /data/tmp/vc_e2e_test_caut_mock_MxS1Fd/bin/caut --json
-+ mock_status='Usage: caut [status] [--json]'
-+ cleanup_test_env
-+ local exit_code=1
-+ test_info 'Cleaning up test environment'
-+ test_log INFO 'Cleaning up test environment'
++ echo '[2026-01-28T13:04:07-05:00] [INFO] Test 1: Verifying mock caut'
+[2026-01-28T13:04:07-05:00] [INFO] Test 1: Verifying mock caut
+++ /data/tmp/vc_e2e_test_caut_mock_jHkVsF/bin/caut status --json
++ mock_status='{
+  "accounts": [
+    {
+      "provider": "anthropic",
+      "account_id": "acct_001",
+      "usage_pct": 45.5,
+      "tokens_used": 4550000,
+      "tokens_limit": 10000000,
+      "resets_at": "2026-02-01T00:00:00Z",
+      "cost_estimate": 45.50
+    },
+    {
+      "provider": "anthropic",
+      "account_id": "acct_002",
+      "usage_pct": 12.3,
+      "tokens_used": 1230000,
+      "tokens_limit": 10000000,
+      "resets_at": "2026-02-01T00:00:00Z",
+      "cost_estimate": 12.30
+    },
+    {
+      "provider": "openai",
+      "account_id": "org-xyz",
+      "usage_pct": 78.9,
+      "tokens_used": 789000000,
+      "tokens_limit": 1000000000,
+      "resets_at": "2026-02-01T00:00:00Z",
+      "cost_estimate": 157.80
+    }
+  ],
+  "total_cost_estimate": 215.60
+}'
++ assert_json_valid '{
+  "accounts": [
+    {
+      "provider": "anthropic",
+      "account_id": "acct_001",
+      "usage_pct": 45.5,
+      "tokens_used": 4550000,
+      "tokens_limit": 10000000,
+      "resets_at": "2026-02-01T00:00:00Z",
+      "cost_estimate": 45.50
+    },
+    {
+      "provider": "anthropic",
+      "account_id": "acct_002",
+      "usage_pct": 12.3,
+      "tokens_used": 1230000,
+      "tokens_limit": 10000000,
+      "resets_at": "2026-02-01T00:00:00Z",
+      "cost_estimate": 12.30
+    },
+    {
+      "provider": "openai",
+      "account_id": "org-xyz",
+      "usage_pct": 78.9,
+      "tokens_used": 789000000,
+      "tokens_limit": 1000000000,
+      "resets_at": "2026-02-01T00:00:00Z",
+      "cost_estimate": 157.80
+    }
+  ],
+  "total_cost_estimate": 215.60
+}' 'Mock caut should be valid JSON'
++ local 'json={
+  "accounts": [
+    {
+      "provider": "anthropic",
+      "account_id": "acct_001",
+      "usage_pct": 45.5,
+      "tokens_used": 4550000,
+      "tokens_limit": 10000000,
+      "resets_at": "2026-02-01T00:00:00Z",
+      "cost_estimate": 45.50
+    },
+    {
+      "provider": "anthropic",
+      "account_id": "acct_002",
+      "usage_pct": 12.3,
+      "tokens_used": 1230000,
+      "tokens_limit": 10000000,
+      "resets_at": "2026-02-01T00:00:00Z",
+      "cost_estimate": 12.30
+    },
+    {
+      "provider": "openai",
+      "account_id": "org-xyz",
+      "usage_pct": 78.9,
+      "tokens_used": 789000000,
+      "tokens_limit": 1000000000,
+      "resets_at": "2026-02-01T00:00:00Z",
+      "cost_estimate": 157.80
+    }
+  ],
+  "total_cost_estimate": 215.60
+}'
++ local 'msg=Mock caut should be valid JSON'
++ TEST_ASSERTIONS=1
++ echo '{
+  "accounts": [
+    {
+      "provider": "anthropic",
+      "account_id": "acct_001",
+      "usage_pct": 45.5,
+      "tokens_used": 4550000,
+      "tokens_limit": 10000000,
+      "resets_at": "2026-02-01T00:00:00Z",
+      "cost_estimate": 45.50
+    },
+    {
+      "provider": "anthropic",
+      "account_id": "acct_002",
+      "usage_pct": 12.3,
+      "tokens_used": 1230000,
+      "tokens_limit": 10000000,
+      "resets_at": "2026-02-01T00:00:00Z",
+      "cost_estimate": 12.30
+    },
+    {
+      "provider": "openai",
+      "account_id": "org-xyz",
+      "usage_pct": 78.9,
+      "tokens_used": 789000000,
+      "tokens_limit": 1000000000,
+      "resets_at": "2026-02-01T00:00:00Z",
+      "cost_estimate": 157.80
+    }
+  ],
+  "total_cost_estimate": 215.60
+}'
++ jq .
++ test_info 'PASS: Mock caut should be valid JSON'
++ test_log INFO 'PASS: Mock caut should be valid JSON'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:40-05:00] [INFO] Cleaning up test environment'
-[2026-01-28T12:23:40-05:00] [INFO] Cleaning up test environment
-+ [[ -n /data/tmp/vc_e2e_test_caut_mock_MxS1Fd ]]
-+ [[ -d /data/tmp/vc_e2e_test_caut_mock_MxS1Fd ]]
-+ [[ 1 -ne 0 ]]
-+ [[ '' == \t\r\u\e ]]
-+ rm -rf /data/tmp/vc_e2e_test_caut_mock_MxS1Fd
++ echo '[2026-01-28T13:04:08-05:00] [INFO] PASS: Mock caut should be valid JSON'
+[2026-01-28T13:04:08-05:00] [INFO] PASS: Mock caut should be valid JSON
+++ jq '.accounts | length'
+++ echo '{
+  "accounts": [
+    {
+      "provider": "anthropic",
+      "account_id": "acct_001",
+      "usage_pct": 45.5,
+      "tokens_used": 4550000,
+      "tokens_limit": 10000000,
+      "resets_at": "2026-02-01T00:00:00Z",
+      "cost_estimate": 45.50
+    },
+    {
+      "provider": "anthropic",
+      "account_id": "acct_002",
+      "usage_pct": 12.3,
+      "tokens_used": 1230000,
+      "tokens_limit": 10000000,
+      "resets_at": "2026-02-01T00:00:00Z",
+      "cost_estimate": 12.30
+    },
+    {
+      "provider": "openai",
+      "account_id": "org-xyz",
+      "usage_pct": 78.9,
+      "tokens_used": 789000000,
+      "tokens_limit": 1000000000,
+      "resets_at": "2026-02-01T00:00:00Z",
+      "cost_estimate": 157.80
+    }
+  ],
+  "total_cost_estimate": 215.60
+}'
++ account_count=3
++ TEST_ASSERTIONS=2
++ [[ 3 -ge 1 ]]
++ test_info 'PASS: caut has accounts (3)'
++ test_log INFO 'PASS: caut has accounts (3)'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T13:04:08-05:00] [INFO] PASS: caut has accounts (3)'
+[2026-01-28T13:04:08-05:00] [INFO] PASS: caut has accounts (3)
++ test_info 'Test 2: Verifying usage data'
++ test_log INFO 'Test 2: Verifying usage data'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T13:04:08-05:00] [INFO] Test 2: Verifying usage data'
+[2026-01-28T13:04:08-05:00] [INFO] Test 2: Verifying usage data
+++ echo '{
+  "accounts": [
+    {
+      "provider": "anthropic",
+      "account_id": "acct_001",
+      "usage_pct": 45.5,
+      "tokens_used": 4550000,
+      "tokens_limit": 10000000,
+      "resets_at": "2026-02-01T00:00:00Z",
+      "cost_estimate": 45.50
+    },
+    {
+      "provider": "anthropic",
+      "account_id": "acct_002",
+      "usage_pct": 12.3,
+      "tokens_used": 1230000,
+      "tokens_limit": 10000000,
+      "resets_at": "2026-02-01T00:00:00Z",
+      "cost_estimate": 12.30
+    },
+    {
+      "provider": "openai",
+      "account_id": "org-xyz",
+      "usage_pct": 78.9,
+      "tokens_used": 789000000,
+      "tokens_limit": 1000000000,
+      "resets_at": "2026-02-01T00:00:00Z",
+      "cost_estimate": 157.80
+    }
+  ],
+  "total_cost_estimate": 215.60
+}'
+++ jq '[.accounts[] | select(.usage_pct > 70)] | length'
++ high_usage=1
++ TEST_ASSERTIONS=3
++ [[ 1 -ge 1 ]]
++ test_info 'PASS: High usage accounts detected (1)'
++ test_log INFO 'PASS: High usage accounts detected (1)'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T13:04:08-05:00] [INFO] PASS: High usage accounts detected (1)'
+[2026-01-28T13:04:08-05:00] [INFO] PASS: High usage accounts detected (1)
++ test_info 'Test 3: Running caut collector'
++ test_log INFO 'Test 3: Running caut collector'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T13:04:09-05:00] [INFO] Test 3: Running caut collector'
+[2026-01-28T13:04:09-05:00] [INFO] Test 3: Running caut collector
++ run_vc_or_skip collect --collector caut

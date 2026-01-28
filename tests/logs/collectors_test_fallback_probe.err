@@ -22,7 +22,8 @@
 ++ TEST_ASSERTIONS=0
 ++ TEST_FAILURES=0
 +++ date +%s%N
-++ TEST_START_TIME=1769621031466034511
+++ TEST_START_TIME=1769623474634602564
+++ VC_LAST_OUTPUT=
 ++ RED='\033[0;31m'
 ++ GREEN='\033[0;32m'
 ++ YELLOW='\033[1;33m'
@@ -33,38 +34,38 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:51-05:00] [INFO] Starting fallback probe E2E test'
-[2026-01-28T12:23:51-05:00] [INFO] Starting fallback probe E2E test
++ echo '[2026-01-28T13:04:34-05:00] [INFO] Starting fallback probe E2E test'
+[2026-01-28T13:04:34-05:00] [INFO] Starting fallback probe E2E test
 + setup_test_env
 + test_info 'Setting up test environment'
 + test_log INFO 'Setting up test environment'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:51-05:00] [INFO] Setting up test environment'
-[2026-01-28T12:23:51-05:00] [INFO] Setting up test environment
++ echo '[2026-01-28T13:04:34-05:00] [INFO] Setting up test environment'
+[2026-01-28T13:04:34-05:00] [INFO] Setting up test environment
 ++ mktemp -d -t vc_e2e_test_fallback_probe_XXXXXX
-+ TEST_TEMP_DIR=/data/tmp/vc_e2e_test_fallback_probe_T7T5xl
++ TEST_TEMP_DIR=/data/tmp/vc_e2e_test_fallback_probe_NdCrIJ
 + export TEST_TEMP_DIR
-+ TEST_DB_PATH=/data/tmp/vc_e2e_test_fallback_probe_T7T5xl/test.duckdb
++ TEST_DB_PATH=/data/tmp/vc_e2e_test_fallback_probe_NdCrIJ/test.duckdb
 + export TEST_DB_PATH
-+ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml
++ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_fallback_probe_NdCrIJ/config.toml
 + cat
 + export TEST_CONFIG_PATH
-+ test_info 'Test temp dir: /data/tmp/vc_e2e_test_fallback_probe_T7T5xl'
-+ test_log INFO 'Test temp dir: /data/tmp/vc_e2e_test_fallback_probe_T7T5xl'
++ test_info 'Test temp dir: /data/tmp/vc_e2e_test_fallback_probe_NdCrIJ'
++ test_log INFO 'Test temp dir: /data/tmp/vc_e2e_test_fallback_probe_NdCrIJ'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:51-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_fallback_probe_T7T5xl'
-[2026-01-28T12:23:51-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_fallback_probe_T7T5xl
++ echo '[2026-01-28T13:04:35-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_fallback_probe_NdCrIJ'
+[2026-01-28T13:04:35-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_fallback_probe_NdCrIJ
 + test_info 'Test 1: Checking vc command availability'
 + test_log INFO 'Test 1: Checking vc command availability'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:51-05:00] [INFO] Test 1: Checking vc command availability'
-[2026-01-28T12:23:51-05:00] [INFO] Test 1: Checking vc command availability
++ echo '[2026-01-28T13:04:35-05:00] [INFO] Test 1: Checking vc command availability'
+[2026-01-28T13:04:35-05:00] [INFO] Test 1: Checking vc command availability
 + [[ /data/tmp/cargo-target/debug/vc != \c\a\r\g\o\ \r\u\n* ]]
 + assert_file_exists /data/tmp/cargo-target/debug/vc 'vc binary should exist'
 + local path=/data/tmp/cargo-target/debug/vc
@@ -76,78 +77,63 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:51-05:00] [INFO] PASS: vc binary should exist (/data/tmp/cargo-target/debug/vc)'
-[2026-01-28T12:23:51-05:00] [INFO] PASS: vc binary should exist (/data/tmp/cargo-target/debug/vc)
++ echo '[2026-01-28T13:04:35-05:00] [INFO] PASS: vc binary should exist (/data/tmp/cargo-target/debug/vc)'
+[2026-01-28T13:04:35-05:00] [INFO] PASS: vc binary should exist (/data/tmp/cargo-target/debug/vc)
 + test_info 'Test 2: Checking vc --version'
 + test_log INFO 'Test 2: Checking vc --version'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:51-05:00] [INFO] Test 2: Checking vc --version'
-[2026-01-28T12:23:51-05:00] [INFO] Test 2: Checking vc --version
-++ run_vc --version
-+ version_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml --version
-vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
-+ assert_contains '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml --version
-vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)' vc 'Version should contain '\''vc'\'''
-+ local 'haystack=++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml --version
-vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
++ echo '[2026-01-28T13:04:35-05:00] [INFO] Test 2: Checking vc --version'
+[2026-01-28T13:04:35-05:00] [INFO] Test 2: Checking vc --version
++ run_vc_or_skip --version
++ local output=
++ local status=0
++ local had_xtrace=0
++ [[ ehuxB == *x* ]]
++ had_xtrace=1
++ set +x
++ [[ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z) == *\C\o\m\m\a\n\d\ \n\o\t\ \y\e\t\ \i\m\p\l\e\m\e\n\t\e\d* ]]
++ VC_LAST_OUTPUT='vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
++ return 0
++ version_output='vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
++ assert_contains 'vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)' vc 'Version should contain '\''vc'\'''
++ local 'haystack=vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
 + local needle=vc
 + local 'msg=Version should contain '\''vc'\'''
 + TEST_ASSERTIONS=2
-+ [[ ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml --version
-vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z) == *\v\c* ]]
++ [[ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z) == *\v\c* ]]
 + test_info 'PASS: Version should contain '\''vc'\'''
 + test_log INFO 'PASS: Version should contain '\''vc'\'''
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:52-05:00] [INFO] PASS: Version should contain '\''vc'\'''
-[2026-01-28T12:23:52-05:00] [INFO] PASS: Version should contain 'vc'
-+ assert_contains '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml --version
-vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)' 0.1.0 'Version should contain version number'
-+ local 'haystack=++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml --version
-vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
++ echo '[2026-01-28T13:04:36-05:00] [INFO] PASS: Version should contain '\''vc'\'''
+[2026-01-28T13:04:36-05:00] [INFO] PASS: Version should contain 'vc'
++ assert_contains 'vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)' 0.1.0 'Version should contain version number'
++ local 'haystack=vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
 + local needle=0.1.0
 + local 'msg=Version should contain version number'
 + TEST_ASSERTIONS=3
-+ [[ ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml --version
-vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z) == *\0\.\1\.\0* ]]
++ [[ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z) == *\0\.\1\.\0* ]]
 + test_info 'PASS: Version should contain version number'
 + test_log INFO 'PASS: Version should contain version number'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:52-05:00] [INFO] PASS: Version should contain version number'
-[2026-01-28T12:23:52-05:00] [INFO] PASS: Version should contain version number
++ echo '[2026-01-28T13:04:36-05:00] [INFO] PASS: Version should contain version number'
+[2026-01-28T13:04:36-05:00] [INFO] PASS: Version should contain version number
 + test_info 'Test 3: Checking vc robot health'
 + test_log INFO 'Test 3: Checking vc robot health'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:52-05:00] [INFO] Test 3: Checking vc robot health'
-[2026-01-28T12:23:52-05:00] [INFO] Test 3: Checking vc robot health
-++ run_vc robot health
-+ health_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot health
-{
++ echo '[2026-01-28T13:04:36-05:00] [INFO] Test 3: Checking vc robot health'
+[2026-01-28T13:04:36-05:00] [INFO] Test 3: Checking vc robot health
++ set +x
++ assert_json_valid '{
   "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:23:52.326706395Z",
+  "generated_at": "2026-01-28T18:04:36.544990712Z",
   "data": {
     "overall": {
       "score": 1.0,
@@ -163,44 +149,7 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
         "score": 1.0,
         "status": "online",
         "top_issue": null,
-        "last_seen": "2026-01-28T17:23:52.326653285Z",
-        "agent_count": 0,
-        "cpu_percent": null,
-        "memory_percent": null
-      }
-    ],
-    "alerts_by_severity": {
-      "critical": 0,
-      "warning": 0,
-      "info": 0
-    }
-  },
-  "warnings": [
-    "No collectors have run yet - data may be incomplete"
-  ]
-}'
-+ assert_json_valid '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot health
-{
-  "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:23:52.326706395Z",
-  "data": {
-    "overall": {
-      "score": 1.0,
-      "severity": "healthy",
-      "active_alerts": 0,
-      "machine_count": 1,
-      "agent_count": 0
-    },
-    "machines": [
-      {
-        "id": "local",
-        "name": "Local Machine",
-        "score": 1.0,
-        "status": "online",
-        "top_issue": null,
-        "last_seen": "2026-01-28T17:23:52.326653285Z",
+        "last_seen": "2026-01-28T18:04:36.544812005Z",
         "agent_count": 0,
         "cpu_percent": null,
         "memory_percent": null
@@ -216,12 +165,9 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
     "No collectors have run yet - data may be incomplete"
   ]
 }' 'Health output should be valid JSON'
-+ local 'json=++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot health
-{
++ local 'json={
   "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:23:52.326706395Z",
+  "generated_at": "2026-01-28T18:04:36.544990712Z",
   "data": {
     "overall": {
       "score": 1.0,
@@ -237,7 +183,7 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
         "score": 1.0,
         "status": "online",
         "top_issue": null,
-        "last_seen": "2026-01-28T17:23:52.326653285Z",
+        "last_seen": "2026-01-28T18:04:36.544812005Z",
         "agent_count": 0,
         "cpu_percent": null,
         "memory_percent": null
@@ -255,12 +201,9 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
 }'
 + local 'msg=Health output should be valid JSON'
 + TEST_ASSERTIONS=4
-+ echo '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot health
-{
++ echo '{
   "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:23:52.326706395Z",
+  "generated_at": "2026-01-28T18:04:36.544990712Z",
   "data": {
     "overall": {
       "score": 1.0,
@@ -276,7 +219,7 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
         "score": 1.0,
         "status": "online",
         "top_issue": null,
-        "last_seen": "2026-01-28T17:23:52.326653285Z",
+        "last_seen": "2026-01-28T18:04:36.544812005Z",
         "agent_count": 0,
         "cpu_percent": null,
         "memory_percent": null
@@ -293,19 +236,16 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
   ]
 }'
 + jq .
-+ test_error 'FAIL: Health output should be valid JSON'
-+ test_log ERROR 'FAIL: Health output should be valid JSON'
-+ local level=ERROR
++ test_info 'PASS: Health output should be valid JSON'
++ test_log INFO 'PASS: Health output should be valid JSON'
++ local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:52-05:00] [ERROR] FAIL: Health output should be valid JSON'
-[2026-01-28T12:23:52-05:00] [ERROR] FAIL: Health output should be valid JSON
-+ test_error '  Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot health
-{
++ echo '[2026-01-28T13:04:36-05:00] [INFO] PASS: Health output should be valid JSON'
+[2026-01-28T13:04:36-05:00] [INFO] PASS: Health output should be valid JSON
++ assert_json_field '{
   "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:23:52.326706395Z",
+  "generated_at": "2026-01-28T18:04:36.544990712Z",
   "data": {
     "overall": {
       "score": 1.0,
@@ -321,159 +261,7 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
         "score": 1.0,
         "status": "online",
         "top_issue": null,
-        "last_seen": "2026-01-28T17:23:52.326653285Z",
-        "agent_count": 0,
-        "cpu_percent": null,
-        "memory_percent": null
-      }
-    ],
-    "alerts_by_severity": {
-      "critical": 0,
-      "warning": 0,
-      "info": 0
-    }
-  },
-  "warnings": [
-    "No collectors have run yet - data may be incomplete"
-  ]
-}'
-+ test_log ERROR '  Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot health
-{
-  "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:23:52.326706395Z",
-  "data": {
-    "overall": {
-      "score": 1.0,
-      "severity": "healthy",
-      "active_alerts": 0,
-      "machine_count": 1,
-      "agent_count": 0
-    },
-    "machines": [
-      {
-        "id": "local",
-        "name": "Local Machine",
-        "score": 1.0,
-        "status": "online",
-        "top_issue": null,
-        "last_seen": "2026-01-28T17:23:52.326653285Z",
-        "agent_count": 0,
-        "cpu_percent": null,
-        "memory_percent": null
-      }
-    ],
-    "alerts_by_severity": {
-      "critical": 0,
-      "warning": 0,
-      "info": 0
-    }
-  },
-  "warnings": [
-    "No collectors have run yet - data may be incomplete"
-  ]
-}'
-+ local level=ERROR
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:23:52-05:00] [ERROR]   Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot health
-{
-  "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:23:52.326706395Z",
-  "data": {
-    "overall": {
-      "score": 1.0,
-      "severity": "healthy",
-      "active_alerts": 0,
-      "machine_count": 1,
-      "agent_count": 0
-    },
-    "machines": [
-      {
-        "id": "local",
-        "name": "Local Machine",
-        "score": 1.0,
-        "status": "online",
-        "top_issue": null,
-        "last_seen": "2026-01-28T17:23:52.326653285Z",
-        "agent_count": 0,
-        "cpu_percent": null,
-        "memory_percent": null
-      }
-    ],
-    "alerts_by_severity": {
-      "critical": 0,
-      "warning": 0,
-      "info": 0
-    }
-  },
-  "warnings": [
-    "No collectors have run yet - data may be incomplete"
-  ]
-}'
-[2026-01-28T12:23:52-05:00] [ERROR]   Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot health
-{
-  "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:23:52.326706395Z",
-  "data": {
-    "overall": {
-      "score": 1.0,
-      "severity": "healthy",
-      "active_alerts": 0,
-      "machine_count": 1,
-      "agent_count": 0
-    },
-    "machines": [
-      {
-        "id": "local",
-        "name": "Local Machine",
-        "score": 1.0,
-        "status": "online",
-        "top_issue": null,
-        "last_seen": "2026-01-28T17:23:52.326653285Z",
-        "agent_count": 0,
-        "cpu_percent": null,
-        "memory_percent": null
-      }
-    ],
-    "alerts_by_severity": {
-      "critical": 0,
-      "warning": 0,
-      "info": 0
-    }
-  },
-  "warnings": [
-    "No collectors have run yet - data may be incomplete"
-  ]
-}
-+ TEST_FAILURES=1
-+ assert_json_field '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot health
-{
-  "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:23:52.326706395Z",
-  "data": {
-    "overall": {
-      "score": 1.0,
-      "severity": "healthy",
-      "active_alerts": 0,
-      "machine_count": 1,
-      "agent_count": 0
-    },
-    "machines": [
-      {
-        "id": "local",
-        "name": "Local Machine",
-        "score": 1.0,
-        "status": "online",
-        "top_issue": null,
-        "last_seen": "2026-01-28T17:23:52.326653285Z",
+        "last_seen": "2026-01-28T18:04:36.544812005Z",
         "agent_count": 0,
         "cpu_percent": null,
         "memory_percent": null
@@ -489,12 +277,9 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
     "No collectors have run yet - data may be incomplete"
   ]
 }' .schema_version vc.robot.health.v1 'Schema version should match'
-+ local 'json=++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot health
-{
++ local 'json={
   "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:23:52.326706395Z",
+  "generated_at": "2026-01-28T18:04:36.544990712Z",
   "data": {
     "overall": {
       "score": 1.0,
@@ -510,7 +295,7 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
         "score": 1.0,
         "status": "online",
         "top_issue": null,
-        "last_seen": "2026-01-28T17:23:52.326653285Z",
+        "last_seen": "2026-01-28T18:04:36.544812005Z",
         "agent_count": 0,
         "cpu_percent": null,
         "memory_percent": null
@@ -530,12 +315,9 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
 + local expected=vc.robot.health.v1
 + local 'msg=Schema version should match'
 + TEST_ASSERTIONS=5
-++ echo '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot health
-{
+++ echo '{
   "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:23:52.326706395Z",
+  "generated_at": "2026-01-28T18:04:36.544990712Z",
   "data": {
     "overall": {
       "score": 1.0,
@@ -551,7 +333,7 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
         "score": 1.0,
         "status": "online",
         "top_issue": null,
-        "last_seen": "2026-01-28T17:23:52.326653285Z",
+        "last_seen": "2026-01-28T18:04:36.544812005Z",
         "agent_count": 0,
         "cpu_percent": null,
         "memory_percent": null
@@ -568,43 +350,18 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
   ]
 }'
 ++ jq -r .schema_version
-+ local actual=
-+ [[ '' == \v\c\.\r\o\b\o\t\.\h\e\a\l\t\h\.\v\1 ]]
-+ test_error 'FAIL: Schema version should match'
-+ test_log ERROR 'FAIL: Schema version should match'
-+ local level=ERROR
++ local actual=vc.robot.health.v1
++ [[ vc.robot.health.v1 == \v\c\.\r\o\b\o\t\.\h\e\a\l\t\h\.\v\1 ]]
++ test_info 'PASS: Schema version should match (.schema_version = vc.robot.health.v1)'
++ test_log INFO 'PASS: Schema version should match (.schema_version = vc.robot.health.v1)'
++ local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:52-05:00] [ERROR] FAIL: Schema version should match'
-[2026-01-28T12:23:52-05:00] [ERROR] FAIL: Schema version should match
-+ test_error '  Field: .schema_version'
-+ test_log ERROR '  Field: .schema_version'
-+ local level=ERROR
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:23:52-05:00] [ERROR]   Field: .schema_version'
-[2026-01-28T12:23:52-05:00] [ERROR]   Field: .schema_version
-+ test_error '  Expected: vc.robot.health.v1'
-+ test_log ERROR '  Expected: vc.robot.health.v1'
-+ local level=ERROR
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:23:52-05:00] [ERROR]   Expected: vc.robot.health.v1'
-[2026-01-28T12:23:52-05:00] [ERROR]   Expected: vc.robot.health.v1
-+ test_error '  Actual: '
-+ test_log ERROR '  Actual: '
-+ local level=ERROR
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:23:52-05:00] [ERROR]   Actual: '
-[2026-01-28T12:23:52-05:00] [ERROR]   Actual: 
-+ TEST_FAILURES=2
-+ assert_json_field '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot health
-{
++ echo '[2026-01-28T13:04:37-05:00] [INFO] PASS: Schema version should match (.schema_version = vc.robot.health.v1)'
+[2026-01-28T13:04:37-05:00] [INFO] PASS: Schema version should match (.schema_version = vc.robot.health.v1)
++ assert_json_field '{
   "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:23:52.326706395Z",
+  "generated_at": "2026-01-28T18:04:36.544990712Z",
   "data": {
     "overall": {
       "score": 1.0,
@@ -620,7 +377,7 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
         "score": 1.0,
         "status": "online",
         "top_issue": null,
-        "last_seen": "2026-01-28T17:23:52.326653285Z",
+        "last_seen": "2026-01-28T18:04:36.544812005Z",
         "agent_count": 0,
         "cpu_percent": null,
         "memory_percent": null
@@ -636,12 +393,9 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
     "No collectors have run yet - data may be incomplete"
   ]
 }' .data.overall.severity healthy 'Severity should be healthy'
-+ local 'json=++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot health
-{
++ local 'json={
   "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:23:52.326706395Z",
+  "generated_at": "2026-01-28T18:04:36.544990712Z",
   "data": {
     "overall": {
       "score": 1.0,
@@ -657,7 +411,7 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
         "score": 1.0,
         "status": "online",
         "top_issue": null,
-        "last_seen": "2026-01-28T17:23:52.326653285Z",
+        "last_seen": "2026-01-28T18:04:36.544812005Z",
         "agent_count": 0,
         "cpu_percent": null,
         "memory_percent": null
@@ -677,13 +431,9 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
 + local expected=healthy
 + local 'msg=Severity should be healthy'
 + TEST_ASSERTIONS=6
-++ echo '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ jq -r .data.overall.severity
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot health
-{
+++ echo '{
   "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:23:52.326706395Z",
+  "generated_at": "2026-01-28T18:04:36.544990712Z",
   "data": {
     "overall": {
       "score": 1.0,
@@ -699,7 +449,7 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
         "score": 1.0,
         "status": "online",
         "top_issue": null,
-        "last_seen": "2026-01-28T17:23:52.326653285Z",
+        "last_seen": "2026-01-28T18:04:36.544812005Z",
         "agent_count": 0,
         "cpu_percent": null,
         "memory_percent": null
@@ -715,68 +465,27 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
     "No collectors have run yet - data may be incomplete"
   ]
 }'
-+ local actual=
-+ [[ '' == \h\e\a\l\t\h\y ]]
-+ test_error 'FAIL: Severity should be healthy'
-+ test_log ERROR 'FAIL: Severity should be healthy'
-+ local level=ERROR
+++ jq -r .data.overall.severity
++ local actual=healthy
++ [[ healthy == \h\e\a\l\t\h\y ]]
++ test_info 'PASS: Severity should be healthy (.data.overall.severity = healthy)'
++ test_log INFO 'PASS: Severity should be healthy (.data.overall.severity = healthy)'
++ local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:52-05:00] [ERROR] FAIL: Severity should be healthy'
-[2026-01-28T12:23:52-05:00] [ERROR] FAIL: Severity should be healthy
-+ test_error '  Field: .data.overall.severity'
-+ test_log ERROR '  Field: .data.overall.severity'
-+ local level=ERROR
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:23:52-05:00] [ERROR]   Field: .data.overall.severity'
-[2026-01-28T12:23:52-05:00] [ERROR]   Field: .data.overall.severity
-+ test_error '  Expected: healthy'
-+ test_log ERROR '  Expected: healthy'
-+ local level=ERROR
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:23:52-05:00] [ERROR]   Expected: healthy'
-[2026-01-28T12:23:52-05:00] [ERROR]   Expected: healthy
-+ test_error '  Actual: '
-+ test_log ERROR '  Actual: '
-+ local level=ERROR
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:23:52-05:00] [ERROR]   Actual: '
-[2026-01-28T12:23:52-05:00] [ERROR]   Actual: 
-+ TEST_FAILURES=3
++ echo '[2026-01-28T13:04:37-05:00] [INFO] PASS: Severity should be healthy (.data.overall.severity = healthy)'
+[2026-01-28T13:04:37-05:00] [INFO] PASS: Severity should be healthy (.data.overall.severity = healthy)
 + test_info 'Test 4: Checking vc robot triage'
 + test_log INFO 'Test 4: Checking vc robot triage'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:52-05:00] [INFO] Test 4: Checking vc robot triage'
-[2026-01-28T12:23:52-05:00] [INFO] Test 4: Checking vc robot triage
-++ run_vc robot triage
-+ triage_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot triage
-{
++ echo '[2026-01-28T13:04:37-05:00] [INFO] Test 4: Checking vc robot triage'
+[2026-01-28T13:04:37-05:00] [INFO] Test 4: Checking vc robot triage
++ set +x
++ assert_json_valid '{
   "schema_version": "vc.robot.triage.v1",
-  "generated_at": "2026-01-28T17:23:53.095732741Z",
-  "data": {
-    "recommendations": [],
-    "suggested_commands": [
-      {
-        "command": "vc collect",
-        "reason": "Run initial data collection",
-        "confidence": 0.9
-      }
-    ]
-  }
-}'
-+ assert_json_valid '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot triage
-{
-  "schema_version": "vc.robot.triage.v1",
-  "generated_at": "2026-01-28T17:23:53.095732741Z",
+  "generated_at": "2026-01-28T18:04:38.104401097Z",
   "data": {
     "recommendations": [],
     "suggested_commands": [
@@ -788,12 +497,9 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
     ]
   }
 }' 'Triage output should be valid JSON'
-+ local 'json=++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot triage
-{
++ local 'json={
   "schema_version": "vc.robot.triage.v1",
-  "generated_at": "2026-01-28T17:23:53.095732741Z",
+  "generated_at": "2026-01-28T18:04:38.104401097Z",
   "data": {
     "recommendations": [],
     "suggested_commands": [
@@ -807,12 +513,9 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
 }'
 + local 'msg=Triage output should be valid JSON'
 + TEST_ASSERTIONS=7
-+ echo '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot triage
-{
++ echo '{
   "schema_version": "vc.robot.triage.v1",
-  "generated_at": "2026-01-28T17:23:53.095732741Z",
+  "generated_at": "2026-01-28T18:04:38.104401097Z",
   "data": {
     "recommendations": [],
     "suggested_commands": [
@@ -825,91 +528,16 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
   }
 }'
 + jq .
-+ test_error 'FAIL: Triage output should be valid JSON'
-+ test_log ERROR 'FAIL: Triage output should be valid JSON'
-+ local level=ERROR
++ test_info 'PASS: Triage output should be valid JSON'
++ test_log INFO 'PASS: Triage output should be valid JSON'
++ local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:53-05:00] [ERROR] FAIL: Triage output should be valid JSON'
-[2026-01-28T12:23:53-05:00] [ERROR] FAIL: Triage output should be valid JSON
-+ test_error '  Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot triage
-{
++ echo '[2026-01-28T13:04:38-05:00] [INFO] PASS: Triage output should be valid JSON'
+[2026-01-28T13:04:38-05:00] [INFO] PASS: Triage output should be valid JSON
++ assert_json_field '{
   "schema_version": "vc.robot.triage.v1",
-  "generated_at": "2026-01-28T17:23:53.095732741Z",
-  "data": {
-    "recommendations": [],
-    "suggested_commands": [
-      {
-        "command": "vc collect",
-        "reason": "Run initial data collection",
-        "confidence": 0.9
-      }
-    ]
-  }
-}'
-+ test_log ERROR '  Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot triage
-{
-  "schema_version": "vc.robot.triage.v1",
-  "generated_at": "2026-01-28T17:23:53.095732741Z",
-  "data": {
-    "recommendations": [],
-    "suggested_commands": [
-      {
-        "command": "vc collect",
-        "reason": "Run initial data collection",
-        "confidence": 0.9
-      }
-    ]
-  }
-}'
-+ local level=ERROR
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:23:53-05:00] [ERROR]   Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot triage
-{
-  "schema_version": "vc.robot.triage.v1",
-  "generated_at": "2026-01-28T17:23:53.095732741Z",
-  "data": {
-    "recommendations": [],
-    "suggested_commands": [
-      {
-        "command": "vc collect",
-        "reason": "Run initial data collection",
-        "confidence": 0.9
-      }
-    ]
-  }
-}'
-[2026-01-28T12:23:53-05:00] [ERROR]   Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot triage
-{
-  "schema_version": "vc.robot.triage.v1",
-  "generated_at": "2026-01-28T17:23:53.095732741Z",
-  "data": {
-    "recommendations": [],
-    "suggested_commands": [
-      {
-        "command": "vc collect",
-        "reason": "Run initial data collection",
-        "confidence": 0.9
-      }
-    ]
-  }
-}
-+ TEST_FAILURES=4
-+ assert_json_field '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot triage
-{
-  "schema_version": "vc.robot.triage.v1",
-  "generated_at": "2026-01-28T17:23:53.095732741Z",
+  "generated_at": "2026-01-28T18:04:38.104401097Z",
   "data": {
     "recommendations": [],
     "suggested_commands": [
@@ -921,12 +549,9 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
     ]
   }
 }' .schema_version vc.robot.triage.v1 'Schema version should match'
-+ local 'json=++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot triage
-{
++ local 'json={
   "schema_version": "vc.robot.triage.v1",
-  "generated_at": "2026-01-28T17:23:53.095732741Z",
+  "generated_at": "2026-01-28T18:04:38.104401097Z",
   "data": {
     "recommendations": [],
     "suggested_commands": [
@@ -942,12 +567,9 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
 + local expected=vc.robot.triage.v1
 + local 'msg=Schema version should match'
 + TEST_ASSERTIONS=8
-++ echo '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml robot triage
-{
+++ echo '{
   "schema_version": "vc.robot.triage.v1",
-  "generated_at": "2026-01-28T17:23:53.095732741Z",
+  "generated_at": "2026-01-28T18:04:38.104401097Z",
   "data": {
     "recommendations": [],
     "suggested_commands": [
@@ -960,85 +582,60 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
   }
 }'
 ++ jq -r .schema_version
-+ local actual=
-+ [[ '' == \v\c\.\r\o\b\o\t\.\t\r\i\a\g\e\.\v\1 ]]
-+ test_error 'FAIL: Schema version should match'
-+ test_log ERROR 'FAIL: Schema version should match'
-+ local level=ERROR
++ local actual=vc.robot.triage.v1
++ [[ vc.robot.triage.v1 == \v\c\.\r\o\b\o\t\.\t\r\i\a\g\e\.\v\1 ]]
++ test_info 'PASS: Schema version should match (.schema_version = vc.robot.triage.v1)'
++ test_log INFO 'PASS: Schema version should match (.schema_version = vc.robot.triage.v1)'
++ local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:53-05:00] [ERROR] FAIL: Schema version should match'
-[2026-01-28T12:23:53-05:00] [ERROR] FAIL: Schema version should match
-+ test_error '  Field: .schema_version'
-+ test_log ERROR '  Field: .schema_version'
-+ local level=ERROR
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:23:53-05:00] [ERROR]   Field: .schema_version'
-[2026-01-28T12:23:53-05:00] [ERROR]   Field: .schema_version
-+ test_error '  Expected: vc.robot.triage.v1'
-+ test_log ERROR '  Expected: vc.robot.triage.v1'
-+ local level=ERROR
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:23:53-05:00] [ERROR]   Expected: vc.robot.triage.v1'
-[2026-01-28T12:23:53-05:00] [ERROR]   Expected: vc.robot.triage.v1
-+ test_error '  Actual: '
-+ test_log ERROR '  Actual: '
-+ local level=ERROR
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:23:53-05:00] [ERROR]   Actual: '
-[2026-01-28T12:23:53-05:00] [ERROR]   Actual: 
-+ TEST_FAILURES=5
++ echo '[2026-01-28T13:04:38-05:00] [INFO] PASS: Schema version should match (.schema_version = vc.robot.triage.v1)'
+[2026-01-28T13:04:38-05:00] [INFO] PASS: Schema version should match (.schema_version = vc.robot.triage.v1)
 + test_info 'Test 5: Checking config parsing'
 + test_log INFO 'Test 5: Checking config parsing'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:53-05:00] [INFO] Test 5: Checking config parsing'
-[2026-01-28T12:23:53-05:00] [INFO] Test 5: Checking config parsing
-+ assert_file_exists /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml 'Test config should exist'
-+ local path=/data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml
++ echo '[2026-01-28T13:04:38-05:00] [INFO] Test 5: Checking config parsing'
+[2026-01-28T13:04:38-05:00] [INFO] Test 5: Checking config parsing
++ assert_file_exists /data/tmp/vc_e2e_test_fallback_probe_NdCrIJ/config.toml 'Test config should exist'
++ local path=/data/tmp/vc_e2e_test_fallback_probe_NdCrIJ/config.toml
 + local 'msg=Test config should exist'
 + TEST_ASSERTIONS=9
-+ [[ -f /data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml ]]
-+ test_info 'PASS: Test config should exist (/data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml)'
-+ test_log INFO 'PASS: Test config should exist (/data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml)'
++ [[ -f /data/tmp/vc_e2e_test_fallback_probe_NdCrIJ/config.toml ]]
++ test_info 'PASS: Test config should exist (/data/tmp/vc_e2e_test_fallback_probe_NdCrIJ/config.toml)'
++ test_log INFO 'PASS: Test config should exist (/data/tmp/vc_e2e_test_fallback_probe_NdCrIJ/config.toml)'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:53-05:00] [INFO] PASS: Test config should exist (/data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml)'
-[2026-01-28T12:23:53-05:00] [INFO] PASS: Test config should exist (/data/tmp/vc_e2e_test_fallback_probe_T7T5xl/config.toml)
++ echo '[2026-01-28T13:04:39-05:00] [INFO] PASS: Test config should exist (/data/tmp/vc_e2e_test_fallback_probe_NdCrIJ/config.toml)'
+[2026-01-28T13:04:39-05:00] [INFO] PASS: Test config should exist (/data/tmp/vc_e2e_test_fallback_probe_NdCrIJ/config.toml)
 + finalize_test
 ++ date +%s%N
-+ local end_time=1769621033450179592
-+ local duration_ms=1984
++ local end_time=1769623479150237846
++ local duration_ms=4515
 + local status=passed
 + local exit_code=0
-+ [[ 5 -gt 0 ]]
-+ status=failed
-+ exit_code=1
++ [[ 0 -gt 0 ]]
 + cat
-+ test_info 'Test complete: 9 assertions, 5 failures'
-+ test_log INFO 'Test complete: 9 assertions, 5 failures'
++ test_info 'Test complete: 9 assertions, 0 failures'
++ test_log INFO 'Test complete: 9 assertions, 0 failures'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:53-05:00] [INFO] Test complete: 9 assertions, 5 failures'
-[2026-01-28T12:23:53-05:00] [INFO] Test complete: 9 assertions, 5 failures
-+ exit 1
++ echo '[2026-01-28T13:04:39-05:00] [INFO] Test complete: 9 assertions, 0 failures'
+[2026-01-28T13:04:39-05:00] [INFO] Test complete: 9 assertions, 0 failures
++ exit 0
 + cleanup_test_env
-+ local exit_code=1
++ local exit_code=0
 + test_info 'Cleaning up test environment'
 + test_log INFO 'Cleaning up test environment'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:53-05:00] [INFO] Cleaning up test environment'
-[2026-01-28T12:23:53-05:00] [INFO] Cleaning up test environment
-+ [[ -n /data/tmp/vc_e2e_test_fallback_probe_T7T5xl ]]
-+ [[ -d /data/tmp/vc_e2e_test_fallback_probe_T7T5xl ]]
-+ [[ 1 -ne 0 ]]
-+ [[ '' == \t\r\u\e ]]
-+ rm -rf /data/tmp/vc_e2e_test_fallback_probe_T7T5xl
++ echo '[2026-01-28T13:04:39-05:00] [INFO] Cleaning up test environment'
+[2026-01-28T13:04:39-05:00] [INFO] Cleaning up test environment
++ [[ -n /data/tmp/vc_e2e_test_fallback_probe_NdCrIJ ]]
++ [[ -d /data/tmp/vc_e2e_test_fallback_probe_NdCrIJ ]]
++ [[ 0 -ne 0 ]]
++ rm -rf /data/tmp/vc_e2e_test_fallback_probe_NdCrIJ

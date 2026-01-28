@@ -1,0 +1,136 @@
++ set -euo pipefail
+++ dirname /data/projects/vibe_cockpit/tests/e2e/collectors/test_rch_collect.sh
++ source /data/projects/vibe_cockpit/tests/e2e/collectors/../lib/test_helpers.sh
+++ set -euo pipefail
+++++ dirname /data/projects/vibe_cockpit/tests/e2e/collectors/../lib/test_helpers.sh
++++ cd /data/projects/vibe_cockpit/tests/e2e/collectors/../lib
++++ pwd
+++ TEST_LIB_DIR=/data/projects/vibe_cockpit/tests/e2e/lib
++++ dirname /data/projects/vibe_cockpit/tests/e2e/lib
+++ E2E_DIR=/data/projects/vibe_cockpit/tests/e2e
++++ cd /data/projects/vibe_cockpit/tests/e2e/../..
++++ pwd
+++ PROJECT_ROOT=/data/projects/vibe_cockpit
++++ find_vc_binary
++++ [[ -n /data/tmp/cargo-target ]]
++++ [[ -x /data/tmp/cargo-target/debug/vc ]]
++++ echo /data/tmp/cargo-target/debug/vc
++++ return
+++ VC_BIN=/data/tmp/cargo-target/debug/vc
++++ basename /data/projects/vibe_cockpit/tests/e2e/collectors/test_rch_collect.sh .sh
+++ TEST_NAME=test_rch_collect
+++ TEST_ASSERTIONS=0
+++ TEST_FAILURES=0
++++ date +%s%N
+++ TEST_START_TIME=1769623490653542224
+++ VC_LAST_OUTPUT=
+++ RED='\033[0;31m'
+++ GREEN='\033[0;32m'
+++ YELLOW='\033[1;33m'
+++ NC='\033[0m'
+++ trap cleanup_test_env EXIT
++ test_info 'Starting rch collector E2E test'
++ test_log INFO 'Starting rch collector E2E test'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T13:04:50-05:00] [INFO] Starting rch collector E2E test'
+[2026-01-28T13:04:50-05:00] [INFO] Starting rch collector E2E test
++ setup_test_env
++ test_info 'Setting up test environment'
++ test_log INFO 'Setting up test environment'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T13:04:50-05:00] [INFO] Setting up test environment'
+[2026-01-28T13:04:50-05:00] [INFO] Setting up test environment
+++ mktemp -d -t vc_e2e_test_rch_collect_XXXXXX
++ TEST_TEMP_DIR=/data/tmp/vc_e2e_test_rch_collect_EHhB6j
++ export TEST_TEMP_DIR
++ TEST_DB_PATH=/data/tmp/vc_e2e_test_rch_collect_EHhB6j/test.duckdb
++ export TEST_DB_PATH
++ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_rch_collect_EHhB6j/config.toml
++ cat
++ export TEST_CONFIG_PATH
++ test_info 'Test temp dir: /data/tmp/vc_e2e_test_rch_collect_EHhB6j'
++ test_log INFO 'Test temp dir: /data/tmp/vc_e2e_test_rch_collect_EHhB6j'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T13:04:51-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_rch_collect_EHhB6j'
+[2026-01-28T13:04:51-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_rch_collect_EHhB6j
++ export HOME=/data/tmp/vc_e2e_test_rch_collect_EHhB6j
++ HOME=/data/tmp/vc_e2e_test_rch_collect_EHhB6j
++ RCH_DIR=/data/tmp/vc_e2e_test_rch_collect_EHhB6j/.rch
++ mkdir -p /data/tmp/vc_e2e_test_rch_collect_EHhB6j/.rch
++ JSONL_PATH=/data/tmp/vc_e2e_test_rch_collect_EHhB6j/.rch/compilations.jsonl
++ cat
++ assert_file_exists /data/tmp/vc_e2e_test_rch_collect_EHhB6j/.rch/compilations.jsonl 'rch JSONL log should exist'
++ local path=/data/tmp/vc_e2e_test_rch_collect_EHhB6j/.rch/compilations.jsonl
++ local 'msg=rch JSONL log should exist'
++ TEST_ASSERTIONS=1
++ [[ -f /data/tmp/vc_e2e_test_rch_collect_EHhB6j/.rch/compilations.jsonl ]]
++ test_info 'PASS: rch JSONL log should exist (/data/tmp/vc_e2e_test_rch_collect_EHhB6j/.rch/compilations.jsonl)'
++ test_log INFO 'PASS: rch JSONL log should exist (/data/tmp/vc_e2e_test_rch_collect_EHhB6j/.rch/compilations.jsonl)'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T13:04:51-05:00] [INFO] PASS: rch JSONL log should exist (/data/tmp/vc_e2e_test_rch_collect_EHhB6j/.rch/compilations.jsonl)'
+[2026-01-28T13:04:51-05:00] [INFO] PASS: rch JSONL log should exist (/data/tmp/vc_e2e_test_rch_collect_EHhB6j/.rch/compilations.jsonl)
+++ wc -l
+++ tr -d ' '
++ line_count=2
++ assert_eq 2 2 'rch JSONL should have 2 lines'
++ local expected=2
++ local actual=2
++ local 'msg=rch JSONL should have 2 lines'
++ TEST_ASSERTIONS=2
++ [[ 2 == \2 ]]
++ test_info 'PASS: rch JSONL should have 2 lines'
++ test_log INFO 'PASS: rch JSONL should have 2 lines'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T13:04:51-05:00] [INFO] PASS: rch JSONL should have 2 lines'
+[2026-01-28T13:04:51-05:00] [INFO] PASS: rch JSONL should have 2 lines
++ IFS=
++ read -r line
++ '[' -n '{"ts":"2026-01-28T00:00:00Z","crate":"vc_cli","version":"0.1.0","profile":"debug","target":"x86_64-unknown-linux-gnu","duration_ms":1200,"cache_hit":false,"cache_key":"abc123","worker":"worker-1","exit_code":0,"error":null,"cpu_time_ms":900,"peak_memory_mb":512}' ']'
++ assert_json_valid '{"ts":"2026-01-28T00:00:00Z","crate":"vc_cli","version":"0.1.0","profile":"debug","target":"x86_64-unknown-linux-gnu","duration_ms":1200,"cache_hit":false,"cache_key":"abc123","worker":"worker-1","exit_code":0,"error":null,"cpu_time_ms":900,"peak_memory_mb":512}' 'rch JSONL line should be valid JSON'
++ local 'json={"ts":"2026-01-28T00:00:00Z","crate":"vc_cli","version":"0.1.0","profile":"debug","target":"x86_64-unknown-linux-gnu","duration_ms":1200,"cache_hit":false,"cache_key":"abc123","worker":"worker-1","exit_code":0,"error":null,"cpu_time_ms":900,"peak_memory_mb":512}'
++ local 'msg=rch JSONL line should be valid JSON'
++ TEST_ASSERTIONS=3
++ echo '{"ts":"2026-01-28T00:00:00Z","crate":"vc_cli","version":"0.1.0","profile":"debug","target":"x86_64-unknown-linux-gnu","duration_ms":1200,"cache_hit":false,"cache_key":"abc123","worker":"worker-1","exit_code":0,"error":null,"cpu_time_ms":900,"peak_memory_mb":512}'
++ jq .
++ test_info 'PASS: rch JSONL line should be valid JSON'
++ test_log INFO 'PASS: rch JSONL line should be valid JSON'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T13:04:51-05:00] [INFO] PASS: rch JSONL line should be valid JSON'
+[2026-01-28T13:04:51-05:00] [INFO] PASS: rch JSONL line should be valid JSON
++ IFS=
++ read -r line
++ '[' -n '{"ts":"2026-01-28T00:05:00Z","crate":"vc_store","version":"0.1.0","profile":"release","target":"x86_64-unknown-linux-gnu","duration_ms":3400,"cache_hit":true,"cache_key":"def456","worker":"worker-2","exit_code":1,"error":"linker error","cpu_time_ms":3000,"peak_memory_mb":1024}' ']'
++ assert_json_valid '{"ts":"2026-01-28T00:05:00Z","crate":"vc_store","version":"0.1.0","profile":"release","target":"x86_64-unknown-linux-gnu","duration_ms":3400,"cache_hit":true,"cache_key":"def456","worker":"worker-2","exit_code":1,"error":"linker error","cpu_time_ms":3000,"peak_memory_mb":1024}' 'rch JSONL line should be valid JSON'
++ local 'json={"ts":"2026-01-28T00:05:00Z","crate":"vc_store","version":"0.1.0","profile":"release","target":"x86_64-unknown-linux-gnu","duration_ms":3400,"cache_hit":true,"cache_key":"def456","worker":"worker-2","exit_code":1,"error":"linker error","cpu_time_ms":3000,"peak_memory_mb":1024}'
++ local 'msg=rch JSONL line should be valid JSON'
++ TEST_ASSERTIONS=4
++ echo '{"ts":"2026-01-28T00:05:00Z","crate":"vc_store","version":"0.1.0","profile":"release","target":"x86_64-unknown-linux-gnu","duration_ms":3400,"cache_hit":true,"cache_key":"def456","worker":"worker-2","exit_code":1,"error":"linker error","cpu_time_ms":3000,"peak_memory_mb":1024}'
++ jq .
++ test_info 'PASS: rch JSONL line should be valid JSON'
++ test_log INFO 'PASS: rch JSONL line should be valid JSON'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T13:04:51-05:00] [INFO] PASS: rch JSONL line should be valid JSON'
+[2026-01-28T13:04:51-05:00] [INFO] PASS: rch JSONL line should be valid JSON
++ IFS=
++ read -r line
++ RCH_BIN_DIR=/data/tmp/vc_e2e_test_rch_collect_EHhB6j/bin
++ mkdir -p /data/tmp/vc_e2e_test_rch_collect_EHhB6j/bin
++ cat
++ chmod +x /data/tmp/vc_e2e_test_rch_collect_EHhB6j/bin/rch
++ export PATH=/data/tmp/vc_e2e_test_rch_collect_EHhB6j/bin:/home/ubuntu/.codex/tmp/path/codex-arg0eJszyB:/home/ubuntu/.bun/install/global/node_modules/@openai/codex/vendor/x86_64-unknown-linux-musl/path:/data/tmp/.tmpMpmAMF:/data/tmp/.tmpzam3q7:/data/tmp/.tmpoyAfve:/data/tmp/.tmpe6g78I:/data/tmp/.tmpPd69rK:/data/tmp/.tmpGRbjsw:/data/tmp/.tmpz2brVn:/data/tmp/.tmp0PnFJv:/data/tmp/.tmpPoRhAM:/data/tmp/.tmpFfkQ40:/data/tmp/.tmpuxSIpy:/data/tmp/.tmpXjJuNc:/data/tmp/.tmpTZnvXD:/data/tmp/.tmpuK4iIg:/data/tmp/.tmpajeyt7:/data/tmp/.tmpev6kRK:/data/tmp/.tmpiDVpJA:/data/tmp/.tmpnDRhga:/data/tmp/.tmpzxxM5v:/data/tmp/.tmpvKVXKw:/data/tmp/.tmpmNPIdP:/data/tmp/.tmpVFL4Sw:/data/tmp/.tmp7ItVFC:/data/tmp/.tmp0vGjRa:/data/tmp/.tmpBllZzw:/data/tmp/.tmpobicww:/data/tmp/.tmp8f8C2e:/data/tmp/.tmpbD8QBY:/data/tmp/.tmpjzHvSF:/data/tmp/.tmpkjqRCG:/data/tmp/.tmpVzu1zg:/data/tmp/.tmpHO13GV:/data/tmp/.tmprTmBIb:/data/tmp/.tmpRHFAS9:/data/tmp/.tmp84NBm7:/data/tmp/.tmpOXe4sc:/data/tmp/.tmpcOX7LV:/data/tmp/.tmpHmVm2g:/data/tmp/.tmp9gcOZP:/data/tmp/.tmpz4q0R1:/data/tmp/.tmpvkDZiX:/data/tmp/.tmp7Mj5dU:/data/tmp/.tmpdkiSGU:/data/tmp/.tmpDhz6SG:/data/tmp/.tmpxZwXIA:/data/tmp/.tmptoaKcg:/data/tmp/.tmp5WocB2:/data/tmp/.tmpQIUXw6:/data/tmp/.tmp3pRXXR:/data/tmp/.tmpGRxfSM:/data/tmp/.tmpLA8PkL:/data/tmp/.tmpFbmIJR:/data/tmp/.tmpWfLZ76:/data/tmp/.tmpWsTSmr:/data/tmp/.tmpxh3SQx:/data/tmp/.tmp0QcB2I:/data/tmp/.tmpxNatIO:/data/tmp/.tmpupEMqh:/data/tmp/.tmppCYdSE:/data/tmp/.tmpymdjNV:/data/tmp/.tmpCFNqVV:/data/tmp/.tmpdJ2vDZ:/data/tmp/.tmpSewNuz:/data/tmp/.tmpQlKd6y:/data/tmp/.tmprUxpI2:/run/user/1000/fnm_multishells/1141914_1769574439286/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/bin:/run/user/1000/fnm_multishells/1141838_1769574439149/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/.nvm/versions/node/v24.12.0/bin:/home/ubuntu/.local/bin:/home/ubuntu/.atuin/bin:/home/ubuntu/.bun/bin:/home/ubuntu/go/bin:/home/ubuntu/.cargo/bin:/home/ubuntu/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/snap/bin
++ PATH=/data/tmp/vc_e2e_test_rch_collect_EHhB6j/bin:/home/ubuntu/.codex/tmp/path/codex-arg0eJszyB:/home/ubuntu/.bun/install/global/node_modules/@openai/codex/vendor/x86_64-unknown-linux-musl/path:/data/tmp/.tmpMpmAMF:/data/tmp/.tmpzam3q7:/data/tmp/.tmpoyAfve:/data/tmp/.tmpe6g78I:/data/tmp/.tmpPd69rK:/data/tmp/.tmpGRbjsw:/data/tmp/.tmpz2brVn:/data/tmp/.tmp0PnFJv:/data/tmp/.tmpPoRhAM:/data/tmp/.tmpFfkQ40:/data/tmp/.tmpuxSIpy:/data/tmp/.tmpXjJuNc:/data/tmp/.tmpTZnvXD:/data/tmp/.tmpuK4iIg:/data/tmp/.tmpajeyt7:/data/tmp/.tmpev6kRK:/data/tmp/.tmpiDVpJA:/data/tmp/.tmpnDRhga:/data/tmp/.tmpzxxM5v:/data/tmp/.tmpvKVXKw:/data/tmp/.tmpmNPIdP:/data/tmp/.tmpVFL4Sw:/data/tmp/.tmp7ItVFC:/data/tmp/.tmp0vGjRa:/data/tmp/.tmpBllZzw:/data/tmp/.tmpobicww:/data/tmp/.tmp8f8C2e:/data/tmp/.tmpbD8QBY:/data/tmp/.tmpjzHvSF:/data/tmp/.tmpkjqRCG:/data/tmp/.tmpVzu1zg:/data/tmp/.tmpHO13GV:/data/tmp/.tmprTmBIb:/data/tmp/.tmpRHFAS9:/data/tmp/.tmp84NBm7:/data/tmp/.tmpOXe4sc:/data/tmp/.tmpcOX7LV:/data/tmp/.tmpHmVm2g:/data/tmp/.tmp9gcOZP:/data/tmp/.tmpz4q0R1:/data/tmp/.tmpvkDZiX:/data/tmp/.tmp7Mj5dU:/data/tmp/.tmpdkiSGU:/data/tmp/.tmpDhz6SG:/data/tmp/.tmpxZwXIA:/data/tmp/.tmptoaKcg:/data/tmp/.tmp5WocB2:/data/tmp/.tmpQIUXw6:/data/tmp/.tmp3pRXXR:/data/tmp/.tmpGRxfSM:/data/tmp/.tmpLA8PkL:/data/tmp/.tmpFbmIJR:/data/tmp/.tmpWfLZ76:/data/tmp/.tmpWsTSmr:/data/tmp/.tmpxh3SQx:/data/tmp/.tmp0QcB2I:/data/tmp/.tmpxNatIO:/data/tmp/.tmpupEMqh:/data/tmp/.tmppCYdSE:/data/tmp/.tmpymdjNV:/data/tmp/.tmpCFNqVV:/data/tmp/.tmpdJ2vDZ:/data/tmp/.tmpSewNuz:/data/tmp/.tmpQlKd6y:/data/tmp/.tmprUxpI2:/run/user/1000/fnm_multishells/1141914_1769574439286/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/bin:/run/user/1000/fnm_multishells/1141838_1769574439149/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/.nvm/versions/node/v24.12.0/bin:/home/ubuntu/.local/bin:/home/ubuntu/.atuin/bin:/home/ubuntu/.bun/bin:/home/ubuntu/go/bin:/home/ubuntu/.cargo/bin:/home/ubuntu/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/snap/bin
++ run_vc_or_skip collect --collector rch

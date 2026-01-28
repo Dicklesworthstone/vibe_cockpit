@@ -22,7 +22,8 @@
 ++ TEST_ASSERTIONS=0
 ++ TEST_FAILURES=0
 +++ date +%s%N
-++ TEST_START_TIME=1769621045394225786
+++ TEST_START_TIME=1769623512078949767
+++ VC_LAST_OUTPUT=
 ++ RED='\033[0;31m'
 ++ GREEN='\033[0;32m'
 ++ YELLOW='\033[1;33m'
@@ -33,53 +34,53 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:05-05:00] [INFO] Starting sysmoni collector E2E test'
-[2026-01-28T12:24:05-05:00] [INFO] Starting sysmoni collector E2E test
++ echo '[2026-01-28T13:05:12-05:00] [INFO] Starting sysmoni collector E2E test'
+[2026-01-28T13:05:12-05:00] [INFO] Starting sysmoni collector E2E test
 + setup_test_env
 + test_info 'Setting up test environment'
 + test_log INFO 'Setting up test environment'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:05-05:00] [INFO] Setting up test environment'
-[2026-01-28T12:24:05-05:00] [INFO] Setting up test environment
++ echo '[2026-01-28T13:05:12-05:00] [INFO] Setting up test environment'
+[2026-01-28T13:05:12-05:00] [INFO] Setting up test environment
 ++ mktemp -d -t vc_e2e_test_sysmoni_collect_XXXXXX
-+ TEST_TEMP_DIR=/data/tmp/vc_e2e_test_sysmoni_collect_krwZGp
++ TEST_TEMP_DIR=/data/tmp/vc_e2e_test_sysmoni_collect_8M34rS
 + export TEST_TEMP_DIR
-+ TEST_DB_PATH=/data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/test.duckdb
++ TEST_DB_PATH=/data/tmp/vc_e2e_test_sysmoni_collect_8M34rS/test.duckdb
 + export TEST_DB_PATH
-+ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/config.toml
++ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_sysmoni_collect_8M34rS/config.toml
 + cat
 + export TEST_CONFIG_PATH
-+ test_info 'Test temp dir: /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp'
-+ test_log INFO 'Test temp dir: /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp'
++ test_info 'Test temp dir: /data/tmp/vc_e2e_test_sysmoni_collect_8M34rS'
++ test_log INFO 'Test temp dir: /data/tmp/vc_e2e_test_sysmoni_collect_8M34rS'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:05-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp'
-[2026-01-28T12:24:05-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp
-+ SYSMONI_FIXTURE=/data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/sysmoni_output.json
++ echo '[2026-01-28T13:05:12-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_sysmoni_collect_8M34rS'
+[2026-01-28T13:05:12-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_sysmoni_collect_8M34rS
++ SYSMONI_FIXTURE=/data/tmp/vc_e2e_test_sysmoni_collect_8M34rS/sysmoni_output.json
 + cat
 + test_info 'Test 1: Validating sysmoni fixture JSON'
 + test_log INFO 'Test 1: Validating sysmoni fixture JSON'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:05-05:00] [INFO] Test 1: Validating sysmoni fixture JSON'
-[2026-01-28T12:24:05-05:00] [INFO] Test 1: Validating sysmoni fixture JSON
-+ assert_file_exists /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/sysmoni_output.json 'Sysmoni fixture should exist'
-+ local path=/data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/sysmoni_output.json
++ echo '[2026-01-28T13:05:12-05:00] [INFO] Test 1: Validating sysmoni fixture JSON'
+[2026-01-28T13:05:12-05:00] [INFO] Test 1: Validating sysmoni fixture JSON
++ assert_file_exists /data/tmp/vc_e2e_test_sysmoni_collect_8M34rS/sysmoni_output.json 'Sysmoni fixture should exist'
++ local path=/data/tmp/vc_e2e_test_sysmoni_collect_8M34rS/sysmoni_output.json
 + local 'msg=Sysmoni fixture should exist'
 + TEST_ASSERTIONS=1
-+ [[ -f /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/sysmoni_output.json ]]
-+ test_info 'PASS: Sysmoni fixture should exist (/data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/sysmoni_output.json)'
-+ test_log INFO 'PASS: Sysmoni fixture should exist (/data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/sysmoni_output.json)'
++ [[ -f /data/tmp/vc_e2e_test_sysmoni_collect_8M34rS/sysmoni_output.json ]]
++ test_info 'PASS: Sysmoni fixture should exist (/data/tmp/vc_e2e_test_sysmoni_collect_8M34rS/sysmoni_output.json)'
++ test_log INFO 'PASS: Sysmoni fixture should exist (/data/tmp/vc_e2e_test_sysmoni_collect_8M34rS/sysmoni_output.json)'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:05-05:00] [INFO] PASS: Sysmoni fixture should exist (/data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/sysmoni_output.json)'
-[2026-01-28T12:24:05-05:00] [INFO] PASS: Sysmoni fixture should exist (/data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/sysmoni_output.json)
-++ cat /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/sysmoni_output.json
++ echo '[2026-01-28T13:05:12-05:00] [INFO] PASS: Sysmoni fixture should exist (/data/tmp/vc_e2e_test_sysmoni_collect_8M34rS/sysmoni_output.json)'
+[2026-01-28T13:05:12-05:00] [INFO] PASS: Sysmoni fixture should exist (/data/tmp/vc_e2e_test_sysmoni_collect_8M34rS/sysmoni_output.json)
+++ cat /data/tmp/vc_e2e_test_sysmoni_collect_8M34rS/sysmoni_output.json
 + sysmoni_content='{
     "timestamp": "2026-01-28T00:00:00Z",
     "cpu": {
@@ -220,15 +221,15 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:05-05:00] [INFO] PASS: Sysmoni fixture should be valid JSON'
-[2026-01-28T12:24:05-05:00] [INFO] PASS: Sysmoni fixture should be valid JSON
++ echo '[2026-01-28T13:05:12-05:00] [INFO] PASS: Sysmoni fixture should be valid JSON'
+[2026-01-28T13:05:12-05:00] [INFO] PASS: Sysmoni fixture should be valid JSON
 + test_info 'Test 2: Checking CPU metrics structure'
 + test_log INFO 'Test 2: Checking CPU metrics structure'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:05-05:00] [INFO] Test 2: Checking CPU metrics structure'
-[2026-01-28T12:24:05-05:00] [INFO] Test 2: Checking CPU metrics structure
++ echo '[2026-01-28T13:05:12-05:00] [INFO] Test 2: Checking CPU metrics structure'
+[2026-01-28T13:05:12-05:00] [INFO] Test 2: Checking CPU metrics structure
 + assert_json_field '{
     "timestamp": "2026-01-28T00:00:00Z",
     "cpu": {
@@ -340,8 +341,8 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:05-05:00] [INFO] PASS: CPU total percent (.cpu.total_percent = 45.2)'
-[2026-01-28T12:24:05-05:00] [INFO] PASS: CPU total percent (.cpu.total_percent = 45.2)
++ echo '[2026-01-28T13:05:12-05:00] [INFO] PASS: CPU total percent (.cpu.total_percent = 45.2)'
+[2026-01-28T13:05:12-05:00] [INFO] PASS: CPU total percent (.cpu.total_percent = 45.2)
 + assert_json_field '{
     "timestamp": "2026-01-28T00:00:00Z",
     "cpu": {
@@ -453,8 +454,8 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:06-05:00] [INFO] PASS: Load 1 minute average (.cpu.load_1 = 2.1)'
-[2026-01-28T12:24:06-05:00] [INFO] PASS: Load 1 minute average (.cpu.load_1 = 2.1)
++ echo '[2026-01-28T13:05:13-05:00] [INFO] PASS: Load 1 minute average (.cpu.load_1 = 2.1)'
+[2026-01-28T13:05:13-05:00] [INFO] PASS: Load 1 minute average (.cpu.load_1 = 2.1)
 + assert_json_field '{
     "timestamp": "2026-01-28T00:00:00Z",
     "cpu": {
@@ -529,6 +530,7 @@
     "timestamp": "2026-01-28T00:00:00Z",
     "cpu": {
         "total_percent": 45.2,
+++ jq -r .cpu.load_5
         "per_core": [42.1, 48.3, 44.0, 46.4],
         "load_1": 2.1,
         "load_5": 1.8,
@@ -558,7 +560,6 @@
         {"pid": 5678, "name": "rust-analyzer", "cpu_percent": 12.5, "memory_bytes": 536870912}
     ]
 }'
-++ jq -r .cpu.load_5
 + local actual=1.8
 + [[ 1.8 == \1\.\8 ]]
 + test_info 'PASS: Load 5 minute average (.cpu.load_5 = 1.8)'
@@ -566,8 +567,8 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:06-05:00] [INFO] PASS: Load 5 minute average (.cpu.load_5 = 1.8)'
-[2026-01-28T12:24:06-05:00] [INFO] PASS: Load 5 minute average (.cpu.load_5 = 1.8)
++ echo '[2026-01-28T13:05:13-05:00] [INFO] PASS: Load 5 minute average (.cpu.load_5 = 1.8)'
+[2026-01-28T13:05:13-05:00] [INFO] PASS: Load 5 minute average (.cpu.load_5 = 1.8)
 + assert_json_field '{
     "timestamp": "2026-01-28T00:00:00Z",
     "cpu": {
@@ -679,15 +680,15 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:06-05:00] [INFO] PASS: Load 15 minute average (.cpu.load_15 = 1.5)'
-[2026-01-28T12:24:06-05:00] [INFO] PASS: Load 15 minute average (.cpu.load_15 = 1.5)
++ echo '[2026-01-28T13:05:13-05:00] [INFO] PASS: Load 15 minute average (.cpu.load_15 = 1.5)'
+[2026-01-28T13:05:13-05:00] [INFO] PASS: Load 15 minute average (.cpu.load_15 = 1.5)
 + test_info 'Test 3: Checking memory metrics structure'
 + test_log INFO 'Test 3: Checking memory metrics structure'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:06-05:00] [INFO] Test 3: Checking memory metrics structure'
-[2026-01-28T12:24:06-05:00] [INFO] Test 3: Checking memory metrics structure
++ echo '[2026-01-28T13:05:13-05:00] [INFO] Test 3: Checking memory metrics structure'
+[2026-01-28T13:05:13-05:00] [INFO] Test 3: Checking memory metrics structure
 ++ echo '{
     "timestamp": "2026-01-28T00:00:00Z",
     "cpu": {
@@ -734,8 +735,8 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:06-05:00] [INFO] PASS: Memory total should exist'
-[2026-01-28T12:24:06-05:00] [INFO] PASS: Memory total should exist
++ echo '[2026-01-28T13:05:13-05:00] [INFO] PASS: Memory total should exist'
+[2026-01-28T13:05:13-05:00] [INFO] PASS: Memory total should exist
 ++ echo '{
     "timestamp": "2026-01-28T00:00:00Z",
     "cpu": {
@@ -782,15 +783,15 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:06-05:00] [INFO] PASS: Memory available should exist'
-[2026-01-28T12:24:06-05:00] [INFO] PASS: Memory available should exist
++ echo '[2026-01-28T13:05:13-05:00] [INFO] PASS: Memory available should exist'
+[2026-01-28T13:05:13-05:00] [INFO] PASS: Memory available should exist
 + test_info 'Test 4: Checking process list structure'
 + test_log INFO 'Test 4: Checking process list structure'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:06-05:00] [INFO] Test 4: Checking process list structure'
-[2026-01-28T12:24:06-05:00] [INFO] Test 4: Checking process list structure
++ echo '[2026-01-28T13:05:13-05:00] [INFO] Test 4: Checking process list structure'
+[2026-01-28T13:05:13-05:00] [INFO] Test 4: Checking process list structure
 ++ echo '{
     "timestamp": "2026-01-28T00:00:00Z",
     "cpu": {
@@ -837,15 +838,15 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:06-05:00] [INFO] PASS: Should have 2 processes in fixture'
-[2026-01-28T12:24:06-05:00] [INFO] PASS: Should have 2 processes in fixture
++ echo '[2026-01-28T13:05:14-05:00] [INFO] PASS: Should have 2 processes in fixture'
+[2026-01-28T13:05:14-05:00] [INFO] PASS: Should have 2 processes in fixture
 + test_info 'Test 5: Checking network metrics structure'
 + test_log INFO 'Test 5: Checking network metrics structure'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:06-05:00] [INFO] Test 5: Checking network metrics structure'
-[2026-01-28T12:24:06-05:00] [INFO] Test 5: Checking network metrics structure
++ echo '[2026-01-28T13:05:14-05:00] [INFO] Test 5: Checking network metrics structure'
+[2026-01-28T13:05:14-05:00] [INFO] Test 5: Checking network metrics structure
 ++ echo '{
     "timestamp": "2026-01-28T00:00:00Z",
     "cpu": {
@@ -892,8 +893,9 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:06-05:00] [INFO] PASS: Network RX should exist'
-[2026-01-28T12:24:06-05:00] [INFO] PASS: Network RX should exist
++ echo '[2026-01-28T13:05:14-05:00] [INFO] PASS: Network RX should exist'
+[2026-01-28T13:05:14-05:00] [INFO] PASS: Network RX should exist
+++ jq .network.tx_bytes_per_sec
 ++ echo '{
     "timestamp": "2026-01-28T00:00:00Z",
     "cpu": {
@@ -927,7 +929,6 @@
         {"pid": 5678, "name": "rust-analyzer", "cpu_percent": 12.5, "memory_bytes": 536870912}
     ]
 }'
-++ jq .network.tx_bytes_per_sec
 + tx_bytes=5242880
 + assert_ne null 5242880 'Network TX should exist'
 + local unexpected=null
@@ -940,15 +941,15 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:06-05:00] [INFO] PASS: Network TX should exist'
-[2026-01-28T12:24:06-05:00] [INFO] PASS: Network TX should exist
++ echo '[2026-01-28T13:05:14-05:00] [INFO] PASS: Network TX should exist'
+[2026-01-28T13:05:14-05:00] [INFO] PASS: Network TX should exist
 + test_info 'Test 6: Checking disk metrics structure'
 + test_log INFO 'Test 6: Checking disk metrics structure'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:06-05:00] [INFO] Test 6: Checking disk metrics structure'
-[2026-01-28T12:24:06-05:00] [INFO] Test 6: Checking disk metrics structure
++ echo '[2026-01-28T13:05:14-05:00] [INFO] Test 6: Checking disk metrics structure'
+[2026-01-28T13:05:14-05:00] [INFO] Test 6: Checking disk metrics structure
 ++ echo '{
     "timestamp": "2026-01-28T00:00:00Z",
     "cpu": {
@@ -995,22 +996,19 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:06-05:00] [INFO] PASS: Should have 2 filesystems in fixture'
-[2026-01-28T12:24:06-05:00] [INFO] PASS: Should have 2 filesystems in fixture
++ echo '[2026-01-28T13:05:14-05:00] [INFO] PASS: Should have 2 filesystems in fixture'
+[2026-01-28T13:05:14-05:00] [INFO] PASS: Should have 2 filesystems in fixture
 + test_info 'Test 7: Checking vc robot health with stub implementation'
 + test_log INFO 'Test 7: Checking vc robot health with stub implementation'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:07-05:00] [INFO] Test 7: Checking vc robot health with stub implementation'
-[2026-01-28T12:24:07-05:00] [INFO] Test 7: Checking vc robot health with stub implementation
-++ run_vc robot health
-+ health_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/config.toml robot health
-{
++ echo '[2026-01-28T13:05:14-05:00] [INFO] Test 7: Checking vc robot health with stub implementation'
+[2026-01-28T13:05:14-05:00] [INFO] Test 7: Checking vc robot health with stub implementation
++ run_vc_or_skip robot health
++ health_output='{
   "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:24:07.115276312Z",
+  "generated_at": "2026-01-28T18:05:14.957468561Z",
   "data": {
     "overall": {
       "score": 1.0,
@@ -1026,7 +1024,7 @@
         "score": 1.0,
         "status": "online",
         "top_issue": null,
-        "last_seen": "2026-01-28T17:24:07.115174700Z",
+        "last_seen": "2026-01-28T18:05:14.957423837Z",
         "agent_count": 0,
         "cpu_percent": null,
         "memory_percent": null
@@ -1042,12 +1040,9 @@
     "No collectors have run yet - data may be incomplete"
   ]
 }'
-+ assert_json_valid '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/config.toml robot health
-{
++ assert_json_valid '{
   "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:24:07.115276312Z",
+  "generated_at": "2026-01-28T18:05:14.957468561Z",
   "data": {
     "overall": {
       "score": 1.0,
@@ -1063,7 +1058,7 @@
         "score": 1.0,
         "status": "online",
         "top_issue": null,
-        "last_seen": "2026-01-28T17:24:07.115174700Z",
+        "last_seen": "2026-01-28T18:05:14.957423837Z",
         "agent_count": 0,
         "cpu_percent": null,
         "memory_percent": null
@@ -1079,12 +1074,9 @@
     "No collectors have run yet - data may be incomplete"
   ]
 }' 'Health output should be valid JSON'
-+ local 'json=++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/config.toml robot health
-{
++ local 'json={
   "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:24:07.115276312Z",
+  "generated_at": "2026-01-28T18:05:14.957468561Z",
   "data": {
     "overall": {
       "score": 1.0,
@@ -1100,7 +1092,7 @@
         "score": 1.0,
         "status": "online",
         "top_issue": null,
-        "last_seen": "2026-01-28T17:24:07.115174700Z",
+        "last_seen": "2026-01-28T18:05:14.957423837Z",
         "agent_count": 0,
         "cpu_percent": null,
         "memory_percent": null
@@ -1118,57 +1110,51 @@
 }'
 + local 'msg=Health output should be valid JSON'
 + TEST_ASSERTIONS=13
++ echo '{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T18:05:14.957468561Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T18:05:14.957423837Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
 + jq .
-+ echo '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/config.toml robot health
-{
-  "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:24:07.115276312Z",
-  "data": {
-    "overall": {
-      "score": 1.0,
-      "severity": "healthy",
-      "active_alerts": 0,
-      "machine_count": 1,
-      "agent_count": 0
-    },
-    "machines": [
-      {
-        "id": "local",
-        "name": "Local Machine",
-        "score": 1.0,
-        "status": "online",
-        "top_issue": null,
-        "last_seen": "2026-01-28T17:24:07.115174700Z",
-        "agent_count": 0,
-        "cpu_percent": null,
-        "memory_percent": null
-      }
-    ],
-    "alerts_by_severity": {
-      "critical": 0,
-      "warning": 0,
-      "info": 0
-    }
-  },
-  "warnings": [
-    "No collectors have run yet - data may be incomplete"
-  ]
-}'
-+ test_error 'FAIL: Health output should be valid JSON'
-+ test_log ERROR 'FAIL: Health output should be valid JSON'
-+ local level=ERROR
++ test_info 'PASS: Health output should be valid JSON'
++ test_log INFO 'PASS: Health output should be valid JSON'
++ local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:07-05:00] [ERROR] FAIL: Health output should be valid JSON'
-[2026-01-28T12:24:07-05:00] [ERROR] FAIL: Health output should be valid JSON
-+ test_error '  Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/config.toml robot health
-{
++ echo '[2026-01-28T13:05:15-05:00] [INFO] PASS: Health output should be valid JSON'
+[2026-01-28T13:05:15-05:00] [INFO] PASS: Health output should be valid JSON
++ assert_json_field '{
   "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:24:07.115276312Z",
+  "generated_at": "2026-01-28T18:05:14.957468561Z",
   "data": {
     "overall": {
       "score": 1.0,
@@ -1184,159 +1170,7 @@
         "score": 1.0,
         "status": "online",
         "top_issue": null,
-        "last_seen": "2026-01-28T17:24:07.115174700Z",
-        "agent_count": 0,
-        "cpu_percent": null,
-        "memory_percent": null
-      }
-    ],
-    "alerts_by_severity": {
-      "critical": 0,
-      "warning": 0,
-      "info": 0
-    }
-  },
-  "warnings": [
-    "No collectors have run yet - data may be incomplete"
-  ]
-}'
-+ test_log ERROR '  Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/config.toml robot health
-{
-  "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:24:07.115276312Z",
-  "data": {
-    "overall": {
-      "score": 1.0,
-      "severity": "healthy",
-      "active_alerts": 0,
-      "machine_count": 1,
-      "agent_count": 0
-    },
-    "machines": [
-      {
-        "id": "local",
-        "name": "Local Machine",
-        "score": 1.0,
-        "status": "online",
-        "top_issue": null,
-        "last_seen": "2026-01-28T17:24:07.115174700Z",
-        "agent_count": 0,
-        "cpu_percent": null,
-        "memory_percent": null
-      }
-    ],
-    "alerts_by_severity": {
-      "critical": 0,
-      "warning": 0,
-      "info": 0
-    }
-  },
-  "warnings": [
-    "No collectors have run yet - data may be incomplete"
-  ]
-}'
-+ local level=ERROR
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:24:07-05:00] [ERROR]   Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/config.toml robot health
-{
-  "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:24:07.115276312Z",
-  "data": {
-    "overall": {
-      "score": 1.0,
-      "severity": "healthy",
-      "active_alerts": 0,
-      "machine_count": 1,
-      "agent_count": 0
-    },
-    "machines": [
-      {
-        "id": "local",
-        "name": "Local Machine",
-        "score": 1.0,
-        "status": "online",
-        "top_issue": null,
-        "last_seen": "2026-01-28T17:24:07.115174700Z",
-        "agent_count": 0,
-        "cpu_percent": null,
-        "memory_percent": null
-      }
-    ],
-    "alerts_by_severity": {
-      "critical": 0,
-      "warning": 0,
-      "info": 0
-    }
-  },
-  "warnings": [
-    "No collectors have run yet - data may be incomplete"
-  ]
-}'
-[2026-01-28T12:24:07-05:00] [ERROR]   Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/config.toml robot health
-{
-  "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:24:07.115276312Z",
-  "data": {
-    "overall": {
-      "score": 1.0,
-      "severity": "healthy",
-      "active_alerts": 0,
-      "machine_count": 1,
-      "agent_count": 0
-    },
-    "machines": [
-      {
-        "id": "local",
-        "name": "Local Machine",
-        "score": 1.0,
-        "status": "online",
-        "top_issue": null,
-        "last_seen": "2026-01-28T17:24:07.115174700Z",
-        "agent_count": 0,
-        "cpu_percent": null,
-        "memory_percent": null
-      }
-    ],
-    "alerts_by_severity": {
-      "critical": 0,
-      "warning": 0,
-      "info": 0
-    }
-  },
-  "warnings": [
-    "No collectors have run yet - data may be incomplete"
-  ]
-}
-+ TEST_FAILURES=1
-+ assert_json_field '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/config.toml robot health
-{
-  "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:24:07.115276312Z",
-  "data": {
-    "overall": {
-      "score": 1.0,
-      "severity": "healthy",
-      "active_alerts": 0,
-      "machine_count": 1,
-      "agent_count": 0
-    },
-    "machines": [
-      {
-        "id": "local",
-        "name": "Local Machine",
-        "score": 1.0,
-        "status": "online",
-        "top_issue": null,
-        "last_seen": "2026-01-28T17:24:07.115174700Z",
+        "last_seen": "2026-01-28T18:05:14.957423837Z",
         "agent_count": 0,
         "cpu_percent": null,
         "memory_percent": null
@@ -1352,12 +1186,9 @@
     "No collectors have run yet - data may be incomplete"
   ]
 }' .schema_version vc.robot.health.v1 'Health schema version'
-+ local 'json=++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/config.toml robot health
-{
++ local 'json={
   "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:24:07.115276312Z",
+  "generated_at": "2026-01-28T18:05:14.957468561Z",
   "data": {
     "overall": {
       "score": 1.0,
@@ -1373,7 +1204,7 @@
         "score": 1.0,
         "status": "online",
         "top_issue": null,
-        "last_seen": "2026-01-28T17:24:07.115174700Z",
+        "last_seen": "2026-01-28T18:05:14.957423837Z",
         "agent_count": 0,
         "cpu_percent": null,
         "memory_percent": null
@@ -1393,12 +1224,10 @@
 + local expected=vc.robot.health.v1
 + local 'msg=Health schema version'
 + TEST_ASSERTIONS=14
-++ echo '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/config.toml robot health
-{
+++ jq -r .schema_version
+++ echo '{
   "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:24:07.115276312Z",
+  "generated_at": "2026-01-28T18:05:14.957468561Z",
   "data": {
     "overall": {
       "score": 1.0,
@@ -1414,7 +1243,7 @@
         "score": 1.0,
         "status": "online",
         "top_issue": null,
-        "last_seen": "2026-01-28T17:24:07.115174700Z",
+        "last_seen": "2026-01-28T18:05:14.957423837Z",
         "agent_count": 0,
         "cpu_percent": null,
         "memory_percent": null
@@ -1430,48 +1259,25 @@
     "No collectors have run yet - data may be incomplete"
   ]
 }'
-++ jq -r .schema_version
-+ local actual=
-+ [[ '' == \v\c\.\r\o\b\o\t\.\h\e\a\l\t\h\.\v\1 ]]
-+ test_error 'FAIL: Health schema version'
-+ test_log ERROR 'FAIL: Health schema version'
-+ local level=ERROR
++ local actual=vc.robot.health.v1
++ [[ vc.robot.health.v1 == \v\c\.\r\o\b\o\t\.\h\e\a\l\t\h\.\v\1 ]]
++ test_info 'PASS: Health schema version (.schema_version = vc.robot.health.v1)'
++ test_log INFO 'PASS: Health schema version (.schema_version = vc.robot.health.v1)'
++ local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:07-05:00] [ERROR] FAIL: Health schema version'
-[2026-01-28T12:24:07-05:00] [ERROR] FAIL: Health schema version
-+ test_error '  Field: .schema_version'
-+ test_log ERROR '  Field: .schema_version'
-+ local level=ERROR
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:24:07-05:00] [ERROR]   Field: .schema_version'
-[2026-01-28T12:24:07-05:00] [ERROR]   Field: .schema_version
-+ test_error '  Expected: vc.robot.health.v1'
-+ test_log ERROR '  Expected: vc.robot.health.v1'
-+ local level=ERROR
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:24:07-05:00] [ERROR]   Expected: vc.robot.health.v1'
-[2026-01-28T12:24:07-05:00] [ERROR]   Expected: vc.robot.health.v1
-+ test_error '  Actual: '
-+ test_log ERROR '  Actual: '
-+ local level=ERROR
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:24:07-05:00] [ERROR]   Actual: '
-[2026-01-28T12:24:07-05:00] [ERROR]   Actual: 
-+ TEST_FAILURES=2
++ echo '[2026-01-28T13:05:15-05:00] [INFO] PASS: Health schema version (.schema_version = vc.robot.health.v1)'
+[2026-01-28T13:05:15-05:00] [INFO] PASS: Health schema version (.schema_version = vc.robot.health.v1)
 + test_info 'Test 8: Testing minimal sysmoni output parsing'
 + test_log INFO 'Test 8: Testing minimal sysmoni output parsing'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:07-05:00] [INFO] Test 8: Testing minimal sysmoni output parsing'
-[2026-01-28T12:24:07-05:00] [INFO] Test 8: Testing minimal sysmoni output parsing
-+ MINIMAL_FIXTURE=/data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/sysmoni_minimal.json
++ echo '[2026-01-28T13:05:15-05:00] [INFO] Test 8: Testing minimal sysmoni output parsing'
+[2026-01-28T13:05:15-05:00] [INFO] Test 8: Testing minimal sysmoni output parsing
++ MINIMAL_FIXTURE=/data/tmp/vc_e2e_test_sysmoni_collect_8M34rS/sysmoni_minimal.json
 + cat
-++ cat /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/sysmoni_minimal.json
+++ cat /data/tmp/vc_e2e_test_sysmoni_collect_8M34rS/sysmoni_minimal.json
 + minimal_content='{
     "timestamp": "2026-01-28T00:00:00Z",
     "cpu": {
@@ -1516,8 +1322,8 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:07-05:00] [INFO] PASS: Minimal fixture should be valid JSON'
-[2026-01-28T12:24:07-05:00] [INFO] PASS: Minimal fixture should be valid JSON
++ echo '[2026-01-28T13:05:15-05:00] [INFO] PASS: Minimal fixture should be valid JSON'
+[2026-01-28T13:05:15-05:00] [INFO] PASS: Minimal fixture should be valid JSON
 + assert_json_field '{
     "timestamp": "2026-01-28T00:00:00Z",
     "cpu": {
@@ -1526,7 +1332,7 @@
     "memory": {
         "total_bytes": 8589934592
     }
-}' .cpu.total_percent 10 'Minimal CPU percent'
+}' .cpu.total_percent 10.0 'Minimal CPU percent'
 + local 'json={
     "timestamp": "2026-01-28T00:00:00Z",
     "cpu": {
@@ -1537,7 +1343,7 @@
     }
 }'
 + local field=.cpu.total_percent
-+ local expected=10
++ local expected=10.0
 + local 'msg=Minimal CPU percent'
 + TEST_ASSERTIONS=16
 ++ echo '{
@@ -1551,83 +1357,58 @@
 }'
 ++ jq -r .cpu.total_percent
 + local actual=10.0
-+ [[ 10.0 == \1\0 ]]
-+ test_error 'FAIL: Minimal CPU percent'
-+ test_log ERROR 'FAIL: Minimal CPU percent'
-+ local level=ERROR
++ [[ 10.0 == \1\0\.\0 ]]
++ test_info 'PASS: Minimal CPU percent (.cpu.total_percent = 10.0)'
++ test_log INFO 'PASS: Minimal CPU percent (.cpu.total_percent = 10.0)'
++ local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:07-05:00] [ERROR] FAIL: Minimal CPU percent'
-[2026-01-28T12:24:07-05:00] [ERROR] FAIL: Minimal CPU percent
-+ test_error '  Field: .cpu.total_percent'
-+ test_log ERROR '  Field: .cpu.total_percent'
-+ local level=ERROR
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:24:07-05:00] [ERROR]   Field: .cpu.total_percent'
-[2026-01-28T12:24:07-05:00] [ERROR]   Field: .cpu.total_percent
-+ test_error '  Expected: 10'
-+ test_log ERROR '  Expected: 10'
-+ local level=ERROR
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:24:07-05:00] [ERROR]   Expected: 10'
-[2026-01-28T12:24:07-05:00] [ERROR]   Expected: 10
-+ test_error '  Actual: 10.0'
-+ test_log ERROR '  Actual: 10.0'
-+ local level=ERROR
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:24:07-05:00] [ERROR]   Actual: 10.0'
-[2026-01-28T12:24:07-05:00] [ERROR]   Actual: 10.0
-+ TEST_FAILURES=3
++ echo '[2026-01-28T13:05:16-05:00] [INFO] PASS: Minimal CPU percent (.cpu.total_percent = 10.0)'
+[2026-01-28T13:05:16-05:00] [INFO] PASS: Minimal CPU percent (.cpu.total_percent = 10.0)
 + test_info 'Test 9: Testing invalid JSON handling'
 + test_log INFO 'Test 9: Testing invalid JSON handling'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:07-05:00] [INFO] Test 9: Testing invalid JSON handling'
-[2026-01-28T12:24:07-05:00] [INFO] Test 9: Testing invalid JSON handling
-+ INVALID_FIXTURE=/data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/sysmoni_invalid.json
++ echo '[2026-01-28T13:05:16-05:00] [INFO] Test 9: Testing invalid JSON handling'
+[2026-01-28T13:05:16-05:00] [INFO] Test 9: Testing invalid JSON handling
++ INVALID_FIXTURE=/data/tmp/vc_e2e_test_sysmoni_collect_8M34rS/sysmoni_invalid.json
 + echo 'not valid json {'
-+ jq . /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp/sysmoni_invalid.json
++ jq . /data/tmp/vc_e2e_test_sysmoni_collect_8M34rS/sysmoni_invalid.json
 + test_info 'PASS: Invalid JSON correctly rejected'
 + test_log INFO 'PASS: Invalid JSON correctly rejected'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:08-05:00] [INFO] PASS: Invalid JSON correctly rejected'
-[2026-01-28T12:24:08-05:00] [INFO] PASS: Invalid JSON correctly rejected
++ echo '[2026-01-28T13:05:16-05:00] [INFO] PASS: Invalid JSON correctly rejected'
+[2026-01-28T13:05:16-05:00] [INFO] PASS: Invalid JSON correctly rejected
 + TEST_ASSERTIONS=17
 + finalize_test
 ++ date +%s%N
-+ local end_time=1769621048108340806
-+ local duration_ms=2714
++ local end_time=1769623516609952215
++ local duration_ms=4531
 + local status=passed
 + local exit_code=0
-+ [[ 3 -gt 0 ]]
-+ status=failed
-+ exit_code=1
++ [[ 0 -gt 0 ]]
 + cat
-+ test_info 'Test complete: 17 assertions, 3 failures'
-+ test_log INFO 'Test complete: 17 assertions, 3 failures'
++ test_info 'Test complete: 17 assertions, 0 failures'
++ test_log INFO 'Test complete: 17 assertions, 0 failures'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:08-05:00] [INFO] Test complete: 17 assertions, 3 failures'
-[2026-01-28T12:24:08-05:00] [INFO] Test complete: 17 assertions, 3 failures
-+ exit 1
++ echo '[2026-01-28T13:05:16-05:00] [INFO] Test complete: 17 assertions, 0 failures'
+[2026-01-28T13:05:16-05:00] [INFO] Test complete: 17 assertions, 0 failures
++ exit 0
 + cleanup_test_env
-+ local exit_code=1
++ local exit_code=0
 + test_info 'Cleaning up test environment'
 + test_log INFO 'Cleaning up test environment'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:08-05:00] [INFO] Cleaning up test environment'
-[2026-01-28T12:24:08-05:00] [INFO] Cleaning up test environment
-+ [[ -n /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp ]]
-+ [[ -d /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp ]]
-+ [[ 1 -ne 0 ]]
-+ [[ '' == \t\r\u\e ]]
-+ rm -rf /data/tmp/vc_e2e_test_sysmoni_collect_krwZGp
++ echo '[2026-01-28T13:05:17-05:00] [INFO] Cleaning up test environment'
+[2026-01-28T13:05:17-05:00] [INFO] Cleaning up test environment
++ [[ -n /data/tmp/vc_e2e_test_sysmoni_collect_8M34rS ]]
++ [[ -d /data/tmp/vc_e2e_test_sysmoni_collect_8M34rS ]]
++ [[ 0 -ne 0 ]]
++ rm -rf /data/tmp/vc_e2e_test_sysmoni_collect_8M34rS

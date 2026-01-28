@@ -281,11 +281,21 @@ run_vc() {
 run_vc_or_skip() {
     local output=""
     local status=0
+    local had_xtrace=0
+
+    if [[ "$-" == *x* ]]; then
+        had_xtrace=1
+        set +x
+    fi
 
     set +e
     output=$(run_vc "$@" 2>&1)
     status=$?
     set -e
+
+    if [[ $had_xtrace -eq 1 ]]; then
+        set -x
+    fi
 
     if [[ "$output" == *"Command not yet implemented"* ]]; then
         test_warn "Skipping: command not yet implemented (vc $*)"

@@ -1,7 +1,29 @@
-{
-  "test_name": "test_collector_errors",
-  "status": "failed",
-  "duration_ms": 2803,
-  "assertions": 8,
-  "failures": 2
-}
++ local output=
++ local status=0
++ local had_xtrace=0
++ [[ ehuxB == *x* ]]
++ had_xtrace=1
++ set +x
++ [[ Command not yet implemented: Collect { collector: Some("sysmoni"), machine: None } == *\C\o\m\m\a\n\d\ \n\o\t\ \y\e\t\ \i\m\p\l\e\m\e\n\t\e\d* ]]
++ test_warn 'Skipping: command not yet implemented (vc collect --collector sysmoni)'
++ test_log WARN 'Skipping: command not yet implemented (vc collect --collector sysmoni)'
++ local level=WARN
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T13:04:18-05:00] [WARN] Skipping: command not yet implemented (vc collect --collector sysmoni)'
+[2026-01-28T13:04:18-05:00] [WARN] Skipping: command not yet implemented (vc collect --collector sysmoni)
++ exit 2
++ cleanup_test_env
++ local exit_code=2
++ test_info 'Cleaning up test environment'
++ test_log INFO 'Cleaning up test environment'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T13:04:18-05:00] [INFO] Cleaning up test environment'
+[2026-01-28T13:04:18-05:00] [INFO] Cleaning up test environment
++ [[ -n /data/tmp/vc_e2e_test_collector_errors_cXIheS ]]
++ [[ -d /data/tmp/vc_e2e_test_collector_errors_cXIheS ]]
++ [[ 2 -ne 0 ]]
++ [[ '' == \t\r\u\e ]]
++ rm -rf /data/tmp/vc_e2e_test_collector_errors_cXIheS

@@ -22,7 +22,8 @@
 ++ TEST_ASSERTIONS=0
 ++ TEST_FAILURES=0
 +++ date +%s%N
-++ TEST_START_TIME=1769621038146847796
+++ TEST_START_TIME=1769623500522971180
+++ VC_LAST_OUTPUT=
 ++ RED='\033[0;31m'
 ++ GREEN='\033[0;32m'
 ++ YELLOW='\033[1;33m'
@@ -33,55 +34,55 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:58-05:00] [INFO] Starting ru collector E2E test'
-[2026-01-28T12:23:58-05:00] [INFO] Starting ru collector E2E test
++ echo '[2026-01-28T13:05:00-05:00] [INFO] Starting ru collector E2E test'
+[2026-01-28T13:05:00-05:00] [INFO] Starting ru collector E2E test
 + setup_test_env
 + test_info 'Setting up test environment'
 + test_log INFO 'Setting up test environment'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:58-05:00] [INFO] Setting up test environment'
-[2026-01-28T12:23:58-05:00] [INFO] Setting up test environment
++ echo '[2026-01-28T13:05:00-05:00] [INFO] Setting up test environment'
+[2026-01-28T13:05:00-05:00] [INFO] Setting up test environment
 ++ mktemp -d -t vc_e2e_test_ru_collect_XXXXXX
-+ TEST_TEMP_DIR=/data/tmp/vc_e2e_test_ru_collect_nL9rHw
++ TEST_TEMP_DIR=/data/tmp/vc_e2e_test_ru_collect_61wRmW
 + export TEST_TEMP_DIR
-+ TEST_DB_PATH=/data/tmp/vc_e2e_test_ru_collect_nL9rHw/test.duckdb
++ TEST_DB_PATH=/data/tmp/vc_e2e_test_ru_collect_61wRmW/test.duckdb
 + export TEST_DB_PATH
-+ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_ru_collect_nL9rHw/config.toml
++ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_ru_collect_61wRmW/config.toml
 + cat
 + export TEST_CONFIG_PATH
-+ test_info 'Test temp dir: /data/tmp/vc_e2e_test_ru_collect_nL9rHw'
-+ test_log INFO 'Test temp dir: /data/tmp/vc_e2e_test_ru_collect_nL9rHw'
++ test_info 'Test temp dir: /data/tmp/vc_e2e_test_ru_collect_61wRmW'
++ test_log INFO 'Test temp dir: /data/tmp/vc_e2e_test_ru_collect_61wRmW'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:58-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_ru_collect_nL9rHw'
-[2026-01-28T12:23:58-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_ru_collect_nL9rHw
-+ RU_LIST_FIXTURE=/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_list.json
++ echo '[2026-01-28T13:05:01-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_ru_collect_61wRmW'
+[2026-01-28T13:05:01-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_ru_collect_61wRmW
++ RU_LIST_FIXTURE=/data/tmp/vc_e2e_test_ru_collect_61wRmW/ru_list.json
 + cat
-+ RU_STATUS_FIXTURE=/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status.json
++ RU_STATUS_FIXTURE=/data/tmp/vc_e2e_test_ru_collect_61wRmW/ru_status.json
 + cat
 + test_info 'Test 1: Validating ru list fixture JSON'
 + test_log INFO 'Test 1: Validating ru list fixture JSON'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:58-05:00] [INFO] Test 1: Validating ru list fixture JSON'
-[2026-01-28T12:23:58-05:00] [INFO] Test 1: Validating ru list fixture JSON
-+ assert_file_exists /data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_list.json 'RU list fixture should exist'
-+ local path=/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_list.json
++ echo '[2026-01-28T13:05:01-05:00] [INFO] Test 1: Validating ru list fixture JSON'
+[2026-01-28T13:05:01-05:00] [INFO] Test 1: Validating ru list fixture JSON
++ assert_file_exists /data/tmp/vc_e2e_test_ru_collect_61wRmW/ru_list.json 'RU list fixture should exist'
++ local path=/data/tmp/vc_e2e_test_ru_collect_61wRmW/ru_list.json
 + local 'msg=RU list fixture should exist'
 + TEST_ASSERTIONS=1
-+ [[ -f /data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_list.json ]]
-+ test_info 'PASS: RU list fixture should exist (/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_list.json)'
-+ test_log INFO 'PASS: RU list fixture should exist (/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_list.json)'
++ [[ -f /data/tmp/vc_e2e_test_ru_collect_61wRmW/ru_list.json ]]
++ test_info 'PASS: RU list fixture should exist (/data/tmp/vc_e2e_test_ru_collect_61wRmW/ru_list.json)'
++ test_log INFO 'PASS: RU list fixture should exist (/data/tmp/vc_e2e_test_ru_collect_61wRmW/ru_list.json)'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:58-05:00] [INFO] PASS: RU list fixture should exist (/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_list.json)'
-[2026-01-28T12:23:58-05:00] [INFO] PASS: RU list fixture should exist (/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_list.json)
-++ cat /data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_list.json
++ echo '[2026-01-28T13:05:01-05:00] [INFO] PASS: RU list fixture should exist (/data/tmp/vc_e2e_test_ru_collect_61wRmW/ru_list.json)'
+[2026-01-28T13:05:01-05:00] [INFO] PASS: RU list fixture should exist (/data/tmp/vc_e2e_test_ru_collect_61wRmW/ru_list.json)
+++ cat /data/tmp/vc_e2e_test_ru_collect_61wRmW/ru_list.json
 + ru_list_content='{
     "repos": [
         {
@@ -146,15 +147,15 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:58-05:00] [INFO] PASS: RU list fixture should be valid JSON'
-[2026-01-28T12:23:58-05:00] [INFO] PASS: RU list fixture should be valid JSON
++ echo '[2026-01-28T13:05:01-05:00] [INFO] PASS: RU list fixture should be valid JSON'
+[2026-01-28T13:05:01-05:00] [INFO] PASS: RU list fixture should be valid JSON
 + test_info 'Test 2: Checking ru list structure'
 + test_log INFO 'Test 2: Checking ru list structure'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:58-05:00] [INFO] Test 2: Checking ru list structure'
-[2026-01-28T12:23:58-05:00] [INFO] Test 2: Checking ru list structure
++ echo '[2026-01-28T13:05:01-05:00] [INFO] Test 2: Checking ru list structure'
+[2026-01-28T13:05:01-05:00] [INFO] Test 2: Checking ru list structure
 ++ echo '{
     "repos": [
         {
@@ -182,15 +183,15 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:58-05:00] [INFO] PASS: Should have 2 repos in list'
-[2026-01-28T12:23:58-05:00] [INFO] PASS: Should have 2 repos in list
++ echo '[2026-01-28T13:05:02-05:00] [INFO] PASS: Should have 2 repos in list'
+[2026-01-28T13:05:02-05:00] [INFO] PASS: Should have 2 repos in list
 + test_info 'Test 3: Checking repo fields in list'
 + test_log INFO 'Test 3: Checking repo fields in list'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:58-05:00] [INFO] Test 3: Checking repo fields in list'
-[2026-01-28T12:23:58-05:00] [INFO] Test 3: Checking repo fields in list
++ echo '[2026-01-28T13:05:02-05:00] [INFO] Test 3: Checking repo fields in list'
+[2026-01-28T13:05:02-05:00] [INFO] Test 3: Checking repo fields in list
 ++ echo '{
     "repos": [
         {
@@ -218,8 +219,8 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:58-05:00] [INFO] PASS: First repo path'
-[2026-01-28T12:23:58-05:00] [INFO] PASS: First repo path
++ echo '[2026-01-28T13:05:02-05:00] [INFO] PASS: First repo path'
+[2026-01-28T13:05:02-05:00] [INFO] PASS: First repo path
 ++ echo '{
     "repos": [
         {
@@ -247,28 +248,28 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:59-05:00] [INFO] PASS: First repo name'
-[2026-01-28T12:23:59-05:00] [INFO] PASS: First repo name
++ echo '[2026-01-28T13:05:02-05:00] [INFO] PASS: First repo name'
+[2026-01-28T13:05:02-05:00] [INFO] PASS: First repo name
 + test_info 'Test 4: Validating ru status fixture JSON'
 + test_log INFO 'Test 4: Validating ru status fixture JSON'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:59-05:00] [INFO] Test 4: Validating ru status fixture JSON'
-[2026-01-28T12:23:59-05:00] [INFO] Test 4: Validating ru status fixture JSON
-+ assert_file_exists /data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status.json 'RU status fixture should exist'
-+ local path=/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status.json
++ echo '[2026-01-28T13:05:02-05:00] [INFO] Test 4: Validating ru status fixture JSON'
+[2026-01-28T13:05:02-05:00] [INFO] Test 4: Validating ru status fixture JSON
++ assert_file_exists /data/tmp/vc_e2e_test_ru_collect_61wRmW/ru_status.json 'RU status fixture should exist'
++ local path=/data/tmp/vc_e2e_test_ru_collect_61wRmW/ru_status.json
 + local 'msg=RU status fixture should exist'
 + TEST_ASSERTIONS=6
-+ [[ -f /data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status.json ]]
-+ test_info 'PASS: RU status fixture should exist (/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status.json)'
-+ test_log INFO 'PASS: RU status fixture should exist (/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status.json)'
++ [[ -f /data/tmp/vc_e2e_test_ru_collect_61wRmW/ru_status.json ]]
++ test_info 'PASS: RU status fixture should exist (/data/tmp/vc_e2e_test_ru_collect_61wRmW/ru_status.json)'
++ test_log INFO 'PASS: RU status fixture should exist (/data/tmp/vc_e2e_test_ru_collect_61wRmW/ru_status.json)'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:59-05:00] [INFO] PASS: RU status fixture should exist (/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status.json)'
-[2026-01-28T12:23:59-05:00] [INFO] PASS: RU status fixture should exist (/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status.json)
-++ cat /data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status.json
++ echo '[2026-01-28T13:05:02-05:00] [INFO] PASS: RU status fixture should exist (/data/tmp/vc_e2e_test_ru_collect_61wRmW/ru_status.json)'
+[2026-01-28T13:05:02-05:00] [INFO] PASS: RU status fixture should exist (/data/tmp/vc_e2e_test_ru_collect_61wRmW/ru_status.json)
+++ cat /data/tmp/vc_e2e_test_ru_collect_61wRmW/ru_status.json
 + ru_status_content='{
     "repos": [
         {
@@ -373,15 +374,15 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:59-05:00] [INFO] PASS: RU status fixture should be valid JSON'
-[2026-01-28T12:23:59-05:00] [INFO] PASS: RU status fixture should be valid JSON
++ echo '[2026-01-28T13:05:02-05:00] [INFO] PASS: RU status fixture should be valid JSON'
+[2026-01-28T13:05:02-05:00] [INFO] PASS: RU status fixture should be valid JSON
 + test_info 'Test 5: Checking clean repo status'
 + test_log INFO 'Test 5: Checking clean repo status'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:59-05:00] [INFO] Test 5: Checking clean repo status'
-[2026-01-28T12:23:59-05:00] [INFO] Test 5: Checking clean repo status
++ echo '[2026-01-28T13:05:03-05:00] [INFO] Test 5: Checking clean repo status'
+[2026-01-28T13:05:03-05:00] [INFO] Test 5: Checking clean repo status
 ++ echo '{
     "repos": [
         {
@@ -419,8 +420,8 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:59-05:00] [INFO] PASS: First repo should be clean'
-[2026-01-28T12:23:59-05:00] [INFO] PASS: First repo should be clean
++ echo '[2026-01-28T13:05:03-05:00] [INFO] PASS: First repo should be clean'
+[2026-01-28T13:05:03-05:00] [INFO] PASS: First repo should be clean
 ++ echo '{
     "repos": [
         {
@@ -458,8 +459,8 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:59-05:00] [INFO] PASS: First repo should have 0 ahead'
-[2026-01-28T12:23:59-05:00] [INFO] PASS: First repo should have 0 ahead
++ echo '[2026-01-28T13:05:03-05:00] [INFO] PASS: First repo should have 0 ahead'
+[2026-01-28T13:05:03-05:00] [INFO] PASS: First repo should have 0 ahead
 ++ echo '{
     "repos": [
         {
@@ -497,15 +498,15 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:59-05:00] [INFO] PASS: First repo should have 0 behind'
-[2026-01-28T12:23:59-05:00] [INFO] PASS: First repo should have 0 behind
++ echo '[2026-01-28T13:05:03-05:00] [INFO] PASS: First repo should have 0 behind'
+[2026-01-28T13:05:03-05:00] [INFO] PASS: First repo should have 0 behind
 + test_info 'Test 6: Checking dirty repo status'
 + test_log INFO 'Test 6: Checking dirty repo status'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:59-05:00] [INFO] Test 6: Checking dirty repo status'
-[2026-01-28T12:23:59-05:00] [INFO] Test 6: Checking dirty repo status
++ echo '[2026-01-28T13:05:03-05:00] [INFO] Test 6: Checking dirty repo status'
+[2026-01-28T13:05:03-05:00] [INFO] Test 6: Checking dirty repo status
 ++ echo '{
     "repos": [
         {
@@ -543,8 +544,9 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:59-05:00] [INFO] PASS: Second repo should be dirty'
-[2026-01-28T12:23:59-05:00] [INFO] PASS: Second repo should be dirty
++ echo '[2026-01-28T13:05:04-05:00] [INFO] PASS: Second repo should be dirty'
+[2026-01-28T13:05:04-05:00] [INFO] PASS: Second repo should be dirty
+++ jq '.repos[1].ahead'
 ++ echo '{
     "repos": [
         {
@@ -569,7 +571,6 @@
         }
     ]
 }'
-++ jq '.repos[1].ahead'
 + ahead_count=3
 + assert_eq 3 3 'Second repo should be 3 ahead'
 + local expected=3
@@ -582,8 +583,8 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:59-05:00] [INFO] PASS: Second repo should be 3 ahead'
-[2026-01-28T12:23:59-05:00] [INFO] PASS: Second repo should be 3 ahead
++ echo '[2026-01-28T13:05:04-05:00] [INFO] PASS: Second repo should be 3 ahead'
+[2026-01-28T13:05:04-05:00] [INFO] PASS: Second repo should be 3 ahead
 ++ echo '{
     "repos": [
         {
@@ -621,15 +622,15 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:59-05:00] [INFO] PASS: Second repo should be 1 behind'
-[2026-01-28T12:23:59-05:00] [INFO] PASS: Second repo should be 1 behind
++ echo '[2026-01-28T13:05:04-05:00] [INFO] PASS: Second repo should be 1 behind'
+[2026-01-28T13:05:04-05:00] [INFO] PASS: Second repo should be 1 behind
 + test_info 'Test 7: Checking modified files'
 + test_log INFO 'Test 7: Checking modified files'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:59-05:00] [INFO] Test 7: Checking modified files'
-[2026-01-28T12:23:59-05:00] [INFO] Test 7: Checking modified files
++ echo '[2026-01-28T13:05:04-05:00] [INFO] Test 7: Checking modified files'
+[2026-01-28T13:05:04-05:00] [INFO] Test 7: Checking modified files
 ++ echo '{
     "repos": [
         {
@@ -667,8 +668,8 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:59-05:00] [INFO] PASS: Second repo should have 2 modified files'
-[2026-01-28T12:23:59-05:00] [INFO] PASS: Second repo should have 2 modified files
++ echo '[2026-01-28T13:05:04-05:00] [INFO] PASS: Second repo should have 2 modified files'
+[2026-01-28T13:05:04-05:00] [INFO] PASS: Second repo should have 2 modified files
 ++ echo '{
     "repos": [
         {
@@ -706,15 +707,15 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:00-05:00] [INFO] PASS: First modified file'
-[2026-01-28T12:24:00-05:00] [INFO] PASS: First modified file
++ echo '[2026-01-28T13:05:05-05:00] [INFO] PASS: First modified file'
+[2026-01-28T13:05:05-05:00] [INFO] PASS: First modified file
 + test_info 'Test 8: Checking untracked files'
 + test_log INFO 'Test 8: Checking untracked files'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:00-05:00] [INFO] Test 8: Checking untracked files'
-[2026-01-28T12:24:00-05:00] [INFO] Test 8: Checking untracked files
++ echo '[2026-01-28T13:05:05-05:00] [INFO] Test 8: Checking untracked files'
+[2026-01-28T13:05:05-05:00] [INFO] Test 8: Checking untracked files
 ++ echo '{
     "repos": [
         {
@@ -752,8 +753,9 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:00-05:00] [INFO] PASS: Second repo should have 1 untracked file'
-[2026-01-28T12:24:00-05:00] [INFO] PASS: Second repo should have 1 untracked file
++ echo '[2026-01-28T13:05:05-05:00] [INFO] PASS: Second repo should have 1 untracked file'
+[2026-01-28T13:05:05-05:00] [INFO] PASS: Second repo should have 1 untracked file
+++ jq -r '.repos[1].untracked_files[0]'
 ++ echo '{
     "repos": [
         {
@@ -778,7 +780,6 @@
         }
     ]
 }'
-++ jq -r '.repos[1].untracked_files[0]'
 + first_untracked=notes.txt
 + assert_eq notes.txt notes.txt 'Untracked file'
 + local expected=notes.txt
@@ -791,15 +792,15 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:00-05:00] [INFO] PASS: Untracked file'
-[2026-01-28T12:24:00-05:00] [INFO] PASS: Untracked file
++ echo '[2026-01-28T13:05:05-05:00] [INFO] PASS: Untracked file'
+[2026-01-28T13:05:05-05:00] [INFO] PASS: Untracked file
 + test_info 'Test 9: Checking branch names'
 + test_log INFO 'Test 9: Checking branch names'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:00-05:00] [INFO] Test 9: Checking branch names'
-[2026-01-28T12:24:00-05:00] [INFO] Test 9: Checking branch names
++ echo '[2026-01-28T13:05:05-05:00] [INFO] Test 9: Checking branch names'
+[2026-01-28T13:05:05-05:00] [INFO] Test 9: Checking branch names
 ++ echo '{
     "repos": [
         {
@@ -837,8 +838,8 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:00-05:00] [INFO] PASS: First repo branch'
-[2026-01-28T12:24:00-05:00] [INFO] PASS: First repo branch
++ echo '[2026-01-28T13:05:05-05:00] [INFO] PASS: First repo branch'
+[2026-01-28T13:05:05-05:00] [INFO] PASS: First repo branch
 ++ echo '{
     "repos": [
         {
@@ -876,18 +877,18 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:00-05:00] [INFO] PASS: Second repo branch'
-[2026-01-28T12:24:00-05:00] [INFO] PASS: Second repo branch
++ echo '[2026-01-28T13:05:06-05:00] [INFO] PASS: Second repo branch'
+[2026-01-28T13:05:06-05:00] [INFO] PASS: Second repo branch
 + test_info 'Test 10: Testing minimal ru status output'
 + test_log INFO 'Test 10: Testing minimal ru status output'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:00-05:00] [INFO] Test 10: Testing minimal ru status output'
-[2026-01-28T12:24:00-05:00] [INFO] Test 10: Testing minimal ru status output
-+ MINIMAL_FIXTURE=/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status_minimal.json
++ echo '[2026-01-28T13:05:06-05:00] [INFO] Test 10: Testing minimal ru status output'
+[2026-01-28T13:05:06-05:00] [INFO] Test 10: Testing minimal ru status output
++ MINIMAL_FIXTURE=/data/tmp/vc_e2e_test_ru_collect_61wRmW/ru_status_minimal.json
 + cat
-++ cat /data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status_minimal.json
+++ cat /data/tmp/vc_e2e_test_ru_collect_61wRmW/ru_status_minimal.json
 + minimal_content='{
     "repos": [
         {
@@ -924,8 +925,9 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:00-05:00] [INFO] PASS: Minimal fixture should be valid JSON'
-[2026-01-28T12:24:00-05:00] [INFO] PASS: Minimal fixture should be valid JSON
++ echo '[2026-01-28T13:05:06-05:00] [INFO] PASS: Minimal fixture should be valid JSON'
+[2026-01-28T13:05:06-05:00] [INFO] PASS: Minimal fixture should be valid JSON
+++ jq '.repos[0].dirty // false'
 ++ echo '{
     "repos": [
         {
@@ -933,7 +935,6 @@
         }
     ]
 }'
-++ jq '.repos[0].dirty // false'
 + minimal_dirty=false
 + assert_eq false false 'Missing dirty should default to false'
 + local expected=false
@@ -946,22 +947,19 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:00-05:00] [INFO] PASS: Missing dirty should default to false'
-[2026-01-28T12:24:00-05:00] [INFO] PASS: Missing dirty should default to false
++ echo '[2026-01-28T13:05:06-05:00] [INFO] PASS: Missing dirty should default to false'
+[2026-01-28T13:05:06-05:00] [INFO] PASS: Missing dirty should default to false
 + test_info 'Test 11: Checking vc robot health'
 + test_log INFO 'Test 11: Checking vc robot health'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:00-05:00] [INFO] Test 11: Checking vc robot health'
-[2026-01-28T12:24:00-05:00] [INFO] Test 11: Checking vc robot health
-++ run_vc robot health
-+ health_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_ru_collect_nL9rHw/config.toml robot health
-{
++ echo '[2026-01-28T13:05:06-05:00] [INFO] Test 11: Checking vc robot health'
+[2026-01-28T13:05:06-05:00] [INFO] Test 11: Checking vc robot health
++ run_vc_or_skip robot health
++ health_output='{
   "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:24:01.072903826Z",
+  "generated_at": "2026-01-28T18:05:07.116872162Z",
   "data": {
     "overall": {
       "score": 1.0,
@@ -977,7 +975,7 @@
         "score": 1.0,
         "status": "online",
         "top_issue": null,
-        "last_seen": "2026-01-28T17:24:01.072852679Z",
+        "last_seen": "2026-01-28T18:05:07.116719935Z",
         "agent_count": 0,
         "cpu_percent": null,
         "memory_percent": null
@@ -993,12 +991,9 @@
     "No collectors have run yet - data may be incomplete"
   ]
 }'
-+ assert_json_valid '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_ru_collect_nL9rHw/config.toml robot health
-{
++ assert_json_valid '{
   "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:24:01.072903826Z",
+  "generated_at": "2026-01-28T18:05:07.116872162Z",
   "data": {
     "overall": {
       "score": 1.0,
@@ -1014,7 +1009,7 @@
         "score": 1.0,
         "status": "online",
         "top_issue": null,
-        "last_seen": "2026-01-28T17:24:01.072852679Z",
+        "last_seen": "2026-01-28T18:05:07.116719935Z",
         "agent_count": 0,
         "cpu_percent": null,
         "memory_percent": null
@@ -1030,12 +1025,9 @@
     "No collectors have run yet - data may be incomplete"
   ]
 }' 'Health output should be valid JSON'
-+ local 'json=++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_ru_collect_nL9rHw/config.toml robot health
-{
++ local 'json={
   "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:24:01.072903826Z",
+  "generated_at": "2026-01-28T18:05:07.116872162Z",
   "data": {
     "overall": {
       "score": 1.0,
@@ -1051,7 +1043,7 @@
         "score": 1.0,
         "status": "online",
         "top_issue": null,
-        "last_seen": "2026-01-28T17:24:01.072852679Z",
+        "last_seen": "2026-01-28T18:05:07.116719935Z",
         "agent_count": 0,
         "cpu_percent": null,
         "memory_percent": null
@@ -1069,210 +1061,55 @@
 }'
 + local 'msg=Health output should be valid JSON'
 + TEST_ASSERTIONS=22
++ echo '{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T18:05:07.116872162Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T18:05:07.116719935Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
 + jq .
-+ echo '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_ru_collect_nL9rHw/config.toml robot health
-{
-  "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:24:01.072903826Z",
-  "data": {
-    "overall": {
-      "score": 1.0,
-      "severity": "healthy",
-      "active_alerts": 0,
-      "machine_count": 1,
-      "agent_count": 0
-    },
-    "machines": [
-      {
-        "id": "local",
-        "name": "Local Machine",
-        "score": 1.0,
-        "status": "online",
-        "top_issue": null,
-        "last_seen": "2026-01-28T17:24:01.072852679Z",
-        "agent_count": 0,
-        "cpu_percent": null,
-        "memory_percent": null
-      }
-    ],
-    "alerts_by_severity": {
-      "critical": 0,
-      "warning": 0,
-      "info": 0
-    }
-  },
-  "warnings": [
-    "No collectors have run yet - data may be incomplete"
-  ]
-}'
-+ test_error 'FAIL: Health output should be valid JSON'
-+ test_log ERROR 'FAIL: Health output should be valid JSON'
-+ local level=ERROR
++ test_info 'PASS: Health output should be valid JSON'
++ test_log INFO 'PASS: Health output should be valid JSON'
++ local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:01-05:00] [ERROR] FAIL: Health output should be valid JSON'
-[2026-01-28T12:24:01-05:00] [ERROR] FAIL: Health output should be valid JSON
-+ test_error '  Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_ru_collect_nL9rHw/config.toml robot health
-{
-  "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:24:01.072903826Z",
-  "data": {
-    "overall": {
-      "score": 1.0,
-      "severity": "healthy",
-      "active_alerts": 0,
-      "machine_count": 1,
-      "agent_count": 0
-    },
-    "machines": [
-      {
-        "id": "local",
-        "name": "Local Machine",
-        "score": 1.0,
-        "status": "online",
-        "top_issue": null,
-        "last_seen": "2026-01-28T17:24:01.072852679Z",
-        "agent_count": 0,
-        "cpu_percent": null,
-        "memory_percent": null
-      }
-    ],
-    "alerts_by_severity": {
-      "critical": 0,
-      "warning": 0,
-      "info": 0
-    }
-  },
-  "warnings": [
-    "No collectors have run yet - data may be incomplete"
-  ]
-}'
-+ test_log ERROR '  Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_ru_collect_nL9rHw/config.toml robot health
-{
-  "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:24:01.072903826Z",
-  "data": {
-    "overall": {
-      "score": 1.0,
-      "severity": "healthy",
-      "active_alerts": 0,
-      "machine_count": 1,
-      "agent_count": 0
-    },
-    "machines": [
-      {
-        "id": "local",
-        "name": "Local Machine",
-        "score": 1.0,
-        "status": "online",
-        "top_issue": null,
-        "last_seen": "2026-01-28T17:24:01.072852679Z",
-        "agent_count": 0,
-        "cpu_percent": null,
-        "memory_percent": null
-      }
-    ],
-    "alerts_by_severity": {
-      "critical": 0,
-      "warning": 0,
-      "info": 0
-    }
-  },
-  "warnings": [
-    "No collectors have run yet - data may be incomplete"
-  ]
-}'
-+ local level=ERROR
-+ shift
-++ date -Iseconds
-+ echo '[2026-01-28T12:24:01-05:00] [ERROR]   Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_ru_collect_nL9rHw/config.toml robot health
-{
-  "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:24:01.072903826Z",
-  "data": {
-    "overall": {
-      "score": 1.0,
-      "severity": "healthy",
-      "active_alerts": 0,
-      "machine_count": 1,
-      "agent_count": 0
-    },
-    "machines": [
-      {
-        "id": "local",
-        "name": "Local Machine",
-        "score": 1.0,
-        "status": "online",
-        "top_issue": null,
-        "last_seen": "2026-01-28T17:24:01.072852679Z",
-        "agent_count": 0,
-        "cpu_percent": null,
-        "memory_percent": null
-      }
-    ],
-    "alerts_by_severity": {
-      "critical": 0,
-      "warning": 0,
-      "info": 0
-    }
-  },
-  "warnings": [
-    "No collectors have run yet - data may be incomplete"
-  ]
-}'
-[2026-01-28T12:24:01-05:00] [ERROR]   Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_ru_collect_nL9rHw/config.toml robot health
-{
-  "schema_version": "vc.robot.health.v1",
-  "generated_at": "2026-01-28T17:24:01.072903826Z",
-  "data": {
-    "overall": {
-      "score": 1.0,
-      "severity": "healthy",
-      "active_alerts": 0,
-      "machine_count": 1,
-      "agent_count": 0
-    },
-    "machines": [
-      {
-        "id": "local",
-        "name": "Local Machine",
-        "score": 1.0,
-        "status": "online",
-        "top_issue": null,
-        "last_seen": "2026-01-28T17:24:01.072852679Z",
-        "agent_count": 0,
-        "cpu_percent": null,
-        "memory_percent": null
-      }
-    ],
-    "alerts_by_severity": {
-      "critical": 0,
-      "warning": 0,
-      "info": 0
-    }
-  },
-  "warnings": [
-    "No collectors have run yet - data may be incomplete"
-  ]
-}
-+ TEST_FAILURES=1
++ echo '[2026-01-28T13:05:07-05:00] [INFO] PASS: Health output should be valid JSON'
+[2026-01-28T13:05:07-05:00] [INFO] PASS: Health output should be valid JSON
 + test_info 'Test 12: Testing repo identifier consistency'
 + test_log INFO 'Test 12: Testing repo identifier consistency'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:01-05:00] [INFO] Test 12: Testing repo identifier consistency'
-[2026-01-28T12:24:01-05:00] [INFO] Test 12: Testing repo identifier consistency
++ echo '[2026-01-28T13:05:07-05:00] [INFO] Test 12: Testing repo identifier consistency'
+[2026-01-28T13:05:07-05:00] [INFO] Test 12: Testing repo identifier consistency
 + url1=git@github.com:Dicklesworthstone/vibe_cockpit.git
 + url2=git@github.com:Dicklesworthstone/vibe_cockpit.git
 + assert_eq git@github.com:Dicklesworthstone/vibe_cockpit.git git@github.com:Dicklesworthstone/vibe_cockpit.git 'Same URLs should be identical for hashing'
@@ -1286,37 +1123,34 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:01-05:00] [INFO] PASS: Same URLs should be identical for hashing'
-[2026-01-28T12:24:01-05:00] [INFO] PASS: Same URLs should be identical for hashing
++ echo '[2026-01-28T13:05:07-05:00] [INFO] PASS: Same URLs should be identical for hashing'
+[2026-01-28T13:05:07-05:00] [INFO] PASS: Same URLs should be identical for hashing
 + finalize_test
 ++ date +%s%N
-+ local end_time=1769621041367323294
-+ local duration_ms=3220
++ local end_time=1769623507583544442
++ local duration_ms=7060
 + local status=passed
 + local exit_code=0
-+ [[ 1 -gt 0 ]]
-+ status=failed
-+ exit_code=1
++ [[ 0 -gt 0 ]]
 + cat
-+ test_info 'Test complete: 23 assertions, 1 failures'
-+ test_log INFO 'Test complete: 23 assertions, 1 failures'
++ test_info 'Test complete: 23 assertions, 0 failures'
++ test_log INFO 'Test complete: 23 assertions, 0 failures'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:01-05:00] [INFO] Test complete: 23 assertions, 1 failures'
-[2026-01-28T12:24:01-05:00] [INFO] Test complete: 23 assertions, 1 failures
-+ exit 1
++ echo '[2026-01-28T13:05:07-05:00] [INFO] Test complete: 23 assertions, 0 failures'
+[2026-01-28T13:05:07-05:00] [INFO] Test complete: 23 assertions, 0 failures
++ exit 0
 + cleanup_test_env
-+ local exit_code=1
++ local exit_code=0
 + test_info 'Cleaning up test environment'
 + test_log INFO 'Cleaning up test environment'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:24:01-05:00] [INFO] Cleaning up test environment'
-[2026-01-28T12:24:01-05:00] [INFO] Cleaning up test environment
-+ [[ -n /data/tmp/vc_e2e_test_ru_collect_nL9rHw ]]
-+ [[ -d /data/tmp/vc_e2e_test_ru_collect_nL9rHw ]]
-+ [[ 1 -ne 0 ]]
-+ [[ '' == \t\r\u\e ]]
-+ rm -rf /data/tmp/vc_e2e_test_ru_collect_nL9rHw
++ echo '[2026-01-28T13:05:07-05:00] [INFO] Cleaning up test environment'
+[2026-01-28T13:05:07-05:00] [INFO] Cleaning up test environment
++ [[ -n /data/tmp/vc_e2e_test_ru_collect_61wRmW ]]
++ [[ -d /data/tmp/vc_e2e_test_ru_collect_61wRmW ]]
++ [[ 0 -ne 0 ]]
++ rm -rf /data/tmp/vc_e2e_test_ru_collect_61wRmW

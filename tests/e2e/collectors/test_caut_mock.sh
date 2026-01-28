@@ -81,7 +81,7 @@ export PATH="$MOCK_BIN_DIR:$PATH"
 
 # Test 1: Verify mock caut works
 test_info "Test 1: Verifying mock caut"
-mock_status=$("$MOCK_BIN_DIR/caut" --json)
+mock_status=$("$MOCK_BIN_DIR/caut" status --json)
 assert_json_valid "$mock_status" "Mock caut should be valid JSON"
 
 account_count=$(echo "$mock_status" | jq '.accounts | length')

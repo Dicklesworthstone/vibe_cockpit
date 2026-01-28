@@ -22,7 +22,8 @@
 ++ TEST_ASSERTIONS=0
 ++ TEST_FAILURES=0
 +++ date +%s%N
-++ TEST_START_TIME=1769621027001540934
+++ TEST_START_TIME=1769623460821910240
+++ VC_LAST_OUTPUT=
 ++ RED='\033[0;31m'
 ++ GREEN='\033[0;32m'
 ++ YELLOW='\033[1;33m'
@@ -33,173 +34,143 @@
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:47-05:00] [INFO] Starting configuration validation E2E test'
-[2026-01-28T12:23:47-05:00] [INFO] Starting configuration validation E2E test
++ echo '[2026-01-28T13:04:20-05:00] [INFO] Starting configuration validation E2E test'
+[2026-01-28T13:04:20-05:00] [INFO] Starting configuration validation E2E test
 + setup_test_env
 + test_info 'Setting up test environment'
 + test_log INFO 'Setting up test environment'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:47-05:00] [INFO] Setting up test environment'
-[2026-01-28T12:23:47-05:00] [INFO] Setting up test environment
++ echo '[2026-01-28T13:04:21-05:00] [INFO] Setting up test environment'
+[2026-01-28T13:04:21-05:00] [INFO] Setting up test environment
 ++ mktemp -d -t vc_e2e_test_config_validation_XXXXXX
-+ TEST_TEMP_DIR=/data/tmp/vc_e2e_test_config_validation_3zQypb
++ TEST_TEMP_DIR=/data/tmp/vc_e2e_test_config_validation_pfrF1W
 + export TEST_TEMP_DIR
-+ TEST_DB_PATH=/data/tmp/vc_e2e_test_config_validation_3zQypb/test.duckdb
++ TEST_DB_PATH=/data/tmp/vc_e2e_test_config_validation_pfrF1W/test.duckdb
 + export TEST_DB_PATH
-+ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_config_validation_3zQypb/config.toml
++ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_config_validation_pfrF1W/config.toml
 + cat
 + export TEST_CONFIG_PATH
-+ test_info 'Test temp dir: /data/tmp/vc_e2e_test_config_validation_3zQypb'
-+ test_log INFO 'Test temp dir: /data/tmp/vc_e2e_test_config_validation_3zQypb'
++ test_info 'Test temp dir: /data/tmp/vc_e2e_test_config_validation_pfrF1W'
++ test_log INFO 'Test temp dir: /data/tmp/vc_e2e_test_config_validation_pfrF1W'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:47-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_config_validation_3zQypb'
-[2026-01-28T12:23:47-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_config_validation_3zQypb
++ echo '[2026-01-28T13:04:21-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_config_validation_pfrF1W'
+[2026-01-28T13:04:21-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_config_validation_pfrF1W
 + test_info 'Test 1: Valid config parsing'
 + test_log INFO 'Test 1: Valid config parsing'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:47-05:00] [INFO] Test 1: Valid config parsing'
-[2026-01-28T12:23:47-05:00] [INFO] Test 1: Valid config parsing
-++ run_vc --version
-+ version_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_config_validation_3zQypb/config.toml --version
-vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
++ echo '[2026-01-28T13:04:21-05:00] [INFO] Test 1: Valid config parsing'
+[2026-01-28T13:04:21-05:00] [INFO] Test 1: Valid config parsing
++ run_vc_or_skip --version
++ version_output='vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
 + TEST_ASSERTIONS=1
-+ [[ -n ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_config_validation_3zQypb/config.toml --version
-vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z) ]]
++ [[ -n vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z) ]]
 + test_info 'PASS: Valid config accepted'
 + test_log INFO 'PASS: Valid config accepted'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:47-05:00] [INFO] PASS: Valid config accepted'
-[2026-01-28T12:23:47-05:00] [INFO] PASS: Valid config accepted
++ echo '[2026-01-28T13:04:22-05:00] [INFO] PASS: Valid config accepted'
+[2026-01-28T13:04:22-05:00] [INFO] PASS: Valid config accepted
 + test_info 'Test 2: Config with multiple machines'
 + test_log INFO 'Test 2: Config with multiple machines'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:47-05:00] [INFO] Test 2: Config with multiple machines'
-[2026-01-28T12:23:47-05:00] [INFO] Test 2: Config with multiple machines
++ echo '[2026-01-28T13:04:22-05:00] [INFO] Test 2: Config with multiple machines'
+[2026-01-28T13:04:22-05:00] [INFO] Test 2: Config with multiple machines
 + cat
-+ old_config=/data/tmp/vc_e2e_test_config_validation_3zQypb/config.toml
-+ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_config_validation_3zQypb/multi_machine.toml
++ old_config=/data/tmp/vc_e2e_test_config_validation_pfrF1W/config.toml
++ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_config_validation_pfrF1W/multi_machine.toml
 + export TEST_CONFIG_PATH
-++ run_vc --version
-+ status_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_config_validation_3zQypb/multi_machine.toml --version
-vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
++ run_vc_or_skip --version
++ status_output='vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
 + TEST_ASSERTIONS=2
-+ [[ -n ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_config_validation_3zQypb/multi_machine.toml --version
-vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z) ]]
++ [[ -n vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z) ]]
 + test_info 'PASS: Multi-machine config parsed'
 + test_log INFO 'PASS: Multi-machine config parsed'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:47-05:00] [INFO] PASS: Multi-machine config parsed'
-[2026-01-28T12:23:47-05:00] [INFO] PASS: Multi-machine config parsed
-+ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_config_validation_3zQypb/config.toml
++ echo '[2026-01-28T13:04:24-05:00] [INFO] PASS: Multi-machine config parsed'
+[2026-01-28T13:04:24-05:00] [INFO] PASS: Multi-machine config parsed
++ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_config_validation_pfrF1W/config.toml
 + export TEST_CONFIG_PATH
 + test_info 'Test 3: Config with collector settings'
 + test_log INFO 'Test 3: Config with collector settings'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:47-05:00] [INFO] Test 3: Config with collector settings'
-[2026-01-28T12:23:47-05:00] [INFO] Test 3: Config with collector settings
++ echo '[2026-01-28T13:04:24-05:00] [INFO] Test 3: Config with collector settings'
+[2026-01-28T13:04:24-05:00] [INFO] Test 3: Config with collector settings
 + cat
-+ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_config_validation_3zQypb/collector_config.toml
++ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_config_validation_pfrF1W/collector_config.toml
 + export TEST_CONFIG_PATH
-++ run_vc --version
-+ collector_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_config_validation_3zQypb/collector_config.toml --version
-vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
++ run_vc_or_skip --version
++ collector_output='vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
 + TEST_ASSERTIONS=3
 + test_info 'PASS: Collector config handling completed'
 + test_log INFO 'PASS: Collector config handling completed'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:48-05:00] [INFO] PASS: Collector config handling completed'
-[2026-01-28T12:23:48-05:00] [INFO] PASS: Collector config handling completed
++ echo '[2026-01-28T13:04:25-05:00] [INFO] PASS: Collector config handling completed'
+[2026-01-28T13:04:25-05:00] [INFO] PASS: Collector config handling completed
 + test_info 'Test 4: Invalid TOML handling'
 + test_log INFO 'Test 4: Invalid TOML handling'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:48-05:00] [INFO] Test 4: Invalid TOML handling'
-[2026-01-28T12:23:48-05:00] [INFO] Test 4: Invalid TOML handling
++ echo '[2026-01-28T13:04:25-05:00] [INFO] Test 4: Invalid TOML handling'
+[2026-01-28T13:04:25-05:00] [INFO] Test 4: Invalid TOML handling
 + cat
-+ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_config_validation_3zQypb/invalid.toml
++ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_config_validation_pfrF1W/invalid.toml
 + export TEST_CONFIG_PATH
-++ run_vc --version
-+ invalid_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_config_validation_3zQypb/invalid.toml --version
-vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
++ run_vc_or_skip --version
++ invalid_output='vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
 + TEST_ASSERTIONS=4
-+ [[ ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_config_validation_3zQypb/invalid.toml --version
-vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z) == *\e\r\r\o\r* ]]
-+ [[ ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_config_validation_3zQypb/invalid.toml --version
-vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z) == *\E\r\r\o\r* ]]
-+ [[ -z ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_config_validation_3zQypb/invalid.toml --version
-vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z) ]]
++ [[ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z) == *\e\r\r\o\r* ]]
++ [[ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z) == *\E\r\r\o\r* ]]
++ [[ -z vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z) ]]
 + test_warn 'WARN: Invalid TOML may not have been properly rejected'
 + test_log WARN 'WARN: Invalid TOML may not have been properly rejected'
 + local level=WARN
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:48-05:00] [WARN] WARN: Invalid TOML may not have been properly rejected'
-[2026-01-28T12:23:48-05:00] [WARN] WARN: Invalid TOML may not have been properly rejected
-+ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_config_validation_3zQypb/config.toml
++ echo '[2026-01-28T13:04:26-05:00] [WARN] WARN: Invalid TOML may not have been properly rejected'
+[2026-01-28T13:04:26-05:00] [WARN] WARN: Invalid TOML may not have been properly rejected
++ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_config_validation_pfrF1W/config.toml
 + export TEST_CONFIG_PATH
 + test_info 'Test 5: Missing config file handling'
 + test_log INFO 'Test 5: Missing config file handling'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:48-05:00] [INFO] Test 5: Missing config file handling'
-[2026-01-28T12:23:48-05:00] [INFO] Test 5: Missing config file handling
-+ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_config_validation_3zQypb/nonexistent.toml
++ echo '[2026-01-28T13:04:26-05:00] [INFO] Test 5: Missing config file handling'
+[2026-01-28T13:04:26-05:00] [INFO] Test 5: Missing config file handling
++ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_config_validation_pfrF1W/nonexistent.toml
 + export TEST_CONFIG_PATH
-++ run_vc --version
-+ missing_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
-++ [[ -x /data/tmp/cargo-target/debug/vc ]]
-++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_config_validation_3zQypb/nonexistent.toml --version
-vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
++ run_vc_or_skip --version
++ missing_output='vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.682376697Z)'
 + TEST_ASSERTIONS=5
 + test_info 'PASS: Missing config handling completed'
 + test_log INFO 'PASS: Missing config handling completed'
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:48-05:00] [INFO] PASS: Missing config handling completed'
-[2026-01-28T12:23:48-05:00] [INFO] PASS: Missing config handling completed
-+ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_config_validation_3zQypb/config.toml
++ echo '[2026-01-28T13:04:27-05:00] [INFO] PASS: Missing config handling completed'
+[2026-01-28T13:04:27-05:00] [INFO] PASS: Missing config handling completed
++ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_config_validation_pfrF1W/config.toml
 + export TEST_CONFIG_PATH
 + finalize_test
 ++ date +%s%N
-+ local end_time=1769621028750313524
-+ local duration_ms=1748
++ local end_time=1769623467367930572
++ local duration_ms=6546
 + local status=passed
 + local exit_code=0
 + [[ 0 -gt 0 ]]
@@ -209,8 +180,8 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:48-05:00] [INFO] Test complete: 5 assertions, 0 failures'
-[2026-01-28T12:23:48-05:00] [INFO] Test complete: 5 assertions, 0 failures
++ echo '[2026-01-28T13:04:27-05:00] [INFO] Test complete: 5 assertions, 0 failures'
+[2026-01-28T13:04:27-05:00] [INFO] Test complete: 5 assertions, 0 failures
 + exit 0
 + cleanup_test_env
 + local exit_code=0
@@ -219,9 +190,9 @@ vc 0.1.0 (f1ec4596cd4637a74d960e174e7467d3ec3e8e50; built 2026-01-28T08:08:17.68
 + local level=INFO
 + shift
 ++ date -Iseconds
-+ echo '[2026-01-28T12:23:48-05:00] [INFO] Cleaning up test environment'
-[2026-01-28T12:23:48-05:00] [INFO] Cleaning up test environment
-+ [[ -n /data/tmp/vc_e2e_test_config_validation_3zQypb ]]
-+ [[ -d /data/tmp/vc_e2e_test_config_validation_3zQypb ]]
++ echo '[2026-01-28T13:04:28-05:00] [INFO] Cleaning up test environment'
+[2026-01-28T13:04:28-05:00] [INFO] Cleaning up test environment
++ [[ -n /data/tmp/vc_e2e_test_config_validation_pfrF1W ]]
++ [[ -d /data/tmp/vc_e2e_test_config_validation_pfrF1W ]]
 + [[ 0 -ne 0 ]]
-+ rm -rf /data/tmp/vc_e2e_test_config_validation_3zQypb
++ rm -rf /data/tmp/vc_e2e_test_config_validation_pfrF1W

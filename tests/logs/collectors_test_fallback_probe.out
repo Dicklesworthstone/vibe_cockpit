@@ -1,7 +1,7 @@
 {
   "test_name": "test_fallback_probe",
-  "status": "failed",
-  "duration_ms": 1984,
+  "status": "passed",
+  "duration_ms": 4515,
   "assertions": 9,
-  "failures": 5
+  "failures": 0
 }

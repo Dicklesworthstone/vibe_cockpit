@@ -112,7 +112,7 @@ cat > "$MINIMAL_FIXTURE" <<'EOF'
 EOF
 minimal_content=$(cat "$MINIMAL_FIXTURE")
 assert_json_valid "$minimal_content" "Minimal fixture should be valid JSON"
-assert_json_field "$minimal_content" ".cpu.total_percent" "10" "Minimal CPU percent"
+assert_json_field "$minimal_content" ".cpu.total_percent" "10.0" "Minimal CPU percent"
 
 # Test 9: Test error handling for invalid JSON
 test_info "Test 9: Testing invalid JSON handling"

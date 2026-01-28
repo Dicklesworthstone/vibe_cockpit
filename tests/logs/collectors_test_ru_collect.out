@@ -1,7 +1,82 @@
++ local output=
++ local status=0
++ local had_xtrace=0
++ [[ ehuxB == *x* ]]
++ had_xtrace=1
++ set +x
++ [[ {
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T18:05:07.116872162Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T18:05:07.116719935Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+} == *\C\o\m\m\a\n\d\ \n\o\t\ \y\e\t\ \i\m\p\l\e\m\e\n\t\e\d* ]]
++ VC_LAST_OUTPUT='{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T18:05:07.116872162Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T18:05:07.116719935Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ return 0
 {
   "test_name": "test_ru_collect",
-  "status": "failed",
-  "duration_ms": 3220,
+  "status": "passed",
+  "duration_ms": 7060,
   "assertions": 23,
-  "failures": 1
+  "failures": 0
 }
