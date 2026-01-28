@@ -1,0 +1,19 @@
++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
++ [[ -x /data/tmp/cargo-target/debug/vc ]]
++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/config.toml collect --collector sysmoni
+Command not yet implemented: Collect { collector: Some("sysmoni"), machine: None }
++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
++ [[ -x /data/tmp/cargo-target/debug/vc ]]
++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/config.toml collect --collector sysmoni
+Command not yet implemented: Collect { collector: Some("sysmoni"), machine: None }
++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
++ [[ -x /data/tmp/cargo-target/debug/vc ]]
++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/config.toml collect --collector sysmoni
+Command not yet implemented: Collect { collector: Some("sysmoni"), machine: None }
+{
+  "test_name": "test_sysmoni_mock",
+  "status": "failed",
+  "duration_ms": 2370,
+  "assertions": 6,
+  "failures": 2
+}

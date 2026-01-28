@@ -232,6 +232,30 @@ CREATE TABLE IF NOT EXISTS rch_metrics (
     PRIMARY KEY (machine_id, collected_at)
 );
 
+-- RCH compilations (individual compilation records)
+CREATE TABLE IF NOT EXISTS rch_compilations (
+    machine_id TEXT,
+    collected_at TIMESTAMP,
+    worker_host TEXT,
+    crate_name TEXT NOT NULL,
+    crate_version TEXT,
+    profile TEXT,
+    target_triple TEXT,
+    started_at TIMESTAMP,
+    duration_ms INTEGER,
+    cache_hit BOOLEAN DEFAULT FALSE,
+    cache_key TEXT,
+    exit_code INTEGER,
+    error_msg TEXT,
+    cpu_time_ms INTEGER,
+    peak_memory_mb INTEGER,
+    raw_json TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_rch_compilations_crate ON rch_compilations(crate_name);
+CREATE INDEX IF NOT EXISTS idx_rch_compilations_ts ON rch_compilations(started_at);
+CREATE INDEX IF NOT EXISTS idx_rch_compilations_worker ON rch_compilations(worker_host);
+
 -- Network events (from rano)
 CREATE TABLE IF NOT EXISTS net_events (
     machine_id TEXT,

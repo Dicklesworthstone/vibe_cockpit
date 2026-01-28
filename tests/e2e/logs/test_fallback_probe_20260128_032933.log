@@ -1,0 +1,26 @@
+[2026-01-28T03:29:33-05:00] [INFO] Starting fallback probe E2E test
+[2026-01-28T03:29:33-05:00] [INFO] Setting up test environment
+[2026-01-28T03:29:33-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_fallback_probe_SI3LE2
+[2026-01-28T03:29:33-05:00] [INFO] Test 1: Checking vc command availability
+[2026-01-28T03:29:33-05:00] [INFO] PASS: vc binary should exist (/data/tmp/cargo-target/debug/vc)
+[2026-01-28T03:29:33-05:00] [INFO] Test 2: Checking vc --version
+[2026-01-28T03:29:33-05:00] [INFO] PASS: Version should contain 'vc'
+[2026-01-28T03:29:33-05:00] [INFO] PASS: Version should contain version number
+[2026-01-28T03:29:33-05:00] [INFO] Test 3: Checking vc robot health
+[2026-01-28T03:29:33-05:00] [INFO] PASS: Health output should be valid JSON
+[2026-01-28T03:29:33-05:00] [INFO] PASS: Schema version should match (.schema_version = vc.robot.health.v1)
+[2026-01-28T03:29:33-05:00] [INFO] PASS: Severity should be healthy (.data.overall.severity = healthy)
+[2026-01-28T03:29:33-05:00] [INFO] Test 4: Checking vc robot triage
+[2026-01-28T03:29:33-05:00] [INFO] PASS: Triage output should be valid JSON
+[2026-01-28T03:29:33-05:00] [INFO] PASS: Schema version should match (.schema_version = vc.robot.triage.v1)
+[2026-01-28T03:29:33-05:00] [INFO] Test 5: Checking config parsing
+[2026-01-28T03:29:33-05:00] [INFO] PASS: Test config should exist (/data/tmp/vc_e2e_test_fallback_probe_SI3LE2/config.toml)
+{
+  "test_name": "test_fallback_probe",
+  "status": "passed",
+  "duration_ms": 282,
+  "assertions": 9,
+  "failures": 0
+}
+[2026-01-28T03:29:33-05:00] [INFO] Test complete: 9 assertions, 0 failures
+[2026-01-28T03:29:33-05:00] [INFO] Cleaning up test environment

@@ -1,0 +1,565 @@
++ set -euo pipefail
+++ dirname /data/projects/vibe_cockpit/tests/e2e/collectors/test_collector_errors.sh
++ source /data/projects/vibe_cockpit/tests/e2e/collectors/../lib/test_helpers.sh
+++ set -euo pipefail
+++++ dirname /data/projects/vibe_cockpit/tests/e2e/collectors/../lib/test_helpers.sh
++++ cd /data/projects/vibe_cockpit/tests/e2e/collectors/../lib
++++ pwd
+++ TEST_LIB_DIR=/data/projects/vibe_cockpit/tests/e2e/lib
++++ dirname /data/projects/vibe_cockpit/tests/e2e/lib
+++ E2E_DIR=/data/projects/vibe_cockpit/tests/e2e
++++ cd /data/projects/vibe_cockpit/tests/e2e/../..
++++ pwd
+++ PROJECT_ROOT=/data/projects/vibe_cockpit
++++ find_vc_binary
++++ [[ -n /data/tmp/cargo-target ]]
++++ [[ -x /data/tmp/cargo-target/debug/vc ]]
++++ echo /data/tmp/cargo-target/debug/vc
++++ return
+++ VC_BIN=/data/tmp/cargo-target/debug/vc
++++ basename /data/projects/vibe_cockpit/tests/e2e/collectors/test_collector_errors.sh .sh
+++ TEST_NAME=test_collector_errors
+++ TEST_ASSERTIONS=0
+++ TEST_FAILURES=0
++++ date +%s%N
+++ TEST_START_TIME=1769621023250612932
+++ RED='\033[0;31m'
+++ GREEN='\033[0;32m'
+++ YELLOW='\033[1;33m'
+++ NC='\033[0m'
+++ trap cleanup_test_env EXIT
++ test_info 'Starting collector error handling E2E test'
++ test_log INFO 'Starting collector error handling E2E test'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:43-05:00] [INFO] Starting collector error handling E2E test'
+[2026-01-28T12:23:43-05:00] [INFO] Starting collector error handling E2E test
++ setup_test_env
++ test_info 'Setting up test environment'
++ test_log INFO 'Setting up test environment'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:43-05:00] [INFO] Setting up test environment'
+[2026-01-28T12:23:43-05:00] [INFO] Setting up test environment
+++ mktemp -d -t vc_e2e_test_collector_errors_XXXXXX
++ TEST_TEMP_DIR=/data/tmp/vc_e2e_test_collector_errors_RvlG3y
++ export TEST_TEMP_DIR
++ TEST_DB_PATH=/data/tmp/vc_e2e_test_collector_errors_RvlG3y/test.duckdb
++ export TEST_DB_PATH
++ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_collector_errors_RvlG3y/config.toml
++ cat
++ export TEST_CONFIG_PATH
++ test_info 'Test temp dir: /data/tmp/vc_e2e_test_collector_errors_RvlG3y'
++ test_log INFO 'Test temp dir: /data/tmp/vc_e2e_test_collector_errors_RvlG3y'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:43-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_collector_errors_RvlG3y'
+[2026-01-28T12:23:43-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_collector_errors_RvlG3y
++ MOCK_BIN_DIR=/data/tmp/vc_e2e_test_collector_errors_RvlG3y/bin
++ mkdir -p /data/tmp/vc_e2e_test_collector_errors_RvlG3y/bin
++ test_info 'Test 1: Testing missing tool handling'
++ test_log INFO 'Test 1: Testing missing tool handling'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:43-05:00] [INFO] Test 1: Testing missing tool handling'
+[2026-01-28T12:23:43-05:00] [INFO] Test 1: Testing missing tool handling
+++ run_vc collect --collector sysmoni
++ collect_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_collector_errors_RvlG3y/config.toml collect --collector sysmoni
+Command not yet implemented: Collect { collector: Some("sysmoni"), machine: None }'
++ TEST_ASSERTIONS=1
++ test_info 'PASS: Missing tool handled gracefully'
++ test_log INFO 'PASS: Missing tool handled gracefully'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:43-05:00] [INFO] PASS: Missing tool handled gracefully'
+[2026-01-28T12:23:43-05:00] [INFO] PASS: Missing tool handled gracefully
++ test_info 'Test 2: Testing invalid JSON handling'
++ test_log INFO 'Test 2: Testing invalid JSON handling'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:43-05:00] [INFO] Test 2: Testing invalid JSON handling'
+[2026-01-28T12:23:43-05:00] [INFO] Test 2: Testing invalid JSON handling
++ cat
++ chmod +x /data/tmp/vc_e2e_test_collector_errors_RvlG3y/bin/sysmoni
++ export PATH=/data/tmp/vc_e2e_test_collector_errors_RvlG3y/bin:/home/ubuntu/.codex/tmp/path/codex-arg0eJszyB:/home/ubuntu/.bun/install/global/node_modules/@openai/codex/vendor/x86_64-unknown-linux-musl/path:/data/tmp/.tmpMpmAMF:/data/tmp/.tmpzam3q7:/data/tmp/.tmpoyAfve:/data/tmp/.tmpe6g78I:/data/tmp/.tmpPd69rK:/data/tmp/.tmpGRbjsw:/data/tmp/.tmpz2brVn:/data/tmp/.tmp0PnFJv:/data/tmp/.tmpPoRhAM:/data/tmp/.tmpFfkQ40:/data/tmp/.tmpuxSIpy:/data/tmp/.tmpXjJuNc:/data/tmp/.tmpTZnvXD:/data/tmp/.tmpuK4iIg:/data/tmp/.tmpajeyt7:/data/tmp/.tmpev6kRK:/data/tmp/.tmpiDVpJA:/data/tmp/.tmpnDRhga:/data/tmp/.tmpzxxM5v:/data/tmp/.tmpvKVXKw:/data/tmp/.tmpmNPIdP:/data/tmp/.tmpVFL4Sw:/data/tmp/.tmp7ItVFC:/data/tmp/.tmp0vGjRa:/data/tmp/.tmpBllZzw:/data/tmp/.tmpobicww:/data/tmp/.tmp8f8C2e:/data/tmp/.tmpbD8QBY:/data/tmp/.tmpjzHvSF:/data/tmp/.tmpkjqRCG:/data/tmp/.tmpVzu1zg:/data/tmp/.tmpHO13GV:/data/tmp/.tmprTmBIb:/data/tmp/.tmpRHFAS9:/data/tmp/.tmp84NBm7:/data/tmp/.tmpOXe4sc:/data/tmp/.tmpcOX7LV:/data/tmp/.tmpHmVm2g:/data/tmp/.tmp9gcOZP:/data/tmp/.tmpz4q0R1:/data/tmp/.tmpvkDZiX:/data/tmp/.tmp7Mj5dU:/data/tmp/.tmpdkiSGU:/data/tmp/.tmpDhz6SG:/data/tmp/.tmpxZwXIA:/data/tmp/.tmptoaKcg:/data/tmp/.tmp5WocB2:/data/tmp/.tmpQIUXw6:/data/tmp/.tmp3pRXXR:/data/tmp/.tmpGRxfSM:/data/tmp/.tmpLA8PkL:/data/tmp/.tmpFbmIJR:/data/tmp/.tmpWfLZ76:/data/tmp/.tmpWsTSmr:/data/tmp/.tmpxh3SQx:/data/tmp/.tmp0QcB2I:/data/tmp/.tmpxNatIO:/data/tmp/.tmpupEMqh:/data/tmp/.tmppCYdSE:/data/tmp/.tmpymdjNV:/data/tmp/.tmpCFNqVV:/data/tmp/.tmpdJ2vDZ:/data/tmp/.tmpSewNuz:/data/tmp/.tmpQlKd6y:/data/tmp/.tmprUxpI2:/run/user/1000/fnm_multishells/1141914_1769574439286/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/bin:/run/user/1000/fnm_multishells/1141838_1769574439149/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/.nvm/versions/node/v24.12.0/bin:/home/ubuntu/.local/bin:/home/ubuntu/.atuin/bin:/home/ubuntu/.bun/bin:/home/ubuntu/go/bin:/home/ubuntu/.cargo/bin:/home/ubuntu/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/snap/bin
++ PATH=/data/tmp/vc_e2e_test_collector_errors_RvlG3y/bin:/home/ubuntu/.codex/tmp/path/codex-arg0eJszyB:/home/ubuntu/.bun/install/global/node_modules/@openai/codex/vendor/x86_64-unknown-linux-musl/path:/data/tmp/.tmpMpmAMF:/data/tmp/.tmpzam3q7:/data/tmp/.tmpoyAfve:/data/tmp/.tmpe6g78I:/data/tmp/.tmpPd69rK:/data/tmp/.tmpGRbjsw:/data/tmp/.tmpz2brVn:/data/tmp/.tmp0PnFJv:/data/tmp/.tmpPoRhAM:/data/tmp/.tmpFfkQ40:/data/tmp/.tmpuxSIpy:/data/tmp/.tmpXjJuNc:/data/tmp/.tmpTZnvXD:/data/tmp/.tmpuK4iIg:/data/tmp/.tmpajeyt7:/data/tmp/.tmpev6kRK:/data/tmp/.tmpiDVpJA:/data/tmp/.tmpnDRhga:/data/tmp/.tmpzxxM5v:/data/tmp/.tmpvKVXKw:/data/tmp/.tmpmNPIdP:/data/tmp/.tmpVFL4Sw:/data/tmp/.tmp7ItVFC:/data/tmp/.tmp0vGjRa:/data/tmp/.tmpBllZzw:/data/tmp/.tmpobicww:/data/tmp/.tmp8f8C2e:/data/tmp/.tmpbD8QBY:/data/tmp/.tmpjzHvSF:/data/tmp/.tmpkjqRCG:/data/tmp/.tmpVzu1zg:/data/tmp/.tmpHO13GV:/data/tmp/.tmprTmBIb:/data/tmp/.tmpRHFAS9:/data/tmp/.tmp84NBm7:/data/tmp/.tmpOXe4sc:/data/tmp/.tmpcOX7LV:/data/tmp/.tmpHmVm2g:/data/tmp/.tmp9gcOZP:/data/tmp/.tmpz4q0R1:/data/tmp/.tmpvkDZiX:/data/tmp/.tmp7Mj5dU:/data/tmp/.tmpdkiSGU:/data/tmp/.tmpDhz6SG:/data/tmp/.tmpxZwXIA:/data/tmp/.tmptoaKcg:/data/tmp/.tmp5WocB2:/data/tmp/.tmpQIUXw6:/data/tmp/.tmp3pRXXR:/data/tmp/.tmpGRxfSM:/data/tmp/.tmpLA8PkL:/data/tmp/.tmpFbmIJR:/data/tmp/.tmpWfLZ76:/data/tmp/.tmpWsTSmr:/data/tmp/.tmpxh3SQx:/data/tmp/.tmp0QcB2I:/data/tmp/.tmpxNatIO:/data/tmp/.tmpupEMqh:/data/tmp/.tmppCYdSE:/data/tmp/.tmpymdjNV:/data/tmp/.tmpCFNqVV:/data/tmp/.tmpdJ2vDZ:/data/tmp/.tmpSewNuz:/data/tmp/.tmpQlKd6y:/data/tmp/.tmprUxpI2:/run/user/1000/fnm_multishells/1141914_1769574439286/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/bin:/run/user/1000/fnm_multishells/1141838_1769574439149/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/.nvm/versions/node/v24.12.0/bin:/home/ubuntu/.local/bin:/home/ubuntu/.atuin/bin:/home/ubuntu/.bun/bin:/home/ubuntu/go/bin:/home/ubuntu/.cargo/bin:/home/ubuntu/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/snap/bin
+++ run_vc collect --collector sysmoni
++ invalid_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_collector_errors_RvlG3y/config.toml collect --collector sysmoni
+Command not yet implemented: Collect { collector: Some("sysmoni"), machine: None }'
++ TEST_ASSERTIONS=2
++ test_info 'PASS: Invalid JSON handled'
++ test_log INFO 'PASS: Invalid JSON handled'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:44-05:00] [INFO] PASS: Invalid JSON handled'
+[2026-01-28T12:23:44-05:00] [INFO] PASS: Invalid JSON handled
++ test_info 'Test 3: Testing empty output handling'
++ test_log INFO 'Test 3: Testing empty output handling'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:44-05:00] [INFO] Test 3: Testing empty output handling'
+[2026-01-28T12:23:44-05:00] [INFO] Test 3: Testing empty output handling
++ cat
++ chmod +x /data/tmp/vc_e2e_test_collector_errors_RvlG3y/bin/sysmoni
+++ run_vc collect --collector sysmoni
++ empty_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_collector_errors_RvlG3y/config.toml collect --collector sysmoni
+Command not yet implemented: Collect { collector: Some("sysmoni"), machine: None }'
++ TEST_ASSERTIONS=3
++ test_info 'PASS: Empty output handled'
++ test_log INFO 'PASS: Empty output handled'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:44-05:00] [INFO] PASS: Empty output handled'
+[2026-01-28T12:23:44-05:00] [INFO] PASS: Empty output handled
++ test_info 'Test 4: Testing error exit code handling'
++ test_log INFO 'Test 4: Testing error exit code handling'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:44-05:00] [INFO] Test 4: Testing error exit code handling'
+[2026-01-28T12:23:44-05:00] [INFO] Test 4: Testing error exit code handling
++ cat
++ chmod +x /data/tmp/vc_e2e_test_collector_errors_RvlG3y/bin/sysmoni
+++ run_vc collect --collector sysmoni
++ error_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_collector_errors_RvlG3y/config.toml collect --collector sysmoni
+Command not yet implemented: Collect { collector: Some("sysmoni"), machine: None }'
++ TEST_ASSERTIONS=4
++ test_info 'PASS: Error exit code handled'
++ test_log INFO 'PASS: Error exit code handled'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:44-05:00] [INFO] PASS: Error exit code handled'
+[2026-01-28T12:23:44-05:00] [INFO] PASS: Error exit code handled
++ test_info 'Test 5: Testing unknown collector'
++ test_log INFO 'Test 5: Testing unknown collector'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:44-05:00] [INFO] Test 5: Testing unknown collector'
+[2026-01-28T12:23:44-05:00] [INFO] Test 5: Testing unknown collector
+++ run_vc collect --collector nonexistent_collector
++ unknown_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_collector_errors_RvlG3y/config.toml collect --collector nonexistent_collector
+Command not yet implemented: Collect { collector: Some("nonexistent_collector"), machine: None }'
++ TEST_ASSERTIONS=5
++ [[ ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_collector_errors_RvlG3y/config.toml collect --collector nonexistent_collector
+Command not yet implemented: Collect { collector: Some("nonexistent_collector"), machine: None } == *\e\r\r\o\r* ]]
++ test_info 'PASS: Unknown collector reported error'
++ test_log INFO 'PASS: Unknown collector reported error'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:45-05:00] [INFO] PASS: Unknown collector reported error'
+[2026-01-28T12:23:45-05:00] [INFO] PASS: Unknown collector reported error
++ test_info 'Test 6: Verifying database integrity after errors'
++ test_log INFO 'Test 6: Verifying database integrity after errors'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:45-05:00] [INFO] Test 6: Verifying database integrity after errors'
+[2026-01-28T12:23:45-05:00] [INFO] Test 6: Verifying database integrity after errors
++ rm -f /data/tmp/vc_e2e_test_collector_errors_RvlG3y/bin/sysmoni
+++ run_vc collect --collector fallback_probe
++ working_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_collector_errors_RvlG3y/config.toml collect --collector fallback_probe
+Command not yet implemented: Collect { collector: Some("fallback_probe"), machine: None }'
++ assert_file_exists /data/tmp/vc_e2e_test_collector_errors_RvlG3y/test.duckdb 'Database should still exist'
++ local path=/data/tmp/vc_e2e_test_collector_errors_RvlG3y/test.duckdb
++ local 'msg=Database should still exist'
++ TEST_ASSERTIONS=6
++ [[ -f /data/tmp/vc_e2e_test_collector_errors_RvlG3y/test.duckdb ]]
++ test_error 'FAIL: Database should still exist'
++ test_log ERROR 'FAIL: Database should still exist'
++ local level=ERROR
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:45-05:00] [ERROR] FAIL: Database should still exist'
+[2026-01-28T12:23:45-05:00] [ERROR] FAIL: Database should still exist
++ test_error '  Path: /data/tmp/vc_e2e_test_collector_errors_RvlG3y/test.duckdb'
++ test_log ERROR '  Path: /data/tmp/vc_e2e_test_collector_errors_RvlG3y/test.duckdb'
++ local level=ERROR
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:45-05:00] [ERROR]   Path: /data/tmp/vc_e2e_test_collector_errors_RvlG3y/test.duckdb'
+[2026-01-28T12:23:45-05:00] [ERROR]   Path: /data/tmp/vc_e2e_test_collector_errors_RvlG3y/test.duckdb
++ TEST_FAILURES=1
++ TEST_ASSERTIONS=7
++ test_info 'PASS: Database still functional after errors'
++ test_log INFO 'PASS: Database still functional after errors'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:45-05:00] [INFO] PASS: Database still functional after errors'
+[2026-01-28T12:23:45-05:00] [INFO] PASS: Database still functional after errors
++ test_info 'Test 7: Health check after errors'
++ test_log INFO 'Test 7: Health check after errors'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:45-05:00] [INFO] Test 7: Health check after errors'
+[2026-01-28T12:23:45-05:00] [INFO] Test 7: Health check after errors
+++ run_vc robot health
++ health_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_collector_errors_RvlG3y/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:23:45.838944603Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:23:45.838870053Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ assert_json_valid '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_collector_errors_RvlG3y/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:23:45.838944603Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:23:45.838870053Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}' 'Health should still return valid JSON'
++ local 'json=++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_collector_errors_RvlG3y/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:23:45.838944603Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:23:45.838870053Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ local 'msg=Health should still return valid JSON'
++ TEST_ASSERTIONS=8
++ echo '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_collector_errors_RvlG3y/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:23:45.838944603Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:23:45.838870053Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ jq .
++ test_error 'FAIL: Health should still return valid JSON'
++ test_log ERROR 'FAIL: Health should still return valid JSON'
++ local level=ERROR
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:45-05:00] [ERROR] FAIL: Health should still return valid JSON'
+[2026-01-28T12:23:45-05:00] [ERROR] FAIL: Health should still return valid JSON
++ test_error '  Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_collector_errors_RvlG3y/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:23:45.838944603Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:23:45.838870053Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ test_log ERROR '  Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_collector_errors_RvlG3y/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:23:45.838944603Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:23:45.838870053Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ local level=ERROR
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:46-05:00] [ERROR]   Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_collector_errors_RvlG3y/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:23:45.838944603Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:23:45.838870053Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
+[2026-01-28T12:23:46-05:00] [ERROR]   Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_collector_errors_RvlG3y/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:23:45.838944603Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:23:45.838870053Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}
++ TEST_FAILURES=2
++ finalize_test
+++ date +%s%N
++ local end_time=1769621026053837834
++ local duration_ms=2803
++ local status=passed
++ local exit_code=0
++ [[ 2 -gt 0 ]]
++ status=failed
++ exit_code=1
++ cat
++ test_info 'Test complete: 8 assertions, 2 failures'
++ test_log INFO 'Test complete: 8 assertions, 2 failures'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:46-05:00] [INFO] Test complete: 8 assertions, 2 failures'
+[2026-01-28T12:23:46-05:00] [INFO] Test complete: 8 assertions, 2 failures
++ exit 1
++ cleanup_test_env
++ local exit_code=1
++ test_info 'Cleaning up test environment'
++ test_log INFO 'Cleaning up test environment'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:46-05:00] [INFO] Cleaning up test environment'
+[2026-01-28T12:23:46-05:00] [INFO] Cleaning up test environment
++ [[ -n /data/tmp/vc_e2e_test_collector_errors_RvlG3y ]]
++ [[ -d /data/tmp/vc_e2e_test_collector_errors_RvlG3y ]]
++ [[ 1 -ne 0 ]]
++ [[ '' == \t\r\u\e ]]
++ rm -rf /data/tmp/vc_e2e_test_collector_errors_RvlG3y

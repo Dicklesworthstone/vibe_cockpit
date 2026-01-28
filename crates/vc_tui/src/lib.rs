@@ -7,11 +7,16 @@
 //! - Keyboard navigation
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use ratatui::Frame;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 pub mod screens;
+pub mod theme;
 pub mod widgets;
+
+pub use screens::{render_overview, OverviewData};
+pub use theme::Theme;
 
 /// TUI errors
 #[derive(Error, Debug)]
@@ -108,6 +113,8 @@ pub struct App {
     pub current_screen: Screen,
     pub should_quit: bool,
     pub last_error: Option<String>,
+    pub theme: Theme,
+    pub overview_data: OverviewData,
 }
 
 impl App {
@@ -117,6 +124,27 @@ impl App {
             current_screen: Screen::Overview,
             should_quit: false,
             last_error: None,
+            theme: Theme::default(),
+            overview_data: OverviewData::default(),
+        }
+    }
+
+    /// Render the current screen
+    pub fn render(&self, f: &mut Frame) {
+        match self.current_screen {
+            Screen::Overview => {
+                render_overview(f, &self.overview_data, &self.theme);
+            }
+            _ => {
+                // Placeholder for other screens - render a simple message
+                use ratatui::widgets::{Block, Borders, Paragraph};
+                let text = Paragraph::new(format!(
+                    "Screen: {} - Press 'o' for Overview",
+                    self.current_screen.title()
+                ))
+                .block(Block::default().title("Vibe Cockpit").borders(Borders::ALL));
+                f.render_widget(text, f.area());
+            }
         }
     }
 
@@ -253,6 +281,8 @@ mod tests {
         let app2 = App::default();
         assert_eq!(app1.current_screen, app2.current_screen);
         assert_eq!(app1.should_quit, app2.should_quit);
+        // Theme and overview_data use defaults
+        assert_eq!(app1.overview_data.fleet_health, app2.overview_data.fleet_health);
     }
 
     #[test]

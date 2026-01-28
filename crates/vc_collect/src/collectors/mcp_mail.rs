@@ -106,7 +106,7 @@ impl Collector for AgentMailCollector {
 
         // Collect messages incrementally
         let messages_query = format!(
-            r#"
+            r"
             SELECT
                 id,
                 project_id,
@@ -120,7 +120,7 @@ impl Collector for AgentMailCollector {
             WHERE id > {}
             ORDER BY id
             LIMIT {}
-            "#,
+            ",
             last_id, ctx.max_rows
         );
 
@@ -149,7 +149,7 @@ impl Collector for AgentMailCollector {
         }
 
         // Collect file reservations as snapshot (all currently active)
-        let reservations_query = r#"
+        let reservations_query = r"
             SELECT
                 id,
                 project_id,
@@ -162,7 +162,7 @@ impl Collector for AgentMailCollector {
             FROM file_reservations
             WHERE released_ts IS NULL
               AND (expires_ts IS NULL OR expires_ts > datetime('now'))
-        "#;
+        ";
 
         let reservations = ctx
             .executor

@@ -1,0 +1,7 @@
+{
+  "test_name": "test_ru_mock",
+  "status": "failed",
+  "duration_ms": 2096,
+  "assertions": 8,
+  "failures": 1
+}

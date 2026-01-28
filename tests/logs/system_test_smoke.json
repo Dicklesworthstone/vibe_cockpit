@@ -1,0 +1,11 @@
+{
+  "assertions": 0,
+  "duration_ms": 787,
+  "error_excerpt": "+ set -euo pipefail\n+++ dirname /data/projects/vibe_cockpit/tests/e2e/system/test_smoke.sh\n++ cd /data/projects/vibe_cockpit/tests/e2e/system/../../..\n++ pwd\n+ ROOT_DIR=/data/projects/vibe_cockpit\n+ cd /data/projects/vibe_cockpit\n+ command -v cargo\n+ '[' -f Cargo.toml ']'\n+ '[' -d crates ']'\n+ cargo metadata --format-version 1 --no-deps",
+  "exit_code": 0,
+  "failures": 0,
+  "status": "pass",
+  "stderr_path": "tests/logs/system_test_smoke.err",
+  "stdout_path": "tests/logs/system_test_smoke.out",
+  "test_name": "system_test_smoke"
+}

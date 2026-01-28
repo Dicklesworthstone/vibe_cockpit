@@ -1,0 +1,264 @@
++ set -euo pipefail
+++ dirname /data/projects/vibe_cockpit/tests/e2e/collectors/test_mcp_mail_collect.sh
++ source /data/projects/vibe_cockpit/tests/e2e/collectors/../lib/test_helpers.sh
+++ set -euo pipefail
+++++ dirname /data/projects/vibe_cockpit/tests/e2e/collectors/../lib/test_helpers.sh
++++ cd /data/projects/vibe_cockpit/tests/e2e/collectors/../lib
++++ pwd
+++ TEST_LIB_DIR=/data/projects/vibe_cockpit/tests/e2e/lib
++++ dirname /data/projects/vibe_cockpit/tests/e2e/lib
+++ E2E_DIR=/data/projects/vibe_cockpit/tests/e2e
++++ cd /data/projects/vibe_cockpit/tests/e2e/../..
++++ pwd
+++ PROJECT_ROOT=/data/projects/vibe_cockpit
++++ find_vc_binary
++++ [[ -n /data/tmp/cargo-target ]]
++++ [[ -x /data/tmp/cargo-target/debug/vc ]]
++++ echo /data/tmp/cargo-target/debug/vc
++++ return
+++ VC_BIN=/data/tmp/cargo-target/debug/vc
++++ basename /data/projects/vibe_cockpit/tests/e2e/collectors/test_mcp_mail_collect.sh .sh
+++ TEST_NAME=test_mcp_mail_collect
+++ TEST_ASSERTIONS=0
+++ TEST_FAILURES=0
++++ date +%s%N
+++ TEST_START_TIME=1769621230357403497
+++ RED='\033[0;31m'
+++ GREEN='\033[0;32m'
+++ YELLOW='\033[1;33m'
+++ NC='\033[0m'
+++ trap cleanup_test_env EXIT
++ test_info 'Starting mcp_agent_mail collector E2E test'
++ test_log INFO 'Starting mcp_agent_mail collector E2E test'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:27:10-05:00] [INFO] Starting mcp_agent_mail collector E2E test'
+[2026-01-28T12:27:10-05:00] [INFO] Starting mcp_agent_mail collector E2E test
++ setup_test_env
++ test_info 'Setting up test environment'
++ test_log INFO 'Setting up test environment'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:27:10-05:00] [INFO] Setting up test environment'
+[2026-01-28T12:27:10-05:00] [INFO] Setting up test environment
+++ mktemp -d -t vc_e2e_test_mcp_mail_collect_XXXXXX
++ TEST_TEMP_DIR=/data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc
++ export TEST_TEMP_DIR
++ TEST_DB_PATH=/data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc/test.duckdb
++ export TEST_DB_PATH
++ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc/config.toml
++ cat
++ export TEST_CONFIG_PATH
++ test_info 'Test temp dir: /data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc'
++ test_log INFO 'Test temp dir: /data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:27:10-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc'
+[2026-01-28T12:27:10-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc
++ command -v sqlite3
++ export HOME=/data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc
++ HOME=/data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc
++ MAIL_DIR=/data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc/.mcp_agent_mail_git_mailbox_repo
++ DB_PATH=/data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc/.mcp_agent_mail_git_mailbox_repo/storage.sqlite3
++ mkdir -p /data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc/.mcp_agent_mail_git_mailbox_repo
++ test_info 'Creating mock mcp_agent_mail SQLite database'
++ test_log INFO 'Creating mock mcp_agent_mail SQLite database'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:27:10-05:00] [INFO] Creating mock mcp_agent_mail SQLite database'
+[2026-01-28T12:27:10-05:00] [INFO] Creating mock mcp_agent_mail SQLite database
++ sqlite3 /data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc/.mcp_agent_mail_git_mailbox_repo/storage.sqlite3
++ assert_file_exists /data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc/.mcp_agent_mail_git_mailbox_repo/storage.sqlite3 'Agent mail database should exist'
++ local path=/data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc/.mcp_agent_mail_git_mailbox_repo/storage.sqlite3
++ local 'msg=Agent mail database should exist'
++ TEST_ASSERTIONS=1
++ [[ -f /data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc/.mcp_agent_mail_git_mailbox_repo/storage.sqlite3 ]]
++ test_info 'PASS: Agent mail database should exist (/data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc/.mcp_agent_mail_git_mailbox_repo/storage.sqlite3)'
++ test_log INFO 'PASS: Agent mail database should exist (/data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc/.mcp_agent_mail_git_mailbox_repo/storage.sqlite3)'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:27:10-05:00] [INFO] PASS: Agent mail database should exist (/data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc/.mcp_agent_mail_git_mailbox_repo/storage.sqlite3)'
+[2026-01-28T12:27:10-05:00] [INFO] PASS: Agent mail database should exist (/data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc/.mcp_agent_mail_git_mailbox_repo/storage.sqlite3)
+++ sqlite3 /data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc/.mcp_agent_mail_git_mailbox_repo/storage.sqlite3 'SELECT COUNT(*) FROM messages;'
++ msg_count=1
++ assert_eq 1 1 'messages table should have 1 row'
++ local expected=1
++ local actual=1
++ local 'msg=messages table should have 1 row'
++ TEST_ASSERTIONS=2
++ [[ 1 == \1 ]]
++ test_info 'PASS: messages table should have 1 row'
++ test_log INFO 'PASS: messages table should have 1 row'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:27:10-05:00] [INFO] PASS: messages table should have 1 row'
+[2026-01-28T12:27:10-05:00] [INFO] PASS: messages table should have 1 row
+++ sqlite3 /data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc/.mcp_agent_mail_git_mailbox_repo/storage.sqlite3 'SELECT COUNT(*) FROM file_reservations;'
++ res_count=1
++ assert_eq 1 1 'file_reservations table should have 1 row'
++ local expected=1
++ local actual=1
++ local 'msg=file_reservations table should have 1 row'
++ TEST_ASSERTIONS=3
++ [[ 1 == \1 ]]
++ test_info 'PASS: file_reservations table should have 1 row'
++ test_log INFO 'PASS: file_reservations table should have 1 row'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:27:10-05:00] [INFO] PASS: file_reservations table should have 1 row'
+[2026-01-28T12:27:10-05:00] [INFO] PASS: file_reservations table should have 1 row
+++ run_vc collect --collector mcp_agent_mail
++ collect_output='++ local output=
+++ local status=0
+++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ set +e
++++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc/config.toml collect --collector mcp_agent_mail
+++ output='\''Command not yet implemented: Collect { collector: Some("mcp_agent_mail"), machine: None }'\''
+++ status=0
+++ set -e
+++ echo '\''Command not yet implemented: Collect { collector: Some("mcp_agent_mail"), machine: None }'\''
+Command not yet implemented: Collect { collector: Some("mcp_agent_mail"), machine: None }
+++ [[ Command not yet implemented: Collect { collector: Some("mcp_agent_mail"), machine: None } == *\C\o\m\m\a\n\d\ \n\o\t\ \y\e\t\ \i\m\p\l\e\m\e\n\t\e\d* ]]
+++ test_warn '\''Skipping: command not yet implemented (vc collect --collector mcp_agent_mail)'\''
+++ test_log WARN '\''Skipping: command not yet implemented (vc collect --collector mcp_agent_mail)'\''
+++ local level=WARN
+++ shift
++++ date -Iseconds
+++ echo '\''[2026-01-28T12:27:11-05:00] [WARN] Skipping: command not yet implemented (vc collect --collector mcp_agent_mail)'\''
+[2026-01-28T12:27:11-05:00] [WARN] Skipping: command not yet implemented (vc collect --collector mcp_agent_mail)
+++ exit 2'
++ test_warn 'mcp_agent_mail collector invocation returned non-zero'
++ test_log WARN 'mcp_agent_mail collector invocation returned non-zero'
++ local level=WARN
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:27:11-05:00] [WARN] mcp_agent_mail collector invocation returned non-zero'
+[2026-01-28T12:27:11-05:00] [WARN] mcp_agent_mail collector invocation returned non-zero
++ test_warn '++ local output=
+++ local status=0
+++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ set +e
++++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc/config.toml collect --collector mcp_agent_mail
+++ output='\''Command not yet implemented: Collect { collector: Some("mcp_agent_mail"), machine: None }'\''
+++ status=0
+++ set -e
+++ echo '\''Command not yet implemented: Collect { collector: Some("mcp_agent_mail"), machine: None }'\''
+Command not yet implemented: Collect { collector: Some("mcp_agent_mail"), machine: None }
+++ [[ Command not yet implemented: Collect { collector: Some("mcp_agent_mail"), machine: None } == *\C\o\m\m\a\n\d\ \n\o\t\ \y\e\t\ \i\m\p\l\e\m\e\n\t\e\d* ]]
+++ test_warn '\''Skipping: command not yet implemented (vc collect --collector mcp_agent_mail)'\''
+++ test_log WARN '\''Skipping: command not yet implemented (vc collect --collector mcp_agent_mail)'\''
+++ local level=WARN
+++ shift
++++ date -Iseconds
+++ echo '\''[2026-01-28T12:27:11-05:00] [WARN] Skipping: command not yet implemented (vc collect --collector mcp_agent_mail)'\''
+[2026-01-28T12:27:11-05:00] [WARN] Skipping: command not yet implemented (vc collect --collector mcp_agent_mail)
+++ exit 2'
++ test_log WARN '++ local output=
+++ local status=0
+++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ set +e
++++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc/config.toml collect --collector mcp_agent_mail
+++ output='\''Command not yet implemented: Collect { collector: Some("mcp_agent_mail"), machine: None }'\''
+++ status=0
+++ set -e
+++ echo '\''Command not yet implemented: Collect { collector: Some("mcp_agent_mail"), machine: None }'\''
+Command not yet implemented: Collect { collector: Some("mcp_agent_mail"), machine: None }
+++ [[ Command not yet implemented: Collect { collector: Some("mcp_agent_mail"), machine: None } == *\C\o\m\m\a\n\d\ \n\o\t\ \y\e\t\ \i\m\p\l\e\m\e\n\t\e\d* ]]
+++ test_warn '\''Skipping: command not yet implemented (vc collect --collector mcp_agent_mail)'\''
+++ test_log WARN '\''Skipping: command not yet implemented (vc collect --collector mcp_agent_mail)'\''
+++ local level=WARN
+++ shift
++++ date -Iseconds
+++ echo '\''[2026-01-28T12:27:11-05:00] [WARN] Skipping: command not yet implemented (vc collect --collector mcp_agent_mail)'\''
+[2026-01-28T12:27:11-05:00] [WARN] Skipping: command not yet implemented (vc collect --collector mcp_agent_mail)
+++ exit 2'
++ local level=WARN
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:27:11-05:00] [WARN] ++ local output=
+++ local status=0
+++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ set +e
++++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc/config.toml collect --collector mcp_agent_mail
+++ output='\''Command not yet implemented: Collect { collector: Some("mcp_agent_mail"), machine: None }'\''
+++ status=0
+++ set -e
+++ echo '\''Command not yet implemented: Collect { collector: Some("mcp_agent_mail"), machine: None }'\''
+Command not yet implemented: Collect { collector: Some("mcp_agent_mail"), machine: None }
+++ [[ Command not yet implemented: Collect { collector: Some("mcp_agent_mail"), machine: None } == *\C\o\m\m\a\n\d\ \n\o\t\ \y\e\t\ \i\m\p\l\e\m\e\n\t\e\d* ]]
+++ test_warn '\''Skipping: command not yet implemented (vc collect --collector mcp_agent_mail)'\''
+++ test_log WARN '\''Skipping: command not yet implemented (vc collect --collector mcp_agent_mail)'\''
+++ local level=WARN
+++ shift
++++ date -Iseconds
+++ echo '\''[2026-01-28T12:27:11-05:00] [WARN] Skipping: command not yet implemented (vc collect --collector mcp_agent_mail)'\''
+[2026-01-28T12:27:11-05:00] [WARN] Skipping: command not yet implemented (vc collect --collector mcp_agent_mail)
+++ exit 2'
+[2026-01-28T12:27:11-05:00] [WARN] ++ local output=
+++ local status=0
+++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ set +e
++++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc/config.toml collect --collector mcp_agent_mail
+++ output='Command not yet implemented: Collect { collector: Some("mcp_agent_mail"), machine: None }'
+++ status=0
+++ set -e
+++ echo 'Command not yet implemented: Collect { collector: Some("mcp_agent_mail"), machine: None }'
+Command not yet implemented: Collect { collector: Some("mcp_agent_mail"), machine: None }
+++ [[ Command not yet implemented: Collect { collector: Some("mcp_agent_mail"), machine: None } == *\C\o\m\m\a\n\d\ \n\o\t\ \y\e\t\ \i\m\p\l\e\m\e\n\t\e\d* ]]
+++ test_warn 'Skipping: command not yet implemented (vc collect --collector mcp_agent_mail)'
+++ test_log WARN 'Skipping: command not yet implemented (vc collect --collector mcp_agent_mail)'
+++ local level=WARN
+++ shift
++++ date -Iseconds
+++ echo '[2026-01-28T12:27:11-05:00] [WARN] Skipping: command not yet implemented (vc collect --collector mcp_agent_mail)'
+[2026-01-28T12:27:11-05:00] [WARN] Skipping: command not yet implemented (vc collect --collector mcp_agent_mail)
+++ exit 2
++ TEST_ASSERTIONS=4
++ test_info 'PASS: vc collect --collector mcp_agent_mail invoked'
++ test_log INFO 'PASS: vc collect --collector mcp_agent_mail invoked'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:27:11-05:00] [INFO] PASS: vc collect --collector mcp_agent_mail invoked'
+[2026-01-28T12:27:11-05:00] [INFO] PASS: vc collect --collector mcp_agent_mail invoked
++ finalize_test
+++ date +%s%N
++ local end_time=1769621231276030120
++ local duration_ms=918
++ local status=passed
++ local exit_code=0
++ [[ 0 -gt 0 ]]
++ cat
++ test_info 'Test complete: 4 assertions, 0 failures'
++ test_log INFO 'Test complete: 4 assertions, 0 failures'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:27:11-05:00] [INFO] Test complete: 4 assertions, 0 failures'
+[2026-01-28T12:27:11-05:00] [INFO] Test complete: 4 assertions, 0 failures
++ exit 0
++ cleanup_test_env
++ local exit_code=0
++ test_info 'Cleaning up test environment'
++ test_log INFO 'Cleaning up test environment'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:27:11-05:00] [INFO] Cleaning up test environment'
+[2026-01-28T12:27:11-05:00] [INFO] Cleaning up test environment
++ [[ -n /data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc ]]
++ [[ -d /data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc ]]
++ [[ 0 -ne 0 ]]
++ rm -rf /data/tmp/vc_e2e_test_mcp_mail_collect_qGjRlc

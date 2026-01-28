@@ -1,0 +1,43 @@
+[2026-01-28T03:20:25-05:00] [INFO] Starting fallback probe E2E test
+[2026-01-28T03:20:25-05:00] [INFO] Setting up test environment
+[2026-01-28T03:20:25-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_fallback_probe_x3gIZp
+[2026-01-28T03:20:25-05:00] [INFO] Test 1: Checking vc binary
+[2026-01-28T03:20:25-05:00] [ERROR] FAIL: vc binary should exist
+[2026-01-28T03:20:25-05:00] [ERROR]   Path: /data/projects/vibe_cockpit/target/debug/vc
+[2026-01-28T03:20:25-05:00] [INFO] Test 2: Checking vc --version
+[2026-01-28T03:20:25-05:00] [INFO] PASS: Version should contain 'vc'
+[2026-01-28T03:20:25-05:00] [ERROR] FAIL: Version should contain version number
+[2026-01-28T03:20:25-05:00] [ERROR]   Looking for: 0.1.0
+[2026-01-28T03:20:25-05:00] [ERROR]   In: [2026-01-28T03:20:25-05:00] [ERROR] vc binary not found at /data/projects/vibe_cockpit/target/debug/vc
+[2026-01-28T03:20:25-05:00] [ERROR] Run 'cargo build' first
+[2026-01-28T03:20:25-05:00] [INFO] Test 3: Checking vc robot health
+[2026-01-28T03:20:25-05:00] [ERROR] FAIL: Health output should be valid JSON
+[2026-01-28T03:20:25-05:00] [ERROR]   Invalid JSON: [2026-01-28T03:20:25-05:00] [ERROR] vc binary not found at /data/projects/vibe_cockpit/target/debug/vc
+[2026-01-28T03:20:25-05:00] [ERROR] Run 'cargo build' first
+[2026-01-28T03:20:25-05:00] [ERROR] FAIL: Schema version should match
+[2026-01-28T03:20:25-05:00] [ERROR]   Field: .schema_version
+[2026-01-28T03:20:25-05:00] [ERROR]   Expected: vc.robot.health.v1
+[2026-01-28T03:20:25-05:00] [ERROR]   Actual: 
+[2026-01-28T03:20:25-05:00] [ERROR] FAIL: Severity should be healthy
+[2026-01-28T03:20:25-05:00] [ERROR]   Field: .data.overall.severity
+[2026-01-28T03:20:25-05:00] [ERROR]   Expected: healthy
+[2026-01-28T03:20:25-05:00] [ERROR]   Actual: 
+[2026-01-28T03:20:25-05:00] [INFO] Test 4: Checking vc robot triage
+[2026-01-28T03:20:25-05:00] [ERROR] FAIL: Triage output should be valid JSON
+[2026-01-28T03:20:25-05:00] [ERROR]   Invalid JSON: [2026-01-28T03:20:25-05:00] [ERROR] vc binary not found at /data/projects/vibe_cockpit/target/debug/vc
+[2026-01-28T03:20:25-05:00] [ERROR] Run 'cargo build' first
+[2026-01-28T03:20:25-05:00] [ERROR] FAIL: Schema version should match
+[2026-01-28T03:20:25-05:00] [ERROR]   Field: .schema_version
+[2026-01-28T03:20:25-05:00] [ERROR]   Expected: vc.robot.triage.v1
+[2026-01-28T03:20:25-05:00] [ERROR]   Actual: 
+[2026-01-28T03:20:25-05:00] [INFO] Test 5: Checking config parsing
+[2026-01-28T03:20:25-05:00] [INFO] PASS: Test config should exist (/data/tmp/vc_e2e_test_fallback_probe_x3gIZp/config.toml)
+{
+  "test_name": "test_fallback_probe",
+  "status": "failed",
+  "duration_ms": 775,
+  "assertions": 9,
+  "failures": 7
+}
+[2026-01-28T03:20:25-05:00] [INFO] Test complete: 9 assertions, 7 failures
+[2026-01-28T03:20:25-05:00] [INFO] Cleaning up test environment

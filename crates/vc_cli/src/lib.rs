@@ -12,7 +12,7 @@ use thiserror::Error;
 
 pub mod robot;
 
-pub use robot::{RobotEnvelope, HealthData, TriageData};
+pub use robot::{RobotEnvelope, HealthData, TriageData, StatusData};
 
 /// CLI errors
 #[derive(Error, Debug)]
@@ -163,6 +163,9 @@ pub enum RobotCommands {
     /// Get triage recommendations
     Triage,
 
+    /// Get comprehensive fleet status (machines, repos, alerts)
+    Status,
+
     /// Get account status
     Accounts,
 
@@ -295,6 +298,10 @@ impl Cli {
                     }
                     RobotCommands::Triage => {
                         let output = robot::robot_triage();
+                        println!("{}", output.to_json_pretty());
+                    }
+                    RobotCommands::Status => {
+                        let output = robot::robot_status();
                         println!("{}", output.to_json_pretty());
                     }
                     RobotCommands::Accounts => {
@@ -591,6 +598,16 @@ mod tests {
         let cli = Cli::parse_from(["vc", "robot", "repos"]);
         if let Commands::Robot { command } = cli.command {
             assert!(matches!(command, RobotCommands::Repos));
+        } else {
+            panic!("Expected Robot command");
+        }
+    }
+
+    #[test]
+    fn test_robot_status_parse() {
+        let cli = Cli::parse_from(["vc", "robot", "status"]);
+        if let Commands::Robot { command } = cli.command {
+            assert!(matches!(command, RobotCommands::Status));
         } else {
             panic!("Expected Robot command");
         }
@@ -1090,6 +1107,13 @@ mod tests {
     #[tokio::test]
     async fn test_cli_run_robot_repos() {
         let cli = Cli::parse_from(["vc", "robot", "repos"]);
+        let result = cli.run().await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_cli_run_robot_status() {
+        let cli = Cli::parse_from(["vc", "robot", "status"]);
         let result = cli.run().await;
         assert!(result.is_ok());
     }

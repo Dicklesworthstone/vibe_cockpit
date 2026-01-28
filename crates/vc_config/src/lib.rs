@@ -1,10 +1,10 @@
-//! vc_config - Configuration parsing and validation for Vibe Cockpit
+//! `vc_config` - Configuration parsing and validation for Vibe Cockpit
 //!
 //! This crate provides:
 //! - TOML configuration parsing
 //! - Default value handling
 //! - Environment variable overrides
-//! - Path expansion (~/ to home directory)
+//! - Path expansion (`~/` to home directory)
 //! - Auto-discovery from standard config paths
 //! - Machine inventory definitions
 
@@ -32,7 +32,7 @@ pub enum ConfigError {
 }
 
 /// Top-level configuration structure
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct VcConfig {
     /// Global settings
@@ -57,25 +57,11 @@ pub struct VcConfig {
     pub web: WebConfig,
 }
 
-impl Default for VcConfig {
-    fn default() -> Self {
-        Self {
-            global: GlobalConfig::default(),
-            machines: HashMap::new(),
-            collectors: CollectorConfig::default(),
-            alerts: AlertConfig::default(),
-            autopilot: AutopilotConfig::default(),
-            tui: TuiConfig::default(),
-            web: WebConfig::default(),
-        }
-    }
-}
-
 /// Global configuration settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct GlobalConfig {
-    /// Path to DuckDB database file
+    /// Path to `DuckDB` database file
     pub db_path: PathBuf,
 
     /// Default poll interval in seconds
@@ -108,21 +94,20 @@ fn default_db_path() -> PathBuf {
 }
 
 /// Expand tilde in path to home directory
+#[must_use]
 pub fn expand_path(path: &Path) -> PathBuf {
     let path_str = path.to_string_lossy();
-    if path_str.starts_with("~/") {
+    if let Some(stripped) = path_str.strip_prefix("~/") {
         if let Some(home) = dirs::home_dir() {
-            return home.join(&path_str[2..]);
+            return home.join(stripped);
         }
-    } else if path_str == "~" {
-        if let Some(home) = dirs::home_dir() {
-            return home;
-        }
+    } else if path_str == "~" && let Some(home) = dirs::home_dir() {
+        return home;
     }
     path.to_path_buf()
 }
 
-/// Expand all paths in GlobalConfig
+/// Expand all paths in `GlobalConfig`
 impl GlobalConfig {
     pub fn expand_paths(&mut self) {
         self.db_path = expand_path(&self.db_path);
@@ -164,6 +149,7 @@ fn default_true() -> bool {
 /// Collector configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct CollectorConfig {
     /// Enable sysmoni collector
     pub sysmoni: bool,
@@ -180,7 +166,7 @@ pub struct CollectorConfig {
     /// Enable cass (session search) collector
     pub cass: bool,
 
-    /// Enable mcp_agent_mail collector
+    /// Enable `mcp_agent_mail` collector
     pub mcp_agent_mail: bool,
 
     /// Enable ntm collector
@@ -198,13 +184,13 @@ pub struct CollectorConfig {
     /// Enable pt collector
     pub pt: bool,
 
-    /// Enable bv_br (beads) collector
+    /// Enable `bv_br` (beads) collector
     pub bv_br: bool,
 
     /// Enable afsc collector
     pub afsc: bool,
 
-    /// Enable cloud_benchmarker collector
+    /// Enable `cloud_benchmarker` collector
     pub cloud_benchmarker: bool,
 
     /// Collector timeout in seconds
@@ -375,6 +361,7 @@ impl Default for WebConfig {
 
 impl VcConfig {
     /// Standard config file paths, in order of precedence
+    #[must_use]
     pub fn config_paths() -> Vec<PathBuf> {
         let mut paths = vec![
             // 1. Current directory (project-local)
@@ -392,8 +379,12 @@ impl VcConfig {
         paths
     }
 
-    /// Discover and load configuration from standard paths
-    /// Returns defaults if no config file is found
+    /// Discover and load configuration from standard paths.
+    ///
+    /// Returns defaults if no config file is found.
+    ///
+    /// # Errors
+    /// Returns a [`ConfigError`] if a discovered config file cannot be loaded.
     pub fn discover() -> Result<Self, ConfigError> {
         for path in Self::config_paths() {
             if path.exists() {
@@ -406,7 +397,10 @@ impl VcConfig {
         Ok(Self::default())
     }
 
-    /// Discover config and apply environment variable overrides
+    /// Discover config and apply environment variable overrides.
+    ///
+    /// # Errors
+    /// Returns a [`ConfigError`] if config discovery or validation fails.
     pub fn discover_with_env() -> Result<Self, ConfigError> {
         let mut config = Self::discover()?;
         config.apply_env_overrides();
@@ -414,7 +408,10 @@ impl VcConfig {
         Ok(config)
     }
 
-    /// Load configuration from a specific TOML file
+    /// Load configuration from a specific TOML file.
+    ///
+    /// # Errors
+    /// Returns a [`ConfigError`] if the file cannot be read, parsed, or validated.
     pub fn load(path: &Path) -> Result<Self, ConfigError> {
         let content = std::fs::read_to_string(path)?;
         let mut config: VcConfig = toml::from_str(&content)?;
@@ -423,14 +420,17 @@ impl VcConfig {
         Ok(config)
     }
 
-    /// Load configuration with environment variable overrides
+    /// Load configuration with environment variable overrides.
+    ///
+    /// # Errors
+    /// Returns a [`ConfigError`] if the file cannot be read, parsed, or validated.
     pub fn load_with_env(path: &Path) -> Result<Self, ConfigError> {
         let mut config = Self::load(path)?;
         config.apply_env_overrides();
         Ok(config)
     }
 
-    /// Expand all paths in configuration (resolve ~/ to home directory)
+    /// Expand all paths in configuration (resolve `~/` to home directory)
     pub fn expand_all_paths(&mut self) {
         self.global.expand_paths();
 
@@ -450,22 +450,25 @@ impl VcConfig {
         if let Ok(val) = std::env::var("VC_LOG_LEVEL") {
             self.global.log_level = val;
         }
-        if let Ok(val) = std::env::var("VC_POLL_INTERVAL") {
-            if let Ok(secs) = val.parse() {
-                self.global.poll_interval_secs = secs;
-            }
+        if let Ok(val) = std::env::var("VC_POLL_INTERVAL")
+            && let Ok(secs) = val.parse()
+        {
+            self.global.poll_interval_secs = secs;
         }
-        if let Ok(val) = std::env::var("VC_WEB_PORT") {
-            if let Ok(port) = val.parse() {
-                self.web.port = port;
-            }
+        if let Ok(val) = std::env::var("VC_WEB_PORT")
+            && let Ok(port) = val.parse()
+        {
+            self.web.port = port;
         }
         if let Ok(val) = std::env::var("VC_WEB_BIND") {
             self.web.bind_address = val;
         }
     }
 
-    /// Validate configuration
+    /// Validate configuration.
+    ///
+    /// # Errors
+    /// Returns a [`ConfigError`] when validation rules are violated.
     pub fn validate(&self) -> Result<(), ConfigError> {
         // Validate poll interval
         if self.global.poll_interval_secs == 0 {
@@ -509,8 +512,7 @@ impl VcConfig {
         for (id, machine) in &self.machines {
             if machine.ssh_host.is_some() && machine.ssh_user.is_none() {
                 return Err(ConfigError::ValidationError(format!(
-                    "Machine '{}' has ssh_host but missing ssh_user",
-                    id
+                    "Machine '{id}' has ssh_host but missing ssh_user"
                 )));
             }
         }
@@ -519,16 +521,19 @@ impl VcConfig {
     }
 
     /// Get poll interval as Duration
+    #[must_use]
     pub fn poll_interval(&self) -> Duration {
         Duration::from_secs(self.global.poll_interval_secs)
     }
 
     /// Get collector timeout as Duration
+    #[must_use]
     pub fn collector_timeout(&self) -> Duration {
         Duration::from_secs(self.collectors.timeout_secs)
     }
 
     /// Check if a machine is local (no SSH required)
+    #[must_use]
     pub fn is_local_machine(&self, machine_id: &str) -> bool {
         self.machines
             .get(machine_id)
@@ -541,12 +546,13 @@ impl VcConfig {
     }
 
     /// Check if a collector is enabled for a specific machine
+    #[must_use]
     pub fn is_collector_enabled(&self, machine_id: &str, collector_name: &str) -> bool {
         // Check machine-specific override first
-        if let Some(machine) = self.machines.get(machine_id) {
-            if let Some(&enabled) = machine.collectors.get(collector_name) {
-                return enabled;
-            }
+        if let Some(machine) = self.machines.get(machine_id)
+            && let Some(&enabled) = machine.collectors.get(collector_name)
+        {
+            return enabled;
         }
 
         // Fall back to global collector config

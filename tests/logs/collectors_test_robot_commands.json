@@ -1,0 +1,11 @@
+{
+  "assertions": 0,
+  "duration_ms": 1742,
+  "error_excerpt": "+ set -euo pipefail\n++ dirname /data/projects/vibe_cockpit/tests/e2e/collectors/test_robot_commands.sh\n+ source /data/projects/vibe_cockpit/tests/e2e/collectors/../lib/test_helpers.sh\n++ set -euo pipefail\n++++ dirname /data/projects/vibe_cockpit/tests/e2e/collectors/../lib/test_helpers.sh\n+++ cd /data/projects/vibe_cockpit/tests/e2e/collectors/../lib\n+++ pwd\n++ TEST_LIB_DIR=/data/projects/vibe_cockpit/tests/e2e/lib\n+++ dirname /data/projects/vibe_cockpit/tests/e2e/lib\n++ E2E_DIR=/data/projects/vibe_cockpit/tests/e2e\n+++ cd /data/projects/vibe_cockpit/tests/e2e/../..\n+++ pwd\n++ PROJECT_ROOT=/data/projects/vibe_cockpit\n+++ find_vc_binary\n+++ [[ -n /data/tmp/cargo-target ]]\n+++ [[ -x /data/tmp/cargo-target/debug/vc ]]\n+++ echo /data/tmp/cargo-target/debug/vc\n+++ return\n++ VC_BIN=/data/tmp/cargo-target/debug/vc\n+++ basename /data/projects/vibe_cockpit/tests/e2e/collectors/test_robot_commands.sh .sh\n++ TEST_NAME=test_robot_commands\n++ TEST_ASSERTIONS=0\n++ TEST_FAILURES=0\n+++ date +%s%N\n++ TEST_START_TIME=1769621036064650627\n++ RED='\\033[0;31m'\n++ GREEN='\\033[0;32m'\n++ YELLOW='\\033[1;33m'\n++ NC='\\033[0m'\n++ trap cleanup_test_env EXIT\n+ test_info 'Starting robot commands E2E test'\n+ test_log INFO 'Starting robot commands E2E test'\n+ local level=INFO\n+ shift\n++ date -Iseconds\n+ echo '[2026-01-28T12:23:56-05:00] [INFO] Starting robot commands E2E test'\n[2026-01-28T12:23:56-05:00] [INFO] Starting robot commands E2E test\n+ setup_test_env\n+ test_info 'Setting up test environment'\n+ test_log INFO 'Setting up test environment'\n+ local level=INFO\n+ shift\n++ date -Iseconds\n+ echo '[2026-01-28T12:23:56-05:00] [INFO] Setting up test environment'\n[2026-01-28T12:23:56-05:00] [INFO] Setting up test environment\n++ mktemp -d -t vc_e2e_test_robot_commands_XXXXXX\n+ TEST_TEMP_DIR=/data/tmp/vc_e2e_test_robot_commands_E4IBL6\n+ export TEST_TEMP_DIR\n+ TEST_DB_PATH=/data/tmp/vc_e2e_test_robot_commands_E4IBL6/test.duckdb\n+ export TEST_DB_PATH",
+  "exit_code": 5,
+  "failures": 0,
+  "status": "pass",
+  "stderr_path": "tests/logs/collectors_test_robot_commands.err",
+  "stdout_path": "tests/logs/collectors_test_robot_commands.out",
+  "test_name": "collectors_test_robot_commands"
+}

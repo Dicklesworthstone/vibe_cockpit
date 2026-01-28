@@ -26,6 +26,7 @@ pub fn init_tracing() {
 }
 
 /// Generate a unique temporary DuckDB path for a test.
+#[allow(dead_code)]
 pub fn temp_db_path(test_name: &str) -> PathBuf {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -35,6 +36,7 @@ pub fn temp_db_path(test_name: &str) -> PathBuf {
 }
 
 /// Build a default config with a test-scoped DB path.
+#[allow(dead_code)]
 pub fn temp_config(test_name: &str) -> vc_config::VcConfig {
     let mut config = vc_config::VcConfig::default();
     config.global.db_path = temp_db_path(test_name);
@@ -46,6 +48,7 @@ pub fn temp_config(test_name: &str) -> vc_config::VcConfig {
 // =============================================================================
 
 /// Sample ru list --json output for testing RuCollector
+#[allow(dead_code)]
 pub const RU_LIST_FIXTURE: &str = r#"{
     "repos": [
         {
@@ -62,6 +65,7 @@ pub const RU_LIST_FIXTURE: &str = r#"{
 }"#;
 
 /// Sample ru status --no-fetch --json output for testing RuCollector
+#[allow(dead_code)]
 pub const RU_STATUS_FIXTURE: &str = r#"{
     "repos": [
         {
@@ -88,6 +92,7 @@ pub const RU_STATUS_FIXTURE: &str = r#"{
 }"#;
 
 /// Sample sysmoni --json output for testing SysmoniCollector
+#[allow(dead_code)]
 pub const SYSMONI_FIXTURE: &str = r#"{
     "timestamp": "2026-01-28T00:00:00Z",
     "cpu": {
@@ -123,14 +128,17 @@ pub const SYSMONI_FIXTURE: &str = r#"{
 }"#;
 
 /// Sample uptime output (Linux format)
+#[allow(dead_code)]
 pub const UPTIME_LINUX_FIXTURE: &str =
     " 14:32:25 up 5 days, 3:45, 2 users, load average: 0.25, 0.18, 0.12";
 
 /// Sample uptime output (macOS format)
+#[allow(dead_code)]
 pub const UPTIME_MACOS_FIXTURE: &str =
     "14:32  up 5 days,  3:45, 2 users, load averages: 1.23 0.98 0.67";
 
 /// Sample df -P output
+#[allow(dead_code)]
 pub const DF_FIXTURE: &str = r#"Filesystem     1024-blocks      Used Available Capacity Mounted on
 /dev/sda1       488378368 341064857 122460567      74% /
 /dev/sdb1       976754560 585052736 342048256      63% /home
@@ -138,6 +146,7 @@ tmpfs            16384000         0  16384000       0% /dev/shm
 "#;
 
 /// Sample /proc/meminfo output
+#[allow(dead_code)]
 pub const PROC_MEMINFO_FIXTURE: &str = r#"MemTotal:       16384000 kB
 MemFree:         1234567 kB
 MemAvailable:    8000000 kB
@@ -148,6 +157,7 @@ SwapFree:        4000000 kB
 "#;
 
 /// Sample free -b output
+#[allow(dead_code)]
 pub const FREE_FIXTURE: &str = r#"              total        used        free      shared  buff/cache   available
 Mem:    16777216000  8000000000  2000000000   500000000  6000000000  8000000000
 Swap:    4294967296  1000000000  3294967296

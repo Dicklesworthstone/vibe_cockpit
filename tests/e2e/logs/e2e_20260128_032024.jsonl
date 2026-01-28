@@ -1,0 +1,7 @@
+{"ts":"2026-01-28T03:20:24-05:00","level":"INFO","msg":"Starting E2E test run"}
+{"ts":"2026-01-28T03:20:24-05:00","level":"INFO","msg":"Project root: /data/projects/vibe_cockpit"}
+{"ts":"2026-01-28T03:20:24-05:00","level":"INFO","msg":"Log directory: /data/projects/vibe_cockpit/tests/e2e/logs"}
+{"ts":"2026-01-28T03:20:25-05:00","level":"INFO","msg":"Found 1 test(s)"}
+{"ts":"2026-01-28T03:20:25-05:00","level":"INFO","msg":"Running: test_fallback_probe"}
+{"ts":"2026-01-28T03:20:25-05:00","level":"FAIL","msg":"test_fallback_probe (exit code: 1)"}
+{"ts":"2026-01-28T03:20:26-05:00","level":"INFO","msg":"Generating report: /data/projects/vibe_cockpit/tests/e2e/logs/report_20260128_032024.json"}

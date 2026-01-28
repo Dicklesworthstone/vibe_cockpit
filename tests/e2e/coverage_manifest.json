@@ -1,0 +1,27 @@
+{
+  "collectors": [
+    "collectors/test_caam_mock.sh",
+    "collectors/test_cass_mock.sh",
+    "collectors/test_caut_mock.sh",
+    "collectors/test_collect_basic.sh",
+    "collectors/test_collector_errors.sh",
+    "collectors/test_config_validation.sh",
+    "collectors/test_dcg_collect.sh",
+    "collectors/test_fallback_probe.sh",
+    "collectors/test_mcp_mail_collect.sh",
+    "collectors/test_rch_collect.sh",
+    "collectors/test_robot_commands.sh",
+    "collectors/test_ru_collect.sh",
+    "collectors/test_ru_mock.sh",
+    "collectors/test_sysmoni_collect.sh",
+    "collectors/test_sysmoni_mock.sh"
+  ],
+  "remote": [],
+  "tui": [],
+  "web": [],
+  "system": [
+    "system/test_full_poll_cycle.sh",
+    "system/test_smoke.sh"
+  ],
+  "notes": "Populate this manifest as feature beads add their E2E scripts. Each entry should be a test script path under tests/e2e/."
+}

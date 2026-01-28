@@ -1,0 +1,7 @@
+{
+  "test_name": "test_ru_collect",
+  "status": "failed",
+  "duration_ms": 3220,
+  "assertions": 23,
+  "failures": 1
+}

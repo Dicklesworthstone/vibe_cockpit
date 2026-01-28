@@ -1,0 +1,1322 @@
++ set -euo pipefail
+++ dirname /data/projects/vibe_cockpit/tests/e2e/collectors/test_ru_collect.sh
++ source /data/projects/vibe_cockpit/tests/e2e/collectors/../lib/test_helpers.sh
+++ set -euo pipefail
+++++ dirname /data/projects/vibe_cockpit/tests/e2e/collectors/../lib/test_helpers.sh
++++ cd /data/projects/vibe_cockpit/tests/e2e/collectors/../lib
++++ pwd
+++ TEST_LIB_DIR=/data/projects/vibe_cockpit/tests/e2e/lib
++++ dirname /data/projects/vibe_cockpit/tests/e2e/lib
+++ E2E_DIR=/data/projects/vibe_cockpit/tests/e2e
++++ cd /data/projects/vibe_cockpit/tests/e2e/../..
++++ pwd
+++ PROJECT_ROOT=/data/projects/vibe_cockpit
++++ find_vc_binary
++++ [[ -n /data/tmp/cargo-target ]]
++++ [[ -x /data/tmp/cargo-target/debug/vc ]]
++++ echo /data/tmp/cargo-target/debug/vc
++++ return
+++ VC_BIN=/data/tmp/cargo-target/debug/vc
++++ basename /data/projects/vibe_cockpit/tests/e2e/collectors/test_ru_collect.sh .sh
+++ TEST_NAME=test_ru_collect
+++ TEST_ASSERTIONS=0
+++ TEST_FAILURES=0
++++ date +%s%N
+++ TEST_START_TIME=1769621038146847796
+++ RED='\033[0;31m'
+++ GREEN='\033[0;32m'
+++ YELLOW='\033[1;33m'
+++ NC='\033[0m'
+++ trap cleanup_test_env EXIT
++ test_info 'Starting ru collector E2E test'
++ test_log INFO 'Starting ru collector E2E test'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:58-05:00] [INFO] Starting ru collector E2E test'
+[2026-01-28T12:23:58-05:00] [INFO] Starting ru collector E2E test
++ setup_test_env
++ test_info 'Setting up test environment'
++ test_log INFO 'Setting up test environment'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:58-05:00] [INFO] Setting up test environment'
+[2026-01-28T12:23:58-05:00] [INFO] Setting up test environment
+++ mktemp -d -t vc_e2e_test_ru_collect_XXXXXX
++ TEST_TEMP_DIR=/data/tmp/vc_e2e_test_ru_collect_nL9rHw
++ export TEST_TEMP_DIR
++ TEST_DB_PATH=/data/tmp/vc_e2e_test_ru_collect_nL9rHw/test.duckdb
++ export TEST_DB_PATH
++ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_ru_collect_nL9rHw/config.toml
++ cat
++ export TEST_CONFIG_PATH
++ test_info 'Test temp dir: /data/tmp/vc_e2e_test_ru_collect_nL9rHw'
++ test_log INFO 'Test temp dir: /data/tmp/vc_e2e_test_ru_collect_nL9rHw'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:58-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_ru_collect_nL9rHw'
+[2026-01-28T12:23:58-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_ru_collect_nL9rHw
++ RU_LIST_FIXTURE=/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_list.json
++ cat
++ RU_STATUS_FIXTURE=/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status.json
++ cat
++ test_info 'Test 1: Validating ru list fixture JSON'
++ test_log INFO 'Test 1: Validating ru list fixture JSON'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:58-05:00] [INFO] Test 1: Validating ru list fixture JSON'
+[2026-01-28T12:23:58-05:00] [INFO] Test 1: Validating ru list fixture JSON
++ assert_file_exists /data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_list.json 'RU list fixture should exist'
++ local path=/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_list.json
++ local 'msg=RU list fixture should exist'
++ TEST_ASSERTIONS=1
++ [[ -f /data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_list.json ]]
++ test_info 'PASS: RU list fixture should exist (/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_list.json)'
++ test_log INFO 'PASS: RU list fixture should exist (/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_list.json)'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:58-05:00] [INFO] PASS: RU list fixture should exist (/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_list.json)'
+[2026-01-28T12:23:58-05:00] [INFO] PASS: RU list fixture should exist (/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_list.json)
+++ cat /data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_list.json
++ ru_list_content='{
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "name": "vibe_cockpit"
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "name": "beads_rust"
+        }
+    ]
+}'
++ assert_json_valid '{
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "name": "vibe_cockpit"
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "name": "beads_rust"
+        }
+    ]
+}' 'RU list fixture should be valid JSON'
++ local 'json={
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "name": "vibe_cockpit"
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "name": "beads_rust"
+        }
+    ]
+}'
++ local 'msg=RU list fixture should be valid JSON'
++ TEST_ASSERTIONS=2
++ echo '{
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "name": "vibe_cockpit"
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "name": "beads_rust"
+        }
+    ]
+}'
++ jq .
++ test_info 'PASS: RU list fixture should be valid JSON'
++ test_log INFO 'PASS: RU list fixture should be valid JSON'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:58-05:00] [INFO] PASS: RU list fixture should be valid JSON'
+[2026-01-28T12:23:58-05:00] [INFO] PASS: RU list fixture should be valid JSON
++ test_info 'Test 2: Checking ru list structure'
++ test_log INFO 'Test 2: Checking ru list structure'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:58-05:00] [INFO] Test 2: Checking ru list structure'
+[2026-01-28T12:23:58-05:00] [INFO] Test 2: Checking ru list structure
+++ echo '{
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "name": "vibe_cockpit"
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "name": "beads_rust"
+        }
+    ]
+}'
+++ jq '.repos | length'
++ repo_count=2
++ assert_eq 2 2 'Should have 2 repos in list'
++ local expected=2
++ local actual=2
++ local 'msg=Should have 2 repos in list'
++ TEST_ASSERTIONS=3
++ [[ 2 == \2 ]]
++ test_info 'PASS: Should have 2 repos in list'
++ test_log INFO 'PASS: Should have 2 repos in list'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:58-05:00] [INFO] PASS: Should have 2 repos in list'
+[2026-01-28T12:23:58-05:00] [INFO] PASS: Should have 2 repos in list
++ test_info 'Test 3: Checking repo fields in list'
++ test_log INFO 'Test 3: Checking repo fields in list'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:58-05:00] [INFO] Test 3: Checking repo fields in list'
+[2026-01-28T12:23:58-05:00] [INFO] Test 3: Checking repo fields in list
+++ echo '{
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "name": "vibe_cockpit"
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "name": "beads_rust"
+        }
+    ]
+}'
+++ jq -r '.repos[0].path'
++ first_path=/data/projects/vibe_cockpit
++ assert_eq /data/projects/vibe_cockpit /data/projects/vibe_cockpit 'First repo path'
++ local expected=/data/projects/vibe_cockpit
++ local actual=/data/projects/vibe_cockpit
++ local 'msg=First repo path'
++ TEST_ASSERTIONS=4
++ [[ /data/projects/vibe_cockpit == \/\d\a\t\a\/\p\r\o\j\e\c\t\s\/\v\i\b\e\_\c\o\c\k\p\i\t ]]
++ test_info 'PASS: First repo path'
++ test_log INFO 'PASS: First repo path'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:58-05:00] [INFO] PASS: First repo path'
+[2026-01-28T12:23:58-05:00] [INFO] PASS: First repo path
+++ echo '{
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "name": "vibe_cockpit"
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "name": "beads_rust"
+        }
+    ]
+}'
+++ jq -r '.repos[0].name'
++ first_name=vibe_cockpit
++ assert_eq vibe_cockpit vibe_cockpit 'First repo name'
++ local expected=vibe_cockpit
++ local actual=vibe_cockpit
++ local 'msg=First repo name'
++ TEST_ASSERTIONS=5
++ [[ vibe_cockpit == \v\i\b\e\_\c\o\c\k\p\i\t ]]
++ test_info 'PASS: First repo name'
++ test_log INFO 'PASS: First repo name'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:59-05:00] [INFO] PASS: First repo name'
+[2026-01-28T12:23:59-05:00] [INFO] PASS: First repo name
++ test_info 'Test 4: Validating ru status fixture JSON'
++ test_log INFO 'Test 4: Validating ru status fixture JSON'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:59-05:00] [INFO] Test 4: Validating ru status fixture JSON'
+[2026-01-28T12:23:59-05:00] [INFO] Test 4: Validating ru status fixture JSON
++ assert_file_exists /data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status.json 'RU status fixture should exist'
++ local path=/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status.json
++ local 'msg=RU status fixture should exist'
++ TEST_ASSERTIONS=6
++ [[ -f /data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status.json ]]
++ test_info 'PASS: RU status fixture should exist (/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status.json)'
++ test_log INFO 'PASS: RU status fixture should exist (/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status.json)'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:59-05:00] [INFO] PASS: RU status fixture should exist (/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status.json)'
+[2026-01-28T12:23:59-05:00] [INFO] PASS: RU status fixture should exist (/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status.json)
+++ cat /data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status.json
++ ru_status_content='{
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "branch": "main",
+            "dirty": false,
+            "ahead": 0,
+            "behind": 0,
+            "modified_files": [],
+            "untracked_files": []
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "branch": "feature/new-sync",
+            "dirty": true,
+            "ahead": 3,
+            "behind": 1,
+            "modified_files": ["src/lib.rs", "Cargo.toml"],
+            "untracked_files": ["notes.txt"]
+        }
+    ]
+}'
++ assert_json_valid '{
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "branch": "main",
+            "dirty": false,
+            "ahead": 0,
+            "behind": 0,
+            "modified_files": [],
+            "untracked_files": []
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "branch": "feature/new-sync",
+            "dirty": true,
+            "ahead": 3,
+            "behind": 1,
+            "modified_files": ["src/lib.rs", "Cargo.toml"],
+            "untracked_files": ["notes.txt"]
+        }
+    ]
+}' 'RU status fixture should be valid JSON'
++ local 'json={
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "branch": "main",
+            "dirty": false,
+            "ahead": 0,
+            "behind": 0,
+            "modified_files": [],
+            "untracked_files": []
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "branch": "feature/new-sync",
+            "dirty": true,
+            "ahead": 3,
+            "behind": 1,
+            "modified_files": ["src/lib.rs", "Cargo.toml"],
+            "untracked_files": ["notes.txt"]
+        }
+    ]
+}'
++ local 'msg=RU status fixture should be valid JSON'
++ TEST_ASSERTIONS=7
++ echo '{
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "branch": "main",
+            "dirty": false,
+            "ahead": 0,
+            "behind": 0,
+            "modified_files": [],
+            "untracked_files": []
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "branch": "feature/new-sync",
+            "dirty": true,
+            "ahead": 3,
+            "behind": 1,
+            "modified_files": ["src/lib.rs", "Cargo.toml"],
+            "untracked_files": ["notes.txt"]
+        }
+    ]
+}'
++ jq .
++ test_info 'PASS: RU status fixture should be valid JSON'
++ test_log INFO 'PASS: RU status fixture should be valid JSON'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:59-05:00] [INFO] PASS: RU status fixture should be valid JSON'
+[2026-01-28T12:23:59-05:00] [INFO] PASS: RU status fixture should be valid JSON
++ test_info 'Test 5: Checking clean repo status'
++ test_log INFO 'Test 5: Checking clean repo status'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:59-05:00] [INFO] Test 5: Checking clean repo status'
+[2026-01-28T12:23:59-05:00] [INFO] Test 5: Checking clean repo status
+++ echo '{
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "branch": "main",
+            "dirty": false,
+            "ahead": 0,
+            "behind": 0,
+            "modified_files": [],
+            "untracked_files": []
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "branch": "feature/new-sync",
+            "dirty": true,
+            "ahead": 3,
+            "behind": 1,
+            "modified_files": ["src/lib.rs", "Cargo.toml"],
+            "untracked_files": ["notes.txt"]
+        }
+    ]
+}'
+++ jq '.repos[0].dirty'
++ clean_dirty=false
++ assert_eq false false 'First repo should be clean'
++ local expected=false
++ local actual=false
++ local 'msg=First repo should be clean'
++ TEST_ASSERTIONS=8
++ [[ false == \f\a\l\s\e ]]
++ test_info 'PASS: First repo should be clean'
++ test_log INFO 'PASS: First repo should be clean'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:59-05:00] [INFO] PASS: First repo should be clean'
+[2026-01-28T12:23:59-05:00] [INFO] PASS: First repo should be clean
+++ echo '{
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "branch": "main",
+            "dirty": false,
+            "ahead": 0,
+            "behind": 0,
+            "modified_files": [],
+            "untracked_files": []
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "branch": "feature/new-sync",
+            "dirty": true,
+            "ahead": 3,
+            "behind": 1,
+            "modified_files": ["src/lib.rs", "Cargo.toml"],
+            "untracked_files": ["notes.txt"]
+        }
+    ]
+}'
+++ jq '.repos[0].ahead'
++ clean_ahead=0
++ assert_eq 0 0 'First repo should have 0 ahead'
++ local expected=0
++ local actual=0
++ local 'msg=First repo should have 0 ahead'
++ TEST_ASSERTIONS=9
++ [[ 0 == \0 ]]
++ test_info 'PASS: First repo should have 0 ahead'
++ test_log INFO 'PASS: First repo should have 0 ahead'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:59-05:00] [INFO] PASS: First repo should have 0 ahead'
+[2026-01-28T12:23:59-05:00] [INFO] PASS: First repo should have 0 ahead
+++ echo '{
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "branch": "main",
+            "dirty": false,
+            "ahead": 0,
+            "behind": 0,
+            "modified_files": [],
+            "untracked_files": []
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "branch": "feature/new-sync",
+            "dirty": true,
+            "ahead": 3,
+            "behind": 1,
+            "modified_files": ["src/lib.rs", "Cargo.toml"],
+            "untracked_files": ["notes.txt"]
+        }
+    ]
+}'
+++ jq '.repos[0].behind'
++ clean_behind=0
++ assert_eq 0 0 'First repo should have 0 behind'
++ local expected=0
++ local actual=0
++ local 'msg=First repo should have 0 behind'
++ TEST_ASSERTIONS=10
++ [[ 0 == \0 ]]
++ test_info 'PASS: First repo should have 0 behind'
++ test_log INFO 'PASS: First repo should have 0 behind'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:59-05:00] [INFO] PASS: First repo should have 0 behind'
+[2026-01-28T12:23:59-05:00] [INFO] PASS: First repo should have 0 behind
++ test_info 'Test 6: Checking dirty repo status'
++ test_log INFO 'Test 6: Checking dirty repo status'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:59-05:00] [INFO] Test 6: Checking dirty repo status'
+[2026-01-28T12:23:59-05:00] [INFO] Test 6: Checking dirty repo status
+++ echo '{
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "branch": "main",
+            "dirty": false,
+            "ahead": 0,
+            "behind": 0,
+            "modified_files": [],
+            "untracked_files": []
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "branch": "feature/new-sync",
+            "dirty": true,
+            "ahead": 3,
+            "behind": 1,
+            "modified_files": ["src/lib.rs", "Cargo.toml"],
+            "untracked_files": ["notes.txt"]
+        }
+    ]
+}'
+++ jq '.repos[1].dirty'
++ dirty_status=true
++ assert_eq true true 'Second repo should be dirty'
++ local expected=true
++ local actual=true
++ local 'msg=Second repo should be dirty'
++ TEST_ASSERTIONS=11
++ [[ true == \t\r\u\e ]]
++ test_info 'PASS: Second repo should be dirty'
++ test_log INFO 'PASS: Second repo should be dirty'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:59-05:00] [INFO] PASS: Second repo should be dirty'
+[2026-01-28T12:23:59-05:00] [INFO] PASS: Second repo should be dirty
+++ echo '{
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "branch": "main",
+            "dirty": false,
+            "ahead": 0,
+            "behind": 0,
+            "modified_files": [],
+            "untracked_files": []
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "branch": "feature/new-sync",
+            "dirty": true,
+            "ahead": 3,
+            "behind": 1,
+            "modified_files": ["src/lib.rs", "Cargo.toml"],
+            "untracked_files": ["notes.txt"]
+        }
+    ]
+}'
+++ jq '.repos[1].ahead'
++ ahead_count=3
++ assert_eq 3 3 'Second repo should be 3 ahead'
++ local expected=3
++ local actual=3
++ local 'msg=Second repo should be 3 ahead'
++ TEST_ASSERTIONS=12
++ [[ 3 == \3 ]]
++ test_info 'PASS: Second repo should be 3 ahead'
++ test_log INFO 'PASS: Second repo should be 3 ahead'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:59-05:00] [INFO] PASS: Second repo should be 3 ahead'
+[2026-01-28T12:23:59-05:00] [INFO] PASS: Second repo should be 3 ahead
+++ echo '{
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "branch": "main",
+            "dirty": false,
+            "ahead": 0,
+            "behind": 0,
+            "modified_files": [],
+            "untracked_files": []
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "branch": "feature/new-sync",
+            "dirty": true,
+            "ahead": 3,
+            "behind": 1,
+            "modified_files": ["src/lib.rs", "Cargo.toml"],
+            "untracked_files": ["notes.txt"]
+        }
+    ]
+}'
+++ jq '.repos[1].behind'
++ behind_count=1
++ assert_eq 1 1 'Second repo should be 1 behind'
++ local expected=1
++ local actual=1
++ local 'msg=Second repo should be 1 behind'
++ TEST_ASSERTIONS=13
++ [[ 1 == \1 ]]
++ test_info 'PASS: Second repo should be 1 behind'
++ test_log INFO 'PASS: Second repo should be 1 behind'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:59-05:00] [INFO] PASS: Second repo should be 1 behind'
+[2026-01-28T12:23:59-05:00] [INFO] PASS: Second repo should be 1 behind
++ test_info 'Test 7: Checking modified files'
++ test_log INFO 'Test 7: Checking modified files'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:59-05:00] [INFO] Test 7: Checking modified files'
+[2026-01-28T12:23:59-05:00] [INFO] Test 7: Checking modified files
+++ echo '{
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "branch": "main",
+            "dirty": false,
+            "ahead": 0,
+            "behind": 0,
+            "modified_files": [],
+            "untracked_files": []
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "branch": "feature/new-sync",
+            "dirty": true,
+            "ahead": 3,
+            "behind": 1,
+            "modified_files": ["src/lib.rs", "Cargo.toml"],
+            "untracked_files": ["notes.txt"]
+        }
+    ]
+}'
+++ jq '.repos[1].modified_files | length'
++ modified_count=2
++ assert_eq 2 2 'Second repo should have 2 modified files'
++ local expected=2
++ local actual=2
++ local 'msg=Second repo should have 2 modified files'
++ TEST_ASSERTIONS=14
++ [[ 2 == \2 ]]
++ test_info 'PASS: Second repo should have 2 modified files'
++ test_log INFO 'PASS: Second repo should have 2 modified files'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:59-05:00] [INFO] PASS: Second repo should have 2 modified files'
+[2026-01-28T12:23:59-05:00] [INFO] PASS: Second repo should have 2 modified files
+++ echo '{
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "branch": "main",
+            "dirty": false,
+            "ahead": 0,
+            "behind": 0,
+            "modified_files": [],
+            "untracked_files": []
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "branch": "feature/new-sync",
+            "dirty": true,
+            "ahead": 3,
+            "behind": 1,
+            "modified_files": ["src/lib.rs", "Cargo.toml"],
+            "untracked_files": ["notes.txt"]
+        }
+    ]
+}'
+++ jq -r '.repos[1].modified_files[0]'
++ first_modified=src/lib.rs
++ assert_eq src/lib.rs src/lib.rs 'First modified file'
++ local expected=src/lib.rs
++ local actual=src/lib.rs
++ local 'msg=First modified file'
++ TEST_ASSERTIONS=15
++ [[ src/lib.rs == \s\r\c\/\l\i\b\.\r\s ]]
++ test_info 'PASS: First modified file'
++ test_log INFO 'PASS: First modified file'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:00-05:00] [INFO] PASS: First modified file'
+[2026-01-28T12:24:00-05:00] [INFO] PASS: First modified file
++ test_info 'Test 8: Checking untracked files'
++ test_log INFO 'Test 8: Checking untracked files'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:00-05:00] [INFO] Test 8: Checking untracked files'
+[2026-01-28T12:24:00-05:00] [INFO] Test 8: Checking untracked files
+++ echo '{
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "branch": "main",
+            "dirty": false,
+            "ahead": 0,
+            "behind": 0,
+            "modified_files": [],
+            "untracked_files": []
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "branch": "feature/new-sync",
+            "dirty": true,
+            "ahead": 3,
+            "behind": 1,
+            "modified_files": ["src/lib.rs", "Cargo.toml"],
+            "untracked_files": ["notes.txt"]
+        }
+    ]
+}'
+++ jq '.repos[1].untracked_files | length'
++ untracked_count=1
++ assert_eq 1 1 'Second repo should have 1 untracked file'
++ local expected=1
++ local actual=1
++ local 'msg=Second repo should have 1 untracked file'
++ TEST_ASSERTIONS=16
++ [[ 1 == \1 ]]
++ test_info 'PASS: Second repo should have 1 untracked file'
++ test_log INFO 'PASS: Second repo should have 1 untracked file'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:00-05:00] [INFO] PASS: Second repo should have 1 untracked file'
+[2026-01-28T12:24:00-05:00] [INFO] PASS: Second repo should have 1 untracked file
+++ echo '{
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "branch": "main",
+            "dirty": false,
+            "ahead": 0,
+            "behind": 0,
+            "modified_files": [],
+            "untracked_files": []
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "branch": "feature/new-sync",
+            "dirty": true,
+            "ahead": 3,
+            "behind": 1,
+            "modified_files": ["src/lib.rs", "Cargo.toml"],
+            "untracked_files": ["notes.txt"]
+        }
+    ]
+}'
+++ jq -r '.repos[1].untracked_files[0]'
++ first_untracked=notes.txt
++ assert_eq notes.txt notes.txt 'Untracked file'
++ local expected=notes.txt
++ local actual=notes.txt
++ local 'msg=Untracked file'
++ TEST_ASSERTIONS=17
++ [[ notes.txt == \n\o\t\e\s\.\t\x\t ]]
++ test_info 'PASS: Untracked file'
++ test_log INFO 'PASS: Untracked file'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:00-05:00] [INFO] PASS: Untracked file'
+[2026-01-28T12:24:00-05:00] [INFO] PASS: Untracked file
++ test_info 'Test 9: Checking branch names'
++ test_log INFO 'Test 9: Checking branch names'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:00-05:00] [INFO] Test 9: Checking branch names'
+[2026-01-28T12:24:00-05:00] [INFO] Test 9: Checking branch names
+++ echo '{
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "branch": "main",
+            "dirty": false,
+            "ahead": 0,
+            "behind": 0,
+            "modified_files": [],
+            "untracked_files": []
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "branch": "feature/new-sync",
+            "dirty": true,
+            "ahead": 3,
+            "behind": 1,
+            "modified_files": ["src/lib.rs", "Cargo.toml"],
+            "untracked_files": ["notes.txt"]
+        }
+    ]
+}'
+++ jq -r '.repos[0].branch'
++ main_branch=main
++ assert_eq main main 'First repo branch'
++ local expected=main
++ local actual=main
++ local 'msg=First repo branch'
++ TEST_ASSERTIONS=18
++ [[ main == \m\a\i\n ]]
++ test_info 'PASS: First repo branch'
++ test_log INFO 'PASS: First repo branch'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:00-05:00] [INFO] PASS: First repo branch'
+[2026-01-28T12:24:00-05:00] [INFO] PASS: First repo branch
+++ echo '{
+    "repos": [
+        {
+            "path": "/data/projects/vibe_cockpit",
+            "url": "git@github.com:Dicklesworthstone/vibe_cockpit.git",
+            "branch": "main",
+            "dirty": false,
+            "ahead": 0,
+            "behind": 0,
+            "modified_files": [],
+            "untracked_files": []
+        },
+        {
+            "path": "/data/projects/beads_rust",
+            "url": "git@github.com:Dicklesworthstone/beads_rust.git",
+            "branch": "feature/new-sync",
+            "dirty": true,
+            "ahead": 3,
+            "behind": 1,
+            "modified_files": ["src/lib.rs", "Cargo.toml"],
+            "untracked_files": ["notes.txt"]
+        }
+    ]
+}'
+++ jq -r '.repos[1].branch'
++ feature_branch=feature/new-sync
++ assert_eq feature/new-sync feature/new-sync 'Second repo branch'
++ local expected=feature/new-sync
++ local actual=feature/new-sync
++ local 'msg=Second repo branch'
++ TEST_ASSERTIONS=19
++ [[ feature/new-sync == \f\e\a\t\u\r\e\/\n\e\w\-\s\y\n\c ]]
++ test_info 'PASS: Second repo branch'
++ test_log INFO 'PASS: Second repo branch'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:00-05:00] [INFO] PASS: Second repo branch'
+[2026-01-28T12:24:00-05:00] [INFO] PASS: Second repo branch
++ test_info 'Test 10: Testing minimal ru status output'
++ test_log INFO 'Test 10: Testing minimal ru status output'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:00-05:00] [INFO] Test 10: Testing minimal ru status output'
+[2026-01-28T12:24:00-05:00] [INFO] Test 10: Testing minimal ru status output
++ MINIMAL_FIXTURE=/data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status_minimal.json
++ cat
+++ cat /data/tmp/vc_e2e_test_ru_collect_nL9rHw/ru_status_minimal.json
++ minimal_content='{
+    "repos": [
+        {
+            "path": "/data/projects/test"
+        }
+    ]
+}'
++ assert_json_valid '{
+    "repos": [
+        {
+            "path": "/data/projects/test"
+        }
+    ]
+}' 'Minimal fixture should be valid JSON'
++ local 'json={
+    "repos": [
+        {
+            "path": "/data/projects/test"
+        }
+    ]
+}'
++ local 'msg=Minimal fixture should be valid JSON'
++ TEST_ASSERTIONS=20
++ echo '{
+    "repos": [
+        {
+            "path": "/data/projects/test"
+        }
+    ]
+}'
++ jq .
++ test_info 'PASS: Minimal fixture should be valid JSON'
++ test_log INFO 'PASS: Minimal fixture should be valid JSON'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:00-05:00] [INFO] PASS: Minimal fixture should be valid JSON'
+[2026-01-28T12:24:00-05:00] [INFO] PASS: Minimal fixture should be valid JSON
+++ echo '{
+    "repos": [
+        {
+            "path": "/data/projects/test"
+        }
+    ]
+}'
+++ jq '.repos[0].dirty // false'
++ minimal_dirty=false
++ assert_eq false false 'Missing dirty should default to false'
++ local expected=false
++ local actual=false
++ local 'msg=Missing dirty should default to false'
++ TEST_ASSERTIONS=21
++ [[ false == \f\a\l\s\e ]]
++ test_info 'PASS: Missing dirty should default to false'
++ test_log INFO 'PASS: Missing dirty should default to false'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:00-05:00] [INFO] PASS: Missing dirty should default to false'
+[2026-01-28T12:24:00-05:00] [INFO] PASS: Missing dirty should default to false
++ test_info 'Test 11: Checking vc robot health'
++ test_log INFO 'Test 11: Checking vc robot health'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:00-05:00] [INFO] Test 11: Checking vc robot health'
+[2026-01-28T12:24:00-05:00] [INFO] Test 11: Checking vc robot health
+++ run_vc robot health
++ health_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_ru_collect_nL9rHw/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:24:01.072903826Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:24:01.072852679Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ assert_json_valid '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_ru_collect_nL9rHw/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:24:01.072903826Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:24:01.072852679Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}' 'Health output should be valid JSON'
++ local 'json=++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_ru_collect_nL9rHw/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:24:01.072903826Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:24:01.072852679Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ local 'msg=Health output should be valid JSON'
++ TEST_ASSERTIONS=22
++ jq .
++ echo '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_ru_collect_nL9rHw/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:24:01.072903826Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:24:01.072852679Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ test_error 'FAIL: Health output should be valid JSON'
++ test_log ERROR 'FAIL: Health output should be valid JSON'
++ local level=ERROR
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:01-05:00] [ERROR] FAIL: Health output should be valid JSON'
+[2026-01-28T12:24:01-05:00] [ERROR] FAIL: Health output should be valid JSON
++ test_error '  Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_ru_collect_nL9rHw/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:24:01.072903826Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:24:01.072852679Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ test_log ERROR '  Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_ru_collect_nL9rHw/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:24:01.072903826Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:24:01.072852679Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ local level=ERROR
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:01-05:00] [ERROR]   Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_ru_collect_nL9rHw/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:24:01.072903826Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:24:01.072852679Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
+[2026-01-28T12:24:01-05:00] [ERROR]   Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_ru_collect_nL9rHw/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:24:01.072903826Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:24:01.072852679Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}
++ TEST_FAILURES=1
++ test_info 'Test 12: Testing repo identifier consistency'
++ test_log INFO 'Test 12: Testing repo identifier consistency'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:01-05:00] [INFO] Test 12: Testing repo identifier consistency'
+[2026-01-28T12:24:01-05:00] [INFO] Test 12: Testing repo identifier consistency
++ url1=git@github.com:Dicklesworthstone/vibe_cockpit.git
++ url2=git@github.com:Dicklesworthstone/vibe_cockpit.git
++ assert_eq git@github.com:Dicklesworthstone/vibe_cockpit.git git@github.com:Dicklesworthstone/vibe_cockpit.git 'Same URLs should be identical for hashing'
++ local expected=git@github.com:Dicklesworthstone/vibe_cockpit.git
++ local actual=git@github.com:Dicklesworthstone/vibe_cockpit.git
++ local 'msg=Same URLs should be identical for hashing'
++ TEST_ASSERTIONS=23
++ [[ git@github.com:Dicklesworthstone/vibe_cockpit.git == \g\i\t\@\g\i\t\h\u\b\.\c\o\m\:\D\i\c\k\l\e\s\w\o\r\t\h\s\t\o\n\e\/\v\i\b\e\_\c\o\c\k\p\i\t\.\g\i\t ]]
++ test_info 'PASS: Same URLs should be identical for hashing'
++ test_log INFO 'PASS: Same URLs should be identical for hashing'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:01-05:00] [INFO] PASS: Same URLs should be identical for hashing'
+[2026-01-28T12:24:01-05:00] [INFO] PASS: Same URLs should be identical for hashing
++ finalize_test
+++ date +%s%N
++ local end_time=1769621041367323294
++ local duration_ms=3220
++ local status=passed
++ local exit_code=0
++ [[ 1 -gt 0 ]]
++ status=failed
++ exit_code=1
++ cat
++ test_info 'Test complete: 23 assertions, 1 failures'
++ test_log INFO 'Test complete: 23 assertions, 1 failures'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:01-05:00] [INFO] Test complete: 23 assertions, 1 failures'
+[2026-01-28T12:24:01-05:00] [INFO] Test complete: 23 assertions, 1 failures
++ exit 1
++ cleanup_test_env
++ local exit_code=1
++ test_info 'Cleaning up test environment'
++ test_log INFO 'Cleaning up test environment'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:01-05:00] [INFO] Cleaning up test environment'
+[2026-01-28T12:24:01-05:00] [INFO] Cleaning up test environment
++ [[ -n /data/tmp/vc_e2e_test_ru_collect_nL9rHw ]]
++ [[ -d /data/tmp/vc_e2e_test_ru_collect_nL9rHw ]]
++ [[ 1 -ne 0 ]]
++ [[ '' == \t\r\u\e ]]
++ rm -rf /data/tmp/vc_e2e_test_ru_collect_nL9rHw

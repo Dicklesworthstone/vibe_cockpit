@@ -1,0 +1,158 @@
++ set -euo pipefail
+++ dirname /data/projects/vibe_cockpit/tests/e2e/collectors/test_dcg_collect.sh
++ source /data/projects/vibe_cockpit/tests/e2e/collectors/../lib/test_helpers.sh
+++ set -euo pipefail
+++++ dirname /data/projects/vibe_cockpit/tests/e2e/collectors/../lib/test_helpers.sh
++++ cd /data/projects/vibe_cockpit/tests/e2e/collectors/../lib
++++ pwd
+++ TEST_LIB_DIR=/data/projects/vibe_cockpit/tests/e2e/lib
++++ dirname /data/projects/vibe_cockpit/tests/e2e/lib
+++ E2E_DIR=/data/projects/vibe_cockpit/tests/e2e
++++ cd /data/projects/vibe_cockpit/tests/e2e/../..
++++ pwd
+++ PROJECT_ROOT=/data/projects/vibe_cockpit
++++ find_vc_binary
++++ [[ -n /data/tmp/cargo-target ]]
++++ [[ -x /data/tmp/cargo-target/debug/vc ]]
++++ echo /data/tmp/cargo-target/debug/vc
++++ return
+++ VC_BIN=/data/tmp/cargo-target/debug/vc
++++ basename /data/projects/vibe_cockpit/tests/e2e/collectors/test_dcg_collect.sh .sh
+++ TEST_NAME=test_dcg_collect
+++ TEST_ASSERTIONS=0
+++ TEST_FAILURES=0
++++ date +%s%N
+++ TEST_START_TIME=1769621029539300353
+++ RED='\033[0;31m'
+++ GREEN='\033[0;32m'
+++ YELLOW='\033[1;33m'
+++ NC='\033[0m'
+++ trap cleanup_test_env EXIT
++ test_info 'Starting dcg collector E2E test'
++ test_log INFO 'Starting dcg collector E2E test'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:49-05:00] [INFO] Starting dcg collector E2E test'
+[2026-01-28T12:23:49-05:00] [INFO] Starting dcg collector E2E test
++ setup_test_env
++ test_info 'Setting up test environment'
++ test_log INFO 'Setting up test environment'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:49-05:00] [INFO] Setting up test environment'
+[2026-01-28T12:23:49-05:00] [INFO] Setting up test environment
+++ mktemp -d -t vc_e2e_test_dcg_collect_XXXXXX
++ TEST_TEMP_DIR=/data/tmp/vc_e2e_test_dcg_collect_Nf2e8B
++ export TEST_TEMP_DIR
++ TEST_DB_PATH=/data/tmp/vc_e2e_test_dcg_collect_Nf2e8B/test.duckdb
++ export TEST_DB_PATH
++ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_dcg_collect_Nf2e8B/config.toml
++ cat
++ export TEST_CONFIG_PATH
++ test_info 'Test temp dir: /data/tmp/vc_e2e_test_dcg_collect_Nf2e8B'
++ test_log INFO 'Test temp dir: /data/tmp/vc_e2e_test_dcg_collect_Nf2e8B'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:49-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_dcg_collect_Nf2e8B'
+[2026-01-28T12:23:49-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_dcg_collect_Nf2e8B
++ command -v sqlite3
++ export HOME=/data/tmp/vc_e2e_test_dcg_collect_Nf2e8B
++ HOME=/data/tmp/vc_e2e_test_dcg_collect_Nf2e8B
++ DCG_DIR=/data/tmp/vc_e2e_test_dcg_collect_Nf2e8B/.dcg
++ DB_PATH=/data/tmp/vc_e2e_test_dcg_collect_Nf2e8B/.dcg/events.db
++ mkdir -p /data/tmp/vc_e2e_test_dcg_collect_Nf2e8B/.dcg
++ test_info 'Creating mock dcg SQLite database'
++ test_log INFO 'Creating mock dcg SQLite database'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:49-05:00] [INFO] Creating mock dcg SQLite database'
+[2026-01-28T12:23:49-05:00] [INFO] Creating mock dcg SQLite database
++ sqlite3 /data/tmp/vc_e2e_test_dcg_collect_Nf2e8B/.dcg/events.db
++ assert_file_exists /data/tmp/vc_e2e_test_dcg_collect_Nf2e8B/.dcg/events.db 'DCG database should exist'
++ local path=/data/tmp/vc_e2e_test_dcg_collect_Nf2e8B/.dcg/events.db
++ local 'msg=DCG database should exist'
++ TEST_ASSERTIONS=1
++ [[ -f /data/tmp/vc_e2e_test_dcg_collect_Nf2e8B/.dcg/events.db ]]
++ test_info 'PASS: DCG database should exist (/data/tmp/vc_e2e_test_dcg_collect_Nf2e8B/.dcg/events.db)'
++ test_log INFO 'PASS: DCG database should exist (/data/tmp/vc_e2e_test_dcg_collect_Nf2e8B/.dcg/events.db)'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:50-05:00] [INFO] PASS: DCG database should exist (/data/tmp/vc_e2e_test_dcg_collect_Nf2e8B/.dcg/events.db)'
+[2026-01-28T12:23:50-05:00] [INFO] PASS: DCG database should exist (/data/tmp/vc_e2e_test_dcg_collect_Nf2e8B/.dcg/events.db)
+++ sqlite3 /data/tmp/vc_e2e_test_dcg_collect_Nf2e8B/.dcg/events.db 'SELECT COUNT(*) FROM events;'
++ event_count=1
++ assert_eq 1 1 'events table should have 1 row'
++ local expected=1
++ local actual=1
++ local 'msg=events table should have 1 row'
++ TEST_ASSERTIONS=2
++ [[ 1 == \1 ]]
++ test_info 'PASS: events table should have 1 row'
++ test_log INFO 'PASS: events table should have 1 row'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:50-05:00] [INFO] PASS: events table should have 1 row'
+[2026-01-28T12:23:50-05:00] [INFO] PASS: events table should have 1 row
+++ sqlite3 /data/tmp/vc_e2e_test_dcg_collect_Nf2e8B/.dcg/events.db 'SELECT cmd FROM events WHERE id = 1;'
++ row_cmd='git reset --hard'
++ assert_contains 'git reset --hard' 'git reset --hard' 'event command should match'
++ local 'haystack=git reset --hard'
++ local 'needle=git reset --hard'
++ local 'msg=event command should match'
++ TEST_ASSERTIONS=3
++ [[ git reset --hard == *\g\i\t\ \r\e\s\e\t\ \-\-\h\a\r\d* ]]
++ test_info 'PASS: event command should match'
++ test_log INFO 'PASS: event command should match'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:50-05:00] [INFO] PASS: event command should match'
+[2026-01-28T12:23:50-05:00] [INFO] PASS: event command should match
+++ run_vc collect --collector dcg
++ collect_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_dcg_collect_Nf2e8B/config.toml collect --collector dcg
+Command not yet implemented: Collect { collector: Some("dcg"), machine: None }'
++ TEST_ASSERTIONS=4
++ test_info 'PASS: vc collect --collector dcg invoked'
++ test_log INFO 'PASS: vc collect --collector dcg invoked'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:50-05:00] [INFO] PASS: vc collect --collector dcg invoked'
+[2026-01-28T12:23:50-05:00] [INFO] PASS: vc collect --collector dcg invoked
++ finalize_test
+++ date +%s%N
++ local end_time=1769621030492175527
++ local duration_ms=952
++ local status=passed
++ local exit_code=0
++ [[ 0 -gt 0 ]]
++ cat
++ test_info 'Test complete: 4 assertions, 0 failures'
++ test_log INFO 'Test complete: 4 assertions, 0 failures'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:50-05:00] [INFO] Test complete: 4 assertions, 0 failures'
+[2026-01-28T12:23:50-05:00] [INFO] Test complete: 4 assertions, 0 failures
++ exit 0
++ cleanup_test_env
++ local exit_code=0
++ test_info 'Cleaning up test environment'
++ test_log INFO 'Cleaning up test environment'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:50-05:00] [INFO] Cleaning up test environment'
+[2026-01-28T12:23:50-05:00] [INFO] Cleaning up test environment
++ [[ -n /data/tmp/vc_e2e_test_dcg_collect_Nf2e8B ]]
++ [[ -d /data/tmp/vc_e2e_test_dcg_collect_Nf2e8B ]]
++ [[ 0 -ne 0 ]]
++ rm -rf /data/tmp/vc_e2e_test_dcg_collect_Nf2e8B

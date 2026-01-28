@@ -552,6 +552,10 @@ impl CollectorRegistry {
         registry.register(Arc::new(collectors::CautCollector));
         registry.register(Arc::new(collectors::CassCollector::new()));
         registry.register(Arc::new(collectors::CaamCollector));
+        registry.register(Arc::new(collectors::RchCollector::new()));
+        registry.register(Arc::new(collectors::RanoCollector::new()));
+        registry.register(Arc::new(collectors::DcgCollector::new()));
+        registry.register(Arc::new(collectors::BeadsCollector));
 
         // More collectors will be registered here as they're implemented
         // etc.

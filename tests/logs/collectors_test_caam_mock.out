@@ -1,0 +1,7 @@
+{
+  "test_name": "test_caam_mock",
+  "status": "failed",
+  "duration_ms": 1846,
+  "assertions": 7,
+  "failures": 1
+}

@@ -1,0 +1,7 @@
+{
+  "test_name": "test_dcg_collect",
+  "status": "passed",
+  "duration_ms": 952,
+  "assertions": 4,
+  "failures": 0
+}

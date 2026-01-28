@@ -1,0 +1,7 @@
+{
+  "test_name": "test_collector_errors",
+  "status": "failed",
+  "duration_ms": 2803,
+  "assertions": 8,
+  "failures": 2
+}

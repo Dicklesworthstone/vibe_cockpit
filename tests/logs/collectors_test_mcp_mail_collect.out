@@ -1,0 +1,7 @@
+{
+  "test_name": "test_mcp_mail_collect",
+  "status": "passed",
+  "duration_ms": 918,
+  "assertions": 4,
+  "failures": 0
+}

@@ -1,0 +1,740 @@
++ set -euo pipefail
+++ dirname /data/projects/vibe_cockpit/tests/e2e/collectors/test_sysmoni_mock.sh
++ source /data/projects/vibe_cockpit/tests/e2e/collectors/../lib/test_helpers.sh
+++ set -euo pipefail
+++++ dirname /data/projects/vibe_cockpit/tests/e2e/collectors/../lib/test_helpers.sh
++++ cd /data/projects/vibe_cockpit/tests/e2e/collectors/../lib
++++ pwd
+++ TEST_LIB_DIR=/data/projects/vibe_cockpit/tests/e2e/lib
++++ dirname /data/projects/vibe_cockpit/tests/e2e/lib
+++ E2E_DIR=/data/projects/vibe_cockpit/tests/e2e
++++ cd /data/projects/vibe_cockpit/tests/e2e/../..
++++ pwd
+++ PROJECT_ROOT=/data/projects/vibe_cockpit
++++ find_vc_binary
++++ [[ -n /data/tmp/cargo-target ]]
++++ [[ -x /data/tmp/cargo-target/debug/vc ]]
++++ echo /data/tmp/cargo-target/debug/vc
++++ return
+++ VC_BIN=/data/tmp/cargo-target/debug/vc
++++ basename /data/projects/vibe_cockpit/tests/e2e/collectors/test_sysmoni_mock.sh .sh
+++ TEST_NAME=test_sysmoni_mock
+++ TEST_ASSERTIONS=0
+++ TEST_FAILURES=0
++++ date +%s%N
+++ TEST_START_TIME=1769621048866384562
+++ RED='\033[0;31m'
+++ GREEN='\033[0;32m'
+++ YELLOW='\033[1;33m'
+++ NC='\033[0m'
+++ trap cleanup_test_env EXIT
++ test_info 'Starting sysmoni mock E2E test'
++ test_log INFO 'Starting sysmoni mock E2E test'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:08-05:00] [INFO] Starting sysmoni mock E2E test'
+[2026-01-28T12:24:08-05:00] [INFO] Starting sysmoni mock E2E test
++ setup_test_env
++ test_info 'Setting up test environment'
++ test_log INFO 'Setting up test environment'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:08-05:00] [INFO] Setting up test environment'
+[2026-01-28T12:24:08-05:00] [INFO] Setting up test environment
+++ mktemp -d -t vc_e2e_test_sysmoni_mock_XXXXXX
++ TEST_TEMP_DIR=/data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW
++ export TEST_TEMP_DIR
++ TEST_DB_PATH=/data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/test.duckdb
++ export TEST_DB_PATH
++ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/config.toml
++ cat
++ export TEST_CONFIG_PATH
++ test_info 'Test temp dir: /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW'
++ test_log INFO 'Test temp dir: /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:09-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW'
+[2026-01-28T12:24:09-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW
++ test_info 'Creating mock sysmoni command'
++ test_log INFO 'Creating mock sysmoni command'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:09-05:00] [INFO] Creating mock sysmoni command'
+[2026-01-28T12:24:09-05:00] [INFO] Creating mock sysmoni command
++ MOCK_BIN_DIR=/data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/bin
++ mkdir -p /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/bin
++ cat
++ chmod +x /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/bin/sysmoni
++ export PATH=/data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/bin:/home/ubuntu/.codex/tmp/path/codex-arg0eJszyB:/home/ubuntu/.bun/install/global/node_modules/@openai/codex/vendor/x86_64-unknown-linux-musl/path:/data/tmp/.tmpMpmAMF:/data/tmp/.tmpzam3q7:/data/tmp/.tmpoyAfve:/data/tmp/.tmpe6g78I:/data/tmp/.tmpPd69rK:/data/tmp/.tmpGRbjsw:/data/tmp/.tmpz2brVn:/data/tmp/.tmp0PnFJv:/data/tmp/.tmpPoRhAM:/data/tmp/.tmpFfkQ40:/data/tmp/.tmpuxSIpy:/data/tmp/.tmpXjJuNc:/data/tmp/.tmpTZnvXD:/data/tmp/.tmpuK4iIg:/data/tmp/.tmpajeyt7:/data/tmp/.tmpev6kRK:/data/tmp/.tmpiDVpJA:/data/tmp/.tmpnDRhga:/data/tmp/.tmpzxxM5v:/data/tmp/.tmpvKVXKw:/data/tmp/.tmpmNPIdP:/data/tmp/.tmpVFL4Sw:/data/tmp/.tmp7ItVFC:/data/tmp/.tmp0vGjRa:/data/tmp/.tmpBllZzw:/data/tmp/.tmpobicww:/data/tmp/.tmp8f8C2e:/data/tmp/.tmpbD8QBY:/data/tmp/.tmpjzHvSF:/data/tmp/.tmpkjqRCG:/data/tmp/.tmpVzu1zg:/data/tmp/.tmpHO13GV:/data/tmp/.tmprTmBIb:/data/tmp/.tmpRHFAS9:/data/tmp/.tmp84NBm7:/data/tmp/.tmpOXe4sc:/data/tmp/.tmpcOX7LV:/data/tmp/.tmpHmVm2g:/data/tmp/.tmp9gcOZP:/data/tmp/.tmpz4q0R1:/data/tmp/.tmpvkDZiX:/data/tmp/.tmp7Mj5dU:/data/tmp/.tmpdkiSGU:/data/tmp/.tmpDhz6SG:/data/tmp/.tmpxZwXIA:/data/tmp/.tmptoaKcg:/data/tmp/.tmp5WocB2:/data/tmp/.tmpQIUXw6:/data/tmp/.tmp3pRXXR:/data/tmp/.tmpGRxfSM:/data/tmp/.tmpLA8PkL:/data/tmp/.tmpFbmIJR:/data/tmp/.tmpWfLZ76:/data/tmp/.tmpWsTSmr:/data/tmp/.tmpxh3SQx:/data/tmp/.tmp0QcB2I:/data/tmp/.tmpxNatIO:/data/tmp/.tmpupEMqh:/data/tmp/.tmppCYdSE:/data/tmp/.tmpymdjNV:/data/tmp/.tmpCFNqVV:/data/tmp/.tmpdJ2vDZ:/data/tmp/.tmpSewNuz:/data/tmp/.tmpQlKd6y:/data/tmp/.tmprUxpI2:/run/user/1000/fnm_multishells/1141914_1769574439286/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/bin:/run/user/1000/fnm_multishells/1141838_1769574439149/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/.nvm/versions/node/v24.12.0/bin:/home/ubuntu/.local/bin:/home/ubuntu/.atuin/bin:/home/ubuntu/.bun/bin:/home/ubuntu/go/bin:/home/ubuntu/.cargo/bin:/home/ubuntu/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/snap/bin
++ PATH=/data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/bin:/home/ubuntu/.codex/tmp/path/codex-arg0eJszyB:/home/ubuntu/.bun/install/global/node_modules/@openai/codex/vendor/x86_64-unknown-linux-musl/path:/data/tmp/.tmpMpmAMF:/data/tmp/.tmpzam3q7:/data/tmp/.tmpoyAfve:/data/tmp/.tmpe6g78I:/data/tmp/.tmpPd69rK:/data/tmp/.tmpGRbjsw:/data/tmp/.tmpz2brVn:/data/tmp/.tmp0PnFJv:/data/tmp/.tmpPoRhAM:/data/tmp/.tmpFfkQ40:/data/tmp/.tmpuxSIpy:/data/tmp/.tmpXjJuNc:/data/tmp/.tmpTZnvXD:/data/tmp/.tmpuK4iIg:/data/tmp/.tmpajeyt7:/data/tmp/.tmpev6kRK:/data/tmp/.tmpiDVpJA:/data/tmp/.tmpnDRhga:/data/tmp/.tmpzxxM5v:/data/tmp/.tmpvKVXKw:/data/tmp/.tmpmNPIdP:/data/tmp/.tmpVFL4Sw:/data/tmp/.tmp7ItVFC:/data/tmp/.tmp0vGjRa:/data/tmp/.tmpBllZzw:/data/tmp/.tmpobicww:/data/tmp/.tmp8f8C2e:/data/tmp/.tmpbD8QBY:/data/tmp/.tmpjzHvSF:/data/tmp/.tmpkjqRCG:/data/tmp/.tmpVzu1zg:/data/tmp/.tmpHO13GV:/data/tmp/.tmprTmBIb:/data/tmp/.tmpRHFAS9:/data/tmp/.tmp84NBm7:/data/tmp/.tmpOXe4sc:/data/tmp/.tmpcOX7LV:/data/tmp/.tmpHmVm2g:/data/tmp/.tmp9gcOZP:/data/tmp/.tmpz4q0R1:/data/tmp/.tmpvkDZiX:/data/tmp/.tmp7Mj5dU:/data/tmp/.tmpdkiSGU:/data/tmp/.tmpDhz6SG:/data/tmp/.tmpxZwXIA:/data/tmp/.tmptoaKcg:/data/tmp/.tmp5WocB2:/data/tmp/.tmpQIUXw6:/data/tmp/.tmp3pRXXR:/data/tmp/.tmpGRxfSM:/data/tmp/.tmpLA8PkL:/data/tmp/.tmpFbmIJR:/data/tmp/.tmpWfLZ76:/data/tmp/.tmpWsTSmr:/data/tmp/.tmpxh3SQx:/data/tmp/.tmp0QcB2I:/data/tmp/.tmpxNatIO:/data/tmp/.tmpupEMqh:/data/tmp/.tmppCYdSE:/data/tmp/.tmpymdjNV:/data/tmp/.tmpCFNqVV:/data/tmp/.tmpdJ2vDZ:/data/tmp/.tmpSewNuz:/data/tmp/.tmpQlKd6y:/data/tmp/.tmprUxpI2:/run/user/1000/fnm_multishells/1141914_1769574439286/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/bin:/run/user/1000/fnm_multishells/1141838_1769574439149/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/.nvm/versions/node/v24.12.0/bin:/home/ubuntu/.local/bin:/home/ubuntu/.atuin/bin:/home/ubuntu/.bun/bin:/home/ubuntu/go/bin:/home/ubuntu/.cargo/bin:/home/ubuntu/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/snap/bin
++ test_info 'Test 1: Verifying mock sysmoni'
++ test_log INFO 'Test 1: Verifying mock sysmoni'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:09-05:00] [INFO] Test 1: Verifying mock sysmoni'
+[2026-01-28T12:24:09-05:00] [INFO] Test 1: Verifying mock sysmoni
+++ /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/bin/sysmoni
++ mock_output='{
+  "timestamp": "2026-01-28T12:00:00Z",
+  "cpu": {
+    "total_percent": 25.5,
+    "cores": [12.5, 30.2, 28.1, 31.2]
+  },
+  "load": {
+    "one": 1.25,
+    "five": 1.10,
+    "fifteen": 0.95
+  },
+  "memory": {
+    "total_bytes": 17179869184,
+    "used_bytes": 8589934592,
+    "available_bytes": 8589934592,
+    "swap_total_bytes": 4294967296,
+    "swap_used_bytes": 1073741824
+  },
+  "disk": {
+    "read_mbps": 12.5,
+    "write_mbps": 8.3
+  },
+  "network": {
+    "rx_mbps": 5.2,
+    "tx_mbps": 2.1
+  },
+  "processes": [
+    {"pid": 1234, "name": "rust-analyzer", "cpu_percent": 15.2, "mem_bytes": 536870912},
+    {"pid": 5678, "name": "cargo", "cpu_percent": 8.5, "mem_bytes": 268435456}
+  ]
+}'
++ assert_json_valid '{
+  "timestamp": "2026-01-28T12:00:00Z",
+  "cpu": {
+    "total_percent": 25.5,
+    "cores": [12.5, 30.2, 28.1, 31.2]
+  },
+  "load": {
+    "one": 1.25,
+    "five": 1.10,
+    "fifteen": 0.95
+  },
+  "memory": {
+    "total_bytes": 17179869184,
+    "used_bytes": 8589934592,
+    "available_bytes": 8589934592,
+    "swap_total_bytes": 4294967296,
+    "swap_used_bytes": 1073741824
+  },
+  "disk": {
+    "read_mbps": 12.5,
+    "write_mbps": 8.3
+  },
+  "network": {
+    "rx_mbps": 5.2,
+    "tx_mbps": 2.1
+  },
+  "processes": [
+    {"pid": 1234, "name": "rust-analyzer", "cpu_percent": 15.2, "mem_bytes": 536870912},
+    {"pid": 5678, "name": "cargo", "cpu_percent": 8.5, "mem_bytes": 268435456}
+  ]
+}' 'Mock sysmoni output should be valid JSON'
++ local 'json={
+  "timestamp": "2026-01-28T12:00:00Z",
+  "cpu": {
+    "total_percent": 25.5,
+    "cores": [12.5, 30.2, 28.1, 31.2]
+  },
+  "load": {
+    "one": 1.25,
+    "five": 1.10,
+    "fifteen": 0.95
+  },
+  "memory": {
+    "total_bytes": 17179869184,
+    "used_bytes": 8589934592,
+    "available_bytes": 8589934592,
+    "swap_total_bytes": 4294967296,
+    "swap_used_bytes": 1073741824
+  },
+  "disk": {
+    "read_mbps": 12.5,
+    "write_mbps": 8.3
+  },
+  "network": {
+    "rx_mbps": 5.2,
+    "tx_mbps": 2.1
+  },
+  "processes": [
+    {"pid": 1234, "name": "rust-analyzer", "cpu_percent": 15.2, "mem_bytes": 536870912},
+    {"pid": 5678, "name": "cargo", "cpu_percent": 8.5, "mem_bytes": 268435456}
+  ]
+}'
++ local 'msg=Mock sysmoni output should be valid JSON'
++ TEST_ASSERTIONS=1
++ echo '{
+  "timestamp": "2026-01-28T12:00:00Z",
+  "cpu": {
+    "total_percent": 25.5,
+    "cores": [12.5, 30.2, 28.1, 31.2]
+  },
+  "load": {
+    "one": 1.25,
+    "five": 1.10,
+    "fifteen": 0.95
+  },
+  "memory": {
+    "total_bytes": 17179869184,
+    "used_bytes": 8589934592,
+    "available_bytes": 8589934592,
+    "swap_total_bytes": 4294967296,
+    "swap_used_bytes": 1073741824
+  },
+  "disk": {
+    "read_mbps": 12.5,
+    "write_mbps": 8.3
+  },
+  "network": {
+    "rx_mbps": 5.2,
+    "tx_mbps": 2.1
+  },
+  "processes": [
+    {"pid": 1234, "name": "rust-analyzer", "cpu_percent": 15.2, "mem_bytes": 536870912},
+    {"pid": 5678, "name": "cargo", "cpu_percent": 8.5, "mem_bytes": 268435456}
+  ]
+}'
++ jq .
++ test_info 'PASS: Mock sysmoni output should be valid JSON'
++ test_log INFO 'PASS: Mock sysmoni output should be valid JSON'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:09-05:00] [INFO] PASS: Mock sysmoni output should be valid JSON'
+[2026-01-28T12:24:09-05:00] [INFO] PASS: Mock sysmoni output should be valid JSON
++ assert_json_field '{
+  "timestamp": "2026-01-28T12:00:00Z",
+  "cpu": {
+    "total_percent": 25.5,
+    "cores": [12.5, 30.2, 28.1, 31.2]
+  },
+  "load": {
+    "one": 1.25,
+    "five": 1.10,
+    "fifteen": 0.95
+  },
+  "memory": {
+    "total_bytes": 17179869184,
+    "used_bytes": 8589934592,
+    "available_bytes": 8589934592,
+    "swap_total_bytes": 4294967296,
+    "swap_used_bytes": 1073741824
+  },
+  "disk": {
+    "read_mbps": 12.5,
+    "write_mbps": 8.3
+  },
+  "network": {
+    "rx_mbps": 5.2,
+    "tx_mbps": 2.1
+  },
+  "processes": [
+    {"pid": 1234, "name": "rust-analyzer", "cpu_percent": 15.2, "mem_bytes": 536870912},
+    {"pid": 5678, "name": "cargo", "cpu_percent": 8.5, "mem_bytes": 268435456}
+  ]
+}' .cpu.total_percent 25.5 'CPU total should match'
++ local 'json={
+  "timestamp": "2026-01-28T12:00:00Z",
+  "cpu": {
+    "total_percent": 25.5,
+    "cores": [12.5, 30.2, 28.1, 31.2]
+  },
+  "load": {
+    "one": 1.25,
+    "five": 1.10,
+    "fifteen": 0.95
+  },
+  "memory": {
+    "total_bytes": 17179869184,
+    "used_bytes": 8589934592,
+    "available_bytes": 8589934592,
+    "swap_total_bytes": 4294967296,
+    "swap_used_bytes": 1073741824
+  },
+  "disk": {
+    "read_mbps": 12.5,
+    "write_mbps": 8.3
+  },
+  "network": {
+    "rx_mbps": 5.2,
+    "tx_mbps": 2.1
+  },
+  "processes": [
+    {"pid": 1234, "name": "rust-analyzer", "cpu_percent": 15.2, "mem_bytes": 536870912},
+    {"pid": 5678, "name": "cargo", "cpu_percent": 8.5, "mem_bytes": 268435456}
+  ]
+}'
++ local field=.cpu.total_percent
++ local expected=25.5
++ local 'msg=CPU total should match'
++ TEST_ASSERTIONS=2
+++ echo '{
+  "timestamp": "2026-01-28T12:00:00Z",
+  "cpu": {
+    "total_percent": 25.5,
+    "cores": [12.5, 30.2, 28.1, 31.2]
+  },
+  "load": {
+    "one": 1.25,
+    "five": 1.10,
+    "fifteen": 0.95
+  },
+  "memory": {
+    "total_bytes": 17179869184,
+    "used_bytes": 8589934592,
+    "available_bytes": 8589934592,
+    "swap_total_bytes": 4294967296,
+    "swap_used_bytes": 1073741824
+  },
+  "disk": {
+    "read_mbps": 12.5,
+    "write_mbps": 8.3
+  },
+  "network": {
+    "rx_mbps": 5.2,
+    "tx_mbps": 2.1
+  },
+  "processes": [
+    {"pid": 1234, "name": "rust-analyzer", "cpu_percent": 15.2, "mem_bytes": 536870912},
+    {"pid": 5678, "name": "cargo", "cpu_percent": 8.5, "mem_bytes": 268435456}
+  ]
+}'
+++ jq -r .cpu.total_percent
++ local actual=25.5
++ [[ 25.5 == \2\5\.\5 ]]
++ test_info 'PASS: CPU total should match (.cpu.total_percent = 25.5)'
++ test_log INFO 'PASS: CPU total should match (.cpu.total_percent = 25.5)'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:09-05:00] [INFO] PASS: CPU total should match (.cpu.total_percent = 25.5)'
+[2026-01-28T12:24:09-05:00] [INFO] PASS: CPU total should match (.cpu.total_percent = 25.5)
++ test_info 'Test 2: Running sysmoni collector'
++ test_log INFO 'Test 2: Running sysmoni collector'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:09-05:00] [INFO] Test 2: Running sysmoni collector'
+[2026-01-28T12:24:09-05:00] [INFO] Test 2: Running sysmoni collector
+++ run_vc collect --collector sysmoni
++ collect_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/config.toml collect --collector sysmoni
+Command not yet implemented: Collect { collector: Some("sysmoni"), machine: None }'
++ TEST_ASSERTIONS=3
++ test_info 'PASS: Sysmoni collector completed'
++ test_log INFO 'PASS: Sysmoni collector completed'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:09-05:00] [INFO] PASS: Sysmoni collector completed'
+[2026-01-28T12:24:09-05:00] [INFO] PASS: Sysmoni collector completed
++ test_info 'Test 3: Checking database'
++ test_log INFO 'Test 3: Checking database'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:09-05:00] [INFO] Test 3: Checking database'
+[2026-01-28T12:24:09-05:00] [INFO] Test 3: Checking database
++ assert_file_exists /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/test.duckdb 'Database should exist'
++ local path=/data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/test.duckdb
++ local 'msg=Database should exist'
++ TEST_ASSERTIONS=4
++ [[ -f /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/test.duckdb ]]
++ test_error 'FAIL: Database should exist'
++ test_log ERROR 'FAIL: Database should exist'
++ local level=ERROR
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:09-05:00] [ERROR] FAIL: Database should exist'
+[2026-01-28T12:24:09-05:00] [ERROR] FAIL: Database should exist
++ test_error '  Path: /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/test.duckdb'
++ test_log ERROR '  Path: /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/test.duckdb'
++ local level=ERROR
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:10-05:00] [ERROR]   Path: /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/test.duckdb'
+[2026-01-28T12:24:10-05:00] [ERROR]   Path: /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/test.duckdb
++ TEST_FAILURES=1
++ test_info 'Test 4: Checking health after sysmoni'
++ test_log INFO 'Test 4: Checking health after sysmoni'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:10-05:00] [INFO] Test 4: Checking health after sysmoni'
+[2026-01-28T12:24:10-05:00] [INFO] Test 4: Checking health after sysmoni
+++ run_vc robot health
++ health_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:24:10.236916467Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:24:10.236773076Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ assert_json_valid '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:24:10.236916467Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:24:10.236773076Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}' 'Health output should be valid'
++ local 'json=++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:24:10.236916467Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:24:10.236773076Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ local 'msg=Health output should be valid'
++ TEST_ASSERTIONS=5
++ echo '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:24:10.236916467Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:24:10.236773076Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ jq .
++ test_error 'FAIL: Health output should be valid'
++ test_log ERROR 'FAIL: Health output should be valid'
++ local level=ERROR
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:10-05:00] [ERROR] FAIL: Health output should be valid'
+[2026-01-28T12:24:10-05:00] [ERROR] FAIL: Health output should be valid
++ test_error '  Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:24:10.236916467Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:24:10.236773076Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ test_log ERROR '  Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:24:10.236916467Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:24:10.236773076Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ local level=ERROR
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:10-05:00] [ERROR]   Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:24:10.236916467Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:24:10.236773076Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
+[2026-01-28T12:24:10-05:00] [ERROR]   Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:24:10.236916467Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:24:10.236773076Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}
++ TEST_FAILURES=2
++ test_info 'Test 5: Running sysmoni multiple times'
++ test_log INFO 'Test 5: Running sysmoni multiple times'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:10-05:00] [INFO] Test 5: Running sysmoni multiple times'
+[2026-01-28T12:24:10-05:00] [INFO] Test 5: Running sysmoni multiple times
++ for i in 1 2 3
++ run_vc collect --collector sysmoni
++ for i in 1 2 3
++ run_vc collect --collector sysmoni
++ for i in 1 2 3
++ run_vc collect --collector sysmoni
++ TEST_ASSERTIONS=6
++ test_info 'PASS: Multiple sysmoni runs completed'
++ test_log INFO 'PASS: Multiple sysmoni runs completed'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:11-05:00] [INFO] PASS: Multiple sysmoni runs completed'
+[2026-01-28T12:24:11-05:00] [INFO] PASS: Multiple sysmoni runs completed
++ finalize_test
+++ date +%s%N
++ local end_time=1769621051236880600
++ local duration_ms=2370
++ local status=passed
++ local exit_code=0
++ [[ 2 -gt 0 ]]
++ status=failed
++ exit_code=1
++ cat
++ test_info 'Test complete: 6 assertions, 2 failures'
++ test_log INFO 'Test complete: 6 assertions, 2 failures'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:11-05:00] [INFO] Test complete: 6 assertions, 2 failures'
+[2026-01-28T12:24:11-05:00] [INFO] Test complete: 6 assertions, 2 failures
++ exit 1
++ cleanup_test_env
++ local exit_code=1
++ test_info 'Cleaning up test environment'
++ test_log INFO 'Cleaning up test environment'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:11-05:00] [INFO] Cleaning up test environment'
+[2026-01-28T12:24:11-05:00] [INFO] Cleaning up test environment
++ [[ -n /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW ]]
++ [[ -d /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW ]]
++ [[ 1 -ne 0 ]]
++ [[ '' == \t\r\u\e ]]
++ rm -rf /data/tmp/vc_e2e_test_sysmoni_mock_gHX2AW

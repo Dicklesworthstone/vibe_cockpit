@@ -31,10 +31,19 @@ pub use cass::CassCollector;
 pub mod caam;
 pub use caam::CaamCollector;
 
+pub mod rch;
+pub use rch::RchCollector;
+
+pub mod rano;
+pub use rano::RanoCollector;
+
+pub mod dcg;
+pub use dcg::DcgCollector;
+
+pub mod beads;
+pub use beads::BeadsCollector;
+
 // Future collectors will be added here as submodules:
-// pub mod rch;
-// pub mod rano;
-// pub mod dcg;
 // pub mod pt;
 // pub mod bv_br;
 // pub mod afsc;

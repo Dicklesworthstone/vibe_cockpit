@@ -1,0 +1,7 @@
+{
+  "test_name": "test_config_validation",
+  "status": "passed",
+  "duration_ms": 1748,
+  "assertions": 5,
+  "failures": 0
+}

@@ -1,0 +1,489 @@
++ set -euo pipefail
+++ dirname /data/projects/vibe_cockpit/tests/e2e/collectors/test_ru_mock.sh
++ source /data/projects/vibe_cockpit/tests/e2e/collectors/../lib/test_helpers.sh
+++ set -euo pipefail
+++++ dirname /data/projects/vibe_cockpit/tests/e2e/collectors/../lib/test_helpers.sh
++++ cd /data/projects/vibe_cockpit/tests/e2e/collectors/../lib
++++ pwd
+++ TEST_LIB_DIR=/data/projects/vibe_cockpit/tests/e2e/lib
++++ dirname /data/projects/vibe_cockpit/tests/e2e/lib
+++ E2E_DIR=/data/projects/vibe_cockpit/tests/e2e
++++ cd /data/projects/vibe_cockpit/tests/e2e/../..
++++ pwd
+++ PROJECT_ROOT=/data/projects/vibe_cockpit
++++ find_vc_binary
++++ [[ -n /data/tmp/cargo-target ]]
++++ [[ -x /data/tmp/cargo-target/debug/vc ]]
++++ echo /data/tmp/cargo-target/debug/vc
++++ return
+++ VC_BIN=/data/tmp/cargo-target/debug/vc
++++ basename /data/projects/vibe_cockpit/tests/e2e/collectors/test_ru_mock.sh .sh
+++ TEST_NAME=test_ru_mock
+++ TEST_ASSERTIONS=0
+++ TEST_FAILURES=0
++++ date +%s%N
+++ TEST_START_TIME=1769621042270566186
+++ RED='\033[0;31m'
+++ GREEN='\033[0;32m'
+++ YELLOW='\033[1;33m'
+++ NC='\033[0m'
+++ trap cleanup_test_env EXIT
++ test_info 'Starting ru mock E2E test'
++ test_log INFO 'Starting ru mock E2E test'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:02-05:00] [INFO] Starting ru mock E2E test'
+[2026-01-28T12:24:02-05:00] [INFO] Starting ru mock E2E test
++ setup_test_env
++ test_info 'Setting up test environment'
++ test_log INFO 'Setting up test environment'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:02-05:00] [INFO] Setting up test environment'
+[2026-01-28T12:24:02-05:00] [INFO] Setting up test environment
+++ mktemp -d -t vc_e2e_test_ru_mock_XXXXXX
++ TEST_TEMP_DIR=/data/tmp/vc_e2e_test_ru_mock_91puM9
++ export TEST_TEMP_DIR
++ TEST_DB_PATH=/data/tmp/vc_e2e_test_ru_mock_91puM9/test.duckdb
++ export TEST_DB_PATH
++ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_ru_mock_91puM9/config.toml
++ cat
++ export TEST_CONFIG_PATH
++ test_info 'Test temp dir: /data/tmp/vc_e2e_test_ru_mock_91puM9'
++ test_log INFO 'Test temp dir: /data/tmp/vc_e2e_test_ru_mock_91puM9'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:02-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_ru_mock_91puM9'
+[2026-01-28T12:24:02-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_ru_mock_91puM9
++ test_info 'Creating mock ru command'
++ test_log INFO 'Creating mock ru command'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:02-05:00] [INFO] Creating mock ru command'
+[2026-01-28T12:24:02-05:00] [INFO] Creating mock ru command
++ MOCK_BIN_DIR=/data/tmp/vc_e2e_test_ru_mock_91puM9/bin
++ mkdir -p /data/tmp/vc_e2e_test_ru_mock_91puM9/bin
++ cat
++ chmod +x /data/tmp/vc_e2e_test_ru_mock_91puM9/bin/ru
++ export PATH=/data/tmp/vc_e2e_test_ru_mock_91puM9/bin:/home/ubuntu/.codex/tmp/path/codex-arg0eJszyB:/home/ubuntu/.bun/install/global/node_modules/@openai/codex/vendor/x86_64-unknown-linux-musl/path:/data/tmp/.tmpMpmAMF:/data/tmp/.tmpzam3q7:/data/tmp/.tmpoyAfve:/data/tmp/.tmpe6g78I:/data/tmp/.tmpPd69rK:/data/tmp/.tmpGRbjsw:/data/tmp/.tmpz2brVn:/data/tmp/.tmp0PnFJv:/data/tmp/.tmpPoRhAM:/data/tmp/.tmpFfkQ40:/data/tmp/.tmpuxSIpy:/data/tmp/.tmpXjJuNc:/data/tmp/.tmpTZnvXD:/data/tmp/.tmpuK4iIg:/data/tmp/.tmpajeyt7:/data/tmp/.tmpev6kRK:/data/tmp/.tmpiDVpJA:/data/tmp/.tmpnDRhga:/data/tmp/.tmpzxxM5v:/data/tmp/.tmpvKVXKw:/data/tmp/.tmpmNPIdP:/data/tmp/.tmpVFL4Sw:/data/tmp/.tmp7ItVFC:/data/tmp/.tmp0vGjRa:/data/tmp/.tmpBllZzw:/data/tmp/.tmpobicww:/data/tmp/.tmp8f8C2e:/data/tmp/.tmpbD8QBY:/data/tmp/.tmpjzHvSF:/data/tmp/.tmpkjqRCG:/data/tmp/.tmpVzu1zg:/data/tmp/.tmpHO13GV:/data/tmp/.tmprTmBIb:/data/tmp/.tmpRHFAS9:/data/tmp/.tmp84NBm7:/data/tmp/.tmpOXe4sc:/data/tmp/.tmpcOX7LV:/data/tmp/.tmpHmVm2g:/data/tmp/.tmp9gcOZP:/data/tmp/.tmpz4q0R1:/data/tmp/.tmpvkDZiX:/data/tmp/.tmp7Mj5dU:/data/tmp/.tmpdkiSGU:/data/tmp/.tmpDhz6SG:/data/tmp/.tmpxZwXIA:/data/tmp/.tmptoaKcg:/data/tmp/.tmp5WocB2:/data/tmp/.tmpQIUXw6:/data/tmp/.tmp3pRXXR:/data/tmp/.tmpGRxfSM:/data/tmp/.tmpLA8PkL:/data/tmp/.tmpFbmIJR:/data/tmp/.tmpWfLZ76:/data/tmp/.tmpWsTSmr:/data/tmp/.tmpxh3SQx:/data/tmp/.tmp0QcB2I:/data/tmp/.tmpxNatIO:/data/tmp/.tmpupEMqh:/data/tmp/.tmppCYdSE:/data/tmp/.tmpymdjNV:/data/tmp/.tmpCFNqVV:/data/tmp/.tmpdJ2vDZ:/data/tmp/.tmpSewNuz:/data/tmp/.tmpQlKd6y:/data/tmp/.tmprUxpI2:/run/user/1000/fnm_multishells/1141914_1769574439286/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/bin:/run/user/1000/fnm_multishells/1141838_1769574439149/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/.nvm/versions/node/v24.12.0/bin:/home/ubuntu/.local/bin:/home/ubuntu/.atuin/bin:/home/ubuntu/.bun/bin:/home/ubuntu/go/bin:/home/ubuntu/.cargo/bin:/home/ubuntu/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/snap/bin
++ PATH=/data/tmp/vc_e2e_test_ru_mock_91puM9/bin:/home/ubuntu/.codex/tmp/path/codex-arg0eJszyB:/home/ubuntu/.bun/install/global/node_modules/@openai/codex/vendor/x86_64-unknown-linux-musl/path:/data/tmp/.tmpMpmAMF:/data/tmp/.tmpzam3q7:/data/tmp/.tmpoyAfve:/data/tmp/.tmpe6g78I:/data/tmp/.tmpPd69rK:/data/tmp/.tmpGRbjsw:/data/tmp/.tmpz2brVn:/data/tmp/.tmp0PnFJv:/data/tmp/.tmpPoRhAM:/data/tmp/.tmpFfkQ40:/data/tmp/.tmpuxSIpy:/data/tmp/.tmpXjJuNc:/data/tmp/.tmpTZnvXD:/data/tmp/.tmpuK4iIg:/data/tmp/.tmpajeyt7:/data/tmp/.tmpev6kRK:/data/tmp/.tmpiDVpJA:/data/tmp/.tmpnDRhga:/data/tmp/.tmpzxxM5v:/data/tmp/.tmpvKVXKw:/data/tmp/.tmpmNPIdP:/data/tmp/.tmpVFL4Sw:/data/tmp/.tmp7ItVFC:/data/tmp/.tmp0vGjRa:/data/tmp/.tmpBllZzw:/data/tmp/.tmpobicww:/data/tmp/.tmp8f8C2e:/data/tmp/.tmpbD8QBY:/data/tmp/.tmpjzHvSF:/data/tmp/.tmpkjqRCG:/data/tmp/.tmpVzu1zg:/data/tmp/.tmpHO13GV:/data/tmp/.tmprTmBIb:/data/tmp/.tmpRHFAS9:/data/tmp/.tmp84NBm7:/data/tmp/.tmpOXe4sc:/data/tmp/.tmpcOX7LV:/data/tmp/.tmpHmVm2g:/data/tmp/.tmp9gcOZP:/data/tmp/.tmpz4q0R1:/data/tmp/.tmpvkDZiX:/data/tmp/.tmp7Mj5dU:/data/tmp/.tmpdkiSGU:/data/tmp/.tmpDhz6SG:/data/tmp/.tmpxZwXIA:/data/tmp/.tmptoaKcg:/data/tmp/.tmp5WocB2:/data/tmp/.tmpQIUXw6:/data/tmp/.tmp3pRXXR:/data/tmp/.tmpGRxfSM:/data/tmp/.tmpLA8PkL:/data/tmp/.tmpFbmIJR:/data/tmp/.tmpWfLZ76:/data/tmp/.tmpWsTSmr:/data/tmp/.tmpxh3SQx:/data/tmp/.tmp0QcB2I:/data/tmp/.tmpxNatIO:/data/tmp/.tmpupEMqh:/data/tmp/.tmppCYdSE:/data/tmp/.tmpymdjNV:/data/tmp/.tmpCFNqVV:/data/tmp/.tmpdJ2vDZ:/data/tmp/.tmpSewNuz:/data/tmp/.tmpQlKd6y:/data/tmp/.tmprUxpI2:/run/user/1000/fnm_multishells/1141914_1769574439286/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/bin:/run/user/1000/fnm_multishells/1141838_1769574439149/bin:/home/ubuntu/.local/share/fnm:/home/ubuntu/google-cloud-sdk/bin:/home/ubuntu/.nvm/versions/node/v24.12.0/bin:/home/ubuntu/.local/bin:/home/ubuntu/.atuin/bin:/home/ubuntu/.bun/bin:/home/ubuntu/go/bin:/home/ubuntu/.cargo/bin:/home/ubuntu/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/snap/bin
++ test_info 'Test 1: Verifying mock ru list'
++ test_log INFO 'Test 1: Verifying mock ru list'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:02-05:00] [INFO] Test 1: Verifying mock ru list'
+[2026-01-28T12:24:02-05:00] [INFO] Test 1: Verifying mock ru list
+++ /data/tmp/vc_e2e_test_ru_mock_91puM9/bin/ru list --json
++ mock_list='{
+  "repositories": [
+    {
+      "path": "/data/projects/vibe_cockpit",
+      "name": "vibe_cockpit",
+      "branch": "main",
+      "is_dirty": false,
+      "ahead": 0,
+      "behind": 0,
+      "stash_count": 0,
+      "uncommitted_files": 0,
+      "last_commit_ts": "2026-01-28T10:30:00Z",
+      "last_commit_hash": "abc123def"
+    },
+    {
+      "path": "/data/projects/flywheel",
+      "name": "flywheel",
+      "branch": "feature/new-thing",
+      "is_dirty": true,
+      "ahead": 3,
+      "behind": 1,
+      "stash_count": 2,
+      "uncommitted_files": 5,
+      "last_commit_ts": "2026-01-28T09:15:00Z",
+      "last_commit_hash": "def456abc"
+    }
+  ]
+}'
++ assert_json_valid '{
+  "repositories": [
+    {
+      "path": "/data/projects/vibe_cockpit",
+      "name": "vibe_cockpit",
+      "branch": "main",
+      "is_dirty": false,
+      "ahead": 0,
+      "behind": 0,
+      "stash_count": 0,
+      "uncommitted_files": 0,
+      "last_commit_ts": "2026-01-28T10:30:00Z",
+      "last_commit_hash": "abc123def"
+    },
+    {
+      "path": "/data/projects/flywheel",
+      "name": "flywheel",
+      "branch": "feature/new-thing",
+      "is_dirty": true,
+      "ahead": 3,
+      "behind": 1,
+      "stash_count": 2,
+      "uncommitted_files": 5,
+      "last_commit_ts": "2026-01-28T09:15:00Z",
+      "last_commit_hash": "def456abc"
+    }
+  ]
+}' 'Mock ru list should be valid JSON'
++ local 'json={
+  "repositories": [
+    {
+      "path": "/data/projects/vibe_cockpit",
+      "name": "vibe_cockpit",
+      "branch": "main",
+      "is_dirty": false,
+      "ahead": 0,
+      "behind": 0,
+      "stash_count": 0,
+      "uncommitted_files": 0,
+      "last_commit_ts": "2026-01-28T10:30:00Z",
+      "last_commit_hash": "abc123def"
+    },
+    {
+      "path": "/data/projects/flywheel",
+      "name": "flywheel",
+      "branch": "feature/new-thing",
+      "is_dirty": true,
+      "ahead": 3,
+      "behind": 1,
+      "stash_count": 2,
+      "uncommitted_files": 5,
+      "last_commit_ts": "2026-01-28T09:15:00Z",
+      "last_commit_hash": "def456abc"
+    }
+  ]
+}'
++ local 'msg=Mock ru list should be valid JSON'
++ TEST_ASSERTIONS=1
++ echo '{
+  "repositories": [
+    {
+      "path": "/data/projects/vibe_cockpit",
+      "name": "vibe_cockpit",
+      "branch": "main",
++ jq .
+      "is_dirty": false,
+      "ahead": 0,
+      "behind": 0,
+      "stash_count": 0,
+      "uncommitted_files": 0,
+      "last_commit_ts": "2026-01-28T10:30:00Z",
+      "last_commit_hash": "abc123def"
+    },
+    {
+      "path": "/data/projects/flywheel",
+      "name": "flywheel",
+      "branch": "feature/new-thing",
+      "is_dirty": true,
+      "ahead": 3,
+      "behind": 1,
+      "stash_count": 2,
+      "uncommitted_files": 5,
+      "last_commit_ts": "2026-01-28T09:15:00Z",
+      "last_commit_hash": "def456abc"
+    }
+  ]
+}'
++ test_info 'PASS: Mock ru list should be valid JSON'
++ test_log INFO 'PASS: Mock ru list should be valid JSON'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:03-05:00] [INFO] PASS: Mock ru list should be valid JSON'
+[2026-01-28T12:24:03-05:00] [INFO] PASS: Mock ru list should be valid JSON
+++ echo '{
+  "repositories": [
+    {
+      "path": "/data/projects/vibe_cockpit",
+      "name": "vibe_cockpit",
+      "branch": "main",
+      "is_dirty": false,
+      "ahead": 0,
+      "behind": 0,
+      "stash_count": 0,
+      "uncommitted_files": 0,
+      "last_commit_ts": "2026-01-28T10:30:00Z",
+      "last_commit_hash": "abc123def"
+    },
+    {
+      "path": "/data/projects/flywheel",
+      "name": "flywheel",
+      "branch": "feature/new-thing",
+      "is_dirty": true,
+      "ahead": 3,
+      "behind": 1,
+      "stash_count": 2,
+      "uncommitted_files": 5,
+      "last_commit_ts": "2026-01-28T09:15:00Z",
+      "last_commit_hash": "def456abc"
+    }
+  ]
+}'
+++ jq '.repositories | length'
++ repo_count=2
++ TEST_ASSERTIONS=2
++ [[ 2 -ge 1 ]]
++ test_info 'PASS: ru list has repositories (2)'
++ test_log INFO 'PASS: ru list has repositories (2)'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:03-05:00] [INFO] PASS: ru list has repositories (2)'
+[2026-01-28T12:24:03-05:00] [INFO] PASS: ru list has repositories (2)
++ test_info 'Test 2: Verifying mock ru status'
++ test_log INFO 'Test 2: Verifying mock ru status'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:03-05:00] [INFO] Test 2: Verifying mock ru status'
+[2026-01-28T12:24:03-05:00] [INFO] Test 2: Verifying mock ru status
+++ /data/tmp/vc_e2e_test_ru_mock_91puM9/bin/ru status --json
++ mock_status='{
+  "path": "/data/projects/vibe_cockpit",
+  "name": "vibe_cockpit",
+  "branch": "main",
+  "is_dirty": false,
+  "uncommitted_files": 0,
+  "modified": [],
+  "untracked": [],
+  "staged": []
+}'
++ assert_json_valid '{
+  "path": "/data/projects/vibe_cockpit",
+  "name": "vibe_cockpit",
+  "branch": "main",
+  "is_dirty": false,
+  "uncommitted_files": 0,
+  "modified": [],
+  "untracked": [],
+  "staged": []
+}' 'Mock ru status should be valid JSON'
++ local 'json={
+  "path": "/data/projects/vibe_cockpit",
+  "name": "vibe_cockpit",
+  "branch": "main",
+  "is_dirty": false,
+  "uncommitted_files": 0,
+  "modified": [],
+  "untracked": [],
+  "staged": []
+}'
++ local 'msg=Mock ru status should be valid JSON'
++ TEST_ASSERTIONS=3
++ echo '{
+  "path": "/data/projects/vibe_cockpit",
+  "name": "vibe_cockpit",
+  "branch": "main",
+  "is_dirty": false,
+  "uncommitted_files": 0,
+  "modified": [],
+  "untracked": [],
+  "staged": []
+}'
++ jq .
++ test_info 'PASS: Mock ru status should be valid JSON'
++ test_log INFO 'PASS: Mock ru status should be valid JSON'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:03-05:00] [INFO] PASS: Mock ru status should be valid JSON'
+[2026-01-28T12:24:03-05:00] [INFO] PASS: Mock ru status should be valid JSON
++ assert_json_field '{
+  "path": "/data/projects/vibe_cockpit",
+  "name": "vibe_cockpit",
+  "branch": "main",
+  "is_dirty": false,
+  "uncommitted_files": 0,
+  "modified": [],
+  "untracked": [],
+  "staged": []
+}' .branch main 'Branch should be main'
++ local 'json={
+  "path": "/data/projects/vibe_cockpit",
+  "name": "vibe_cockpit",
+  "branch": "main",
+  "is_dirty": false,
+  "uncommitted_files": 0,
+  "modified": [],
+  "untracked": [],
+  "staged": []
+}'
++ local field=.branch
++ local expected=main
++ local 'msg=Branch should be main'
++ TEST_ASSERTIONS=4
+++ echo '{
+  "path": "/data/projects/vibe_cockpit",
+  "name": "vibe_cockpit",
+  "branch": "main",
+  "is_dirty": false,
+  "uncommitted_files": 0,
+  "modified": [],
+  "untracked": [],
+  "staged": []
+}'
+++ jq -r .branch
++ local actual=main
++ [[ main == \m\a\i\n ]]
++ test_info 'PASS: Branch should be main (.branch = main)'
++ test_log INFO 'PASS: Branch should be main (.branch = main)'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:03-05:00] [INFO] PASS: Branch should be main (.branch = main)'
+[2026-01-28T12:24:03-05:00] [INFO] PASS: Branch should be main (.branch = main)
++ test_info 'Test 3: Running ru collector'
++ test_log INFO 'Test 3: Running ru collector'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:03-05:00] [INFO] Test 3: Running ru collector'
+[2026-01-28T12:24:03-05:00] [INFO] Test 3: Running ru collector
+++ run_vc collect --collector ru
++ collect_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_ru_mock_91puM9/config.toml collect --collector ru
+Command not yet implemented: Collect { collector: Some("ru"), machine: None }'
++ TEST_ASSERTIONS=5
++ test_info 'PASS: RU collector completed'
++ test_log INFO 'PASS: RU collector completed'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:03-05:00] [INFO] PASS: RU collector completed'
+[2026-01-28T12:24:03-05:00] [INFO] PASS: RU collector completed
++ test_info 'Test 4: Checking database'
++ test_log INFO 'Test 4: Checking database'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:03-05:00] [INFO] Test 4: Checking database'
+[2026-01-28T12:24:03-05:00] [INFO] Test 4: Checking database
++ assert_file_exists /data/tmp/vc_e2e_test_ru_mock_91puM9/test.duckdb 'Database should exist'
++ local path=/data/tmp/vc_e2e_test_ru_mock_91puM9/test.duckdb
++ local 'msg=Database should exist'
++ TEST_ASSERTIONS=6
++ [[ -f /data/tmp/vc_e2e_test_ru_mock_91puM9/test.duckdb ]]
++ test_error 'FAIL: Database should exist'
++ test_log ERROR 'FAIL: Database should exist'
++ local level=ERROR
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:03-05:00] [ERROR] FAIL: Database should exist'
+[2026-01-28T12:24:03-05:00] [ERROR] FAIL: Database should exist
++ test_error '  Path: /data/tmp/vc_e2e_test_ru_mock_91puM9/test.duckdb'
++ test_log ERROR '  Path: /data/tmp/vc_e2e_test_ru_mock_91puM9/test.duckdb'
++ local level=ERROR
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:03-05:00] [ERROR]   Path: /data/tmp/vc_e2e_test_ru_mock_91puM9/test.duckdb'
+[2026-01-28T12:24:03-05:00] [ERROR]   Path: /data/tmp/vc_e2e_test_ru_mock_91puM9/test.duckdb
++ TEST_FAILURES=1
++ test_info 'Test 5: Verifying dirty repo detection'
++ test_log INFO 'Test 5: Verifying dirty repo detection'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:03-05:00] [INFO] Test 5: Verifying dirty repo detection'
+[2026-01-28T12:24:03-05:00] [INFO] Test 5: Verifying dirty repo detection
+++ echo '{
+  "repositories": [
+    {
+      "path": "/data/projects/vibe_cockpit",
+      "name": "vibe_cockpit",
+      "branch": "main",
+      "is_dirty": false,
+      "ahead": 0,
+      "behind": 0,
+      "stash_count": 0,
+      "uncommitted_files": 0,
+      "last_commit_ts": "2026-01-28T10:30:00Z",
+      "last_commit_hash": "abc123def"
+    },
+    {
+      "path": "/data/projects/flywheel",
+      "name": "flywheel",
+      "branch": "feature/new-thing",
+      "is_dirty": true,
+      "ahead": 3,
+      "behind": 1,
+      "stash_count": 2,
+      "uncommitted_files": 5,
+      "last_commit_ts": "2026-01-28T09:15:00Z",
+      "last_commit_hash": "def456abc"
+    }
+  ]
+}'
+++ jq '[.repositories[] | select(.is_dirty == true)] | length'
++ dirty_count=1
++ TEST_ASSERTIONS=7
++ [[ 1 -ge 1 ]]
++ test_info 'PASS: Dirty repos detected (1)'
++ test_log INFO 'PASS: Dirty repos detected (1)'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:03-05:00] [INFO] PASS: Dirty repos detected (1)'
+[2026-01-28T12:24:03-05:00] [INFO] PASS: Dirty repos detected (1)
++ test_info 'Test 6: Running ru collector again'
++ test_log INFO 'Test 6: Running ru collector again'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:04-05:00] [INFO] Test 6: Running ru collector again'
+[2026-01-28T12:24:04-05:00] [INFO] Test 6: Running ru collector again
+++ run_vc collect --collector ru
++ collect_output2='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_ru_mock_91puM9/config.toml collect --collector ru
+Command not yet implemented: Collect { collector: Some("ru"), machine: None }'
++ TEST_ASSERTIONS=8
++ test_info 'PASS: Second ru collect completed'
++ test_log INFO 'PASS: Second ru collect completed'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:04-05:00] [INFO] PASS: Second ru collect completed'
+[2026-01-28T12:24:04-05:00] [INFO] PASS: Second ru collect completed
++ finalize_test
+++ date +%s%N
++ local end_time=1769621044367374551
++ local duration_ms=2096
++ local status=passed
++ local exit_code=0
++ [[ 1 -gt 0 ]]
++ status=failed
++ exit_code=1
++ cat
++ test_info 'Test complete: 8 assertions, 1 failures'
++ test_log INFO 'Test complete: 8 assertions, 1 failures'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:04-05:00] [INFO] Test complete: 8 assertions, 1 failures'
+[2026-01-28T12:24:04-05:00] [INFO] Test complete: 8 assertions, 1 failures
++ exit 1
++ cleanup_test_env
++ local exit_code=1
++ test_info 'Cleaning up test environment'
++ test_log INFO 'Cleaning up test environment'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:24:04-05:00] [INFO] Cleaning up test environment'
+[2026-01-28T12:24:04-05:00] [INFO] Cleaning up test environment
++ [[ -n /data/tmp/vc_e2e_test_ru_mock_91puM9 ]]
++ [[ -d /data/tmp/vc_e2e_test_ru_mock_91puM9 ]]
++ [[ 1 -ne 0 ]]
++ [[ '' == \t\r\u\e ]]
++ rm -rf /data/tmp/vc_e2e_test_ru_mock_91puM9

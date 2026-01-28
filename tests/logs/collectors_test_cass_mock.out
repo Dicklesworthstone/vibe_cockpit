@@ -1,0 +1,7 @@
+{
+  "test_name": "test_cass_mock",
+  "status": "failed",
+  "duration_ms": 2235,
+  "assertions": 9,
+  "failures": 2
+}

@@ -1,0 +1,10 @@
++ set -euo pipefail
++++ dirname /data/projects/vibe_cockpit/tests/e2e/system/test_smoke.sh
+++ cd /data/projects/vibe_cockpit/tests/e2e/system/../../..
+++ pwd
++ ROOT_DIR=/data/projects/vibe_cockpit
++ cd /data/projects/vibe_cockpit
++ command -v cargo
++ '[' -f Cargo.toml ']'
++ '[' -d crates ']'
++ cargo metadata --format-version 1 --no-deps

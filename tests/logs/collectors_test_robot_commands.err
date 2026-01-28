@@ -1,0 +1,649 @@
++ set -euo pipefail
+++ dirname /data/projects/vibe_cockpit/tests/e2e/collectors/test_robot_commands.sh
++ source /data/projects/vibe_cockpit/tests/e2e/collectors/../lib/test_helpers.sh
+++ set -euo pipefail
+++++ dirname /data/projects/vibe_cockpit/tests/e2e/collectors/../lib/test_helpers.sh
++++ cd /data/projects/vibe_cockpit/tests/e2e/collectors/../lib
++++ pwd
+++ TEST_LIB_DIR=/data/projects/vibe_cockpit/tests/e2e/lib
++++ dirname /data/projects/vibe_cockpit/tests/e2e/lib
+++ E2E_DIR=/data/projects/vibe_cockpit/tests/e2e
++++ cd /data/projects/vibe_cockpit/tests/e2e/../..
++++ pwd
+++ PROJECT_ROOT=/data/projects/vibe_cockpit
++++ find_vc_binary
++++ [[ -n /data/tmp/cargo-target ]]
++++ [[ -x /data/tmp/cargo-target/debug/vc ]]
++++ echo /data/tmp/cargo-target/debug/vc
++++ return
+++ VC_BIN=/data/tmp/cargo-target/debug/vc
++++ basename /data/projects/vibe_cockpit/tests/e2e/collectors/test_robot_commands.sh .sh
+++ TEST_NAME=test_robot_commands
+++ TEST_ASSERTIONS=0
+++ TEST_FAILURES=0
++++ date +%s%N
+++ TEST_START_TIME=1769621036064650627
+++ RED='\033[0;31m'
+++ GREEN='\033[0;32m'
+++ YELLOW='\033[1;33m'
+++ NC='\033[0m'
+++ trap cleanup_test_env EXIT
++ test_info 'Starting robot commands E2E test'
++ test_log INFO 'Starting robot commands E2E test'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:56-05:00] [INFO] Starting robot commands E2E test'
+[2026-01-28T12:23:56-05:00] [INFO] Starting robot commands E2E test
++ setup_test_env
++ test_info 'Setting up test environment'
++ test_log INFO 'Setting up test environment'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:56-05:00] [INFO] Setting up test environment'
+[2026-01-28T12:23:56-05:00] [INFO] Setting up test environment
+++ mktemp -d -t vc_e2e_test_robot_commands_XXXXXX
++ TEST_TEMP_DIR=/data/tmp/vc_e2e_test_robot_commands_E4IBL6
++ export TEST_TEMP_DIR
++ TEST_DB_PATH=/data/tmp/vc_e2e_test_robot_commands_E4IBL6/test.duckdb
++ export TEST_DB_PATH
++ TEST_CONFIG_PATH=/data/tmp/vc_e2e_test_robot_commands_E4IBL6/config.toml
++ cat
++ export TEST_CONFIG_PATH
++ test_info 'Test temp dir: /data/tmp/vc_e2e_test_robot_commands_E4IBL6'
++ test_log INFO 'Test temp dir: /data/tmp/vc_e2e_test_robot_commands_E4IBL6'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:56-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_robot_commands_E4IBL6'
+[2026-01-28T12:23:56-05:00] [INFO] Test temp dir: /data/tmp/vc_e2e_test_robot_commands_E4IBL6
++ test_info 'Test 1: Checking vc robot health'
++ test_log INFO 'Test 1: Checking vc robot health'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:56-05:00] [INFO] Test 1: Checking vc robot health'
+[2026-01-28T12:23:56-05:00] [INFO] Test 1: Checking vc robot health
+++ run_vc robot health
++ health_output='++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_robot_commands_E4IBL6/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:23:56.520856279Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:23:56.520732666Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ assert_json_valid '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_robot_commands_E4IBL6/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:23:56.520856279Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:23:56.520732666Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}' 'Health output should be valid JSON'
++ local 'json=++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_robot_commands_E4IBL6/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:23:56.520856279Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:23:56.520732666Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ local 'msg=Health output should be valid JSON'
++ TEST_ASSERTIONS=1
++ echo '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_robot_commands_E4IBL6/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:23:56.520856279Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:23:56.520732666Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ jq .
++ test_error 'FAIL: Health output should be valid JSON'
++ test_log ERROR 'FAIL: Health output should be valid JSON'
++ local level=ERROR
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:56-05:00] [ERROR] FAIL: Health output should be valid JSON'
+[2026-01-28T12:23:56-05:00] [ERROR] FAIL: Health output should be valid JSON
++ test_error '  Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_robot_commands_E4IBL6/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:23:56.520856279Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:23:56.520732666Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ test_log ERROR '  Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_robot_commands_E4IBL6/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:23:56.520856279Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:23:56.520732666Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ local level=ERROR
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:56-05:00] [ERROR]   Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_robot_commands_E4IBL6/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:23:56.520856279Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:23:56.520732666Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
+[2026-01-28T12:23:56-05:00] [ERROR]   Invalid JSON: ++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_robot_commands_E4IBL6/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:23:56.520856279Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:23:56.520732666Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}
++ TEST_FAILURES=1
++ test_info 'Test 2: Validating health schema'
++ test_log INFO 'Test 2: Validating health schema'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:56-05:00] [INFO] Test 2: Validating health schema'
+[2026-01-28T12:23:56-05:00] [INFO] Test 2: Validating health schema
++ assert_json_field '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_robot_commands_E4IBL6/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:23:56.520856279Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:23:56.520732666Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}' .schema_version vc.robot.health.v1 'Schema version should match'
++ local 'json=++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_robot_commands_E4IBL6/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:23:56.520856279Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:23:56.520732666Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
++ local field=.schema_version
++ local expected=vc.robot.health.v1
++ local 'msg=Schema version should match'
++ TEST_ASSERTIONS=2
+++ echo '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_robot_commands_E4IBL6/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:23:56.520856279Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:23:56.520732666Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
+++ jq -r .schema_version
++ local actual=
++ [[ '' == \v\c\.\r\o\b\o\t\.\h\e\a\l\t\h\.\v\1 ]]
++ test_error 'FAIL: Schema version should match'
++ test_log ERROR 'FAIL: Schema version should match'
++ local level=ERROR
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:56-05:00] [ERROR] FAIL: Schema version should match'
+[2026-01-28T12:23:56-05:00] [ERROR] FAIL: Schema version should match
++ test_error '  Field: .schema_version'
++ test_log ERROR '  Field: .schema_version'
++ local level=ERROR
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:56-05:00] [ERROR]   Field: .schema_version'
+[2026-01-28T12:23:56-05:00] [ERROR]   Field: .schema_version
++ test_error '  Expected: vc.robot.health.v1'
++ test_log ERROR '  Expected: vc.robot.health.v1'
++ local level=ERROR
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:56-05:00] [ERROR]   Expected: vc.robot.health.v1'
+[2026-01-28T12:23:56-05:00] [ERROR]   Expected: vc.robot.health.v1
++ test_error '  Actual: '
++ test_log ERROR '  Actual: '
++ local level=ERROR
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:56-05:00] [ERROR]   Actual: '
+[2026-01-28T12:23:56-05:00] [ERROR]   Actual: 
++ TEST_FAILURES=2
++ test_info 'Test 3: Checking health data section'
++ test_log INFO 'Test 3: Checking health data section'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:57-05:00] [INFO] Test 3: Checking health data section'
+[2026-01-28T12:23:57-05:00] [INFO] Test 3: Checking health data section
+++ echo '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_robot_commands_E4IBL6/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:23:56.520856279Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:23:56.520732666Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
+++ jq 'has("data")'
++ has_data=
++ has_data=false
++ TEST_ASSERTIONS=3
++ [[ false == \t\r\u\e ]]
++ test_error 'FAIL: Health output missing data section'
++ test_log ERROR 'FAIL: Health output missing data section'
++ local level=ERROR
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:57-05:00] [ERROR] FAIL: Health output missing data section'
+[2026-01-28T12:23:57-05:00] [ERROR] FAIL: Health output missing data section
++ TEST_FAILURES=3
++ test_info 'Test 4: Checking overall severity'
++ test_log INFO 'Test 4: Checking overall severity'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:57-05:00] [INFO] Test 4: Checking overall severity'
+[2026-01-28T12:23:57-05:00] [INFO] Test 4: Checking overall severity
+++ echo '++ [[ /data/tmp/cargo-target/debug/vc == \c\a\r\g\o\ \r\u\n* ]]
+++ [[ -x /data/tmp/cargo-target/debug/vc ]]
+++ /data/tmp/cargo-target/debug/vc --config /data/tmp/vc_e2e_test_robot_commands_E4IBL6/config.toml robot health
+{
+  "schema_version": "vc.robot.health.v1",
+  "generated_at": "2026-01-28T17:23:56.520856279Z",
+  "data": {
+    "overall": {
+      "score": 1.0,
+      "severity": "healthy",
+      "active_alerts": 0,
+      "machine_count": 1,
+      "agent_count": 0
+    },
+    "machines": [
+      {
+        "id": "local",
+        "name": "Local Machine",
+        "score": 1.0,
+        "status": "online",
+        "top_issue": null,
+        "last_seen": "2026-01-28T17:23:56.520732666Z",
+        "agent_count": 0,
+        "cpu_percent": null,
+        "memory_percent": null
+      }
+    ],
+    "alerts_by_severity": {
+      "critical": 0,
+      "warning": 0,
+      "info": 0
+    }
+  },
+  "warnings": [
+    "No collectors have run yet - data may be incomplete"
+  ]
+}'
+++ jq -r '.data.overall.severity // "missing"'
++ severity=
++ cleanup_test_env
++ local exit_code=5
++ test_info 'Cleaning up test environment'
++ test_log INFO 'Cleaning up test environment'
++ local level=INFO
++ shift
+++ date -Iseconds
++ echo '[2026-01-28T12:23:57-05:00] [INFO] Cleaning up test environment'
+[2026-01-28T12:23:57-05:00] [INFO] Cleaning up test environment
++ [[ -n /data/tmp/vc_e2e_test_robot_commands_E4IBL6 ]]
++ [[ -d /data/tmp/vc_e2e_test_robot_commands_E4IBL6 ]]
++ [[ 5 -ne 0 ]]
++ [[ '' == \t\r\u\e ]]
++ rm -rf /data/tmp/vc_e2e_test_robot_commands_E4IBL6
