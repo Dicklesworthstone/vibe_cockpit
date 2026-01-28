@@ -282,7 +282,10 @@ mod tests {
         assert_eq!(app1.current_screen, app2.current_screen);
         assert_eq!(app1.should_quit, app2.should_quit);
         // Theme and overview_data use defaults
-        assert_eq!(app1.overview_data.fleet_health, app2.overview_data.fleet_health);
+        assert_eq!(
+            app1.overview_data.fleet_health,
+            app2.overview_data.fleet_health
+        );
     }
 
     #[test]

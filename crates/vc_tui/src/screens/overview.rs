@@ -124,9 +124,7 @@ fn render_header(f: &mut Frame, area: Rect, data: &OverviewData, theme: &Theme) 
     let title = Line::from(vec![
         Span::styled(
             "  V I B E   C O C K P I T  ",
-            Style::default()
-                .fg(theme.text)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(theme.text).add_modifier(Modifier::BOLD),
         ),
         Span::raw("  "),
         Span::styled("[Health: ", Style::default().fg(theme.muted)),
@@ -295,14 +293,8 @@ fn render_repos_panel(f: &mut Frame, area: Rect, repos: &[RepoStatus], theme: &T
 
                 ListItem::new(Line::from(vec![
                     Span::raw("  "),
-                    Span::styled(
-                        format!("{:<20}", r.name),
-                        Style::default().fg(theme.text),
-                    ),
-                    Span::styled(
-                        format!("{:<8}", r.branch),
-                        Style::default().fg(theme.muted),
-                    ),
+                    Span::styled(format!("{:<20}", r.name), Style::default().fg(theme.text)),
+                    Span::styled(format!("{:<8}", r.branch), Style::default().fg(theme.muted)),
                     status_indicator,
                     Span::raw(" "),
                     Span::styled(

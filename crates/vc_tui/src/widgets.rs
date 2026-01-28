@@ -3,11 +3,11 @@
 //! Common UI components used across multiple screens.
 
 use ratatui::{
+    layout::Rect,
     style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
     Frame,
-    layout::Rect,
 };
 
 use crate::theme::Theme;
@@ -46,10 +46,22 @@ pub fn status_indicator(online: bool, theme: &Theme) -> Span<'static> {
 /// Render a severity indicator
 pub fn severity_indicator(severity: &str, theme: &Theme) -> (Span<'static>, ratatui::style::Color) {
     match severity.to_lowercase().as_str() {
-        "critical" => (Span::styled("!", Style::default().fg(theme.critical)), theme.critical),
-        "warning" => (Span::styled("⚠", Style::default().fg(theme.warning)), theme.warning),
-        "info" => (Span::styled("ℹ", Style::default().fg(theme.info)), theme.info),
-        _ => (Span::styled("·", Style::default().fg(theme.muted)), theme.muted),
+        "critical" => (
+            Span::styled("!", Style::default().fg(theme.critical)),
+            theme.critical,
+        ),
+        "warning" => (
+            Span::styled("⚠", Style::default().fg(theme.warning)),
+            theme.warning,
+        ),
+        "info" => (
+            Span::styled("ℹ", Style::default().fg(theme.info)),
+            theme.info,
+        ),
+        _ => (
+            Span::styled("·", Style::default().fg(theme.muted)),
+            theme.muted,
+        ),
     }
 }
 
