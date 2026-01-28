@@ -91,7 +91,7 @@ assert_eq "2" "$fs_count" "Should have 2 filesystems in fixture"
 
 # Test 7: Verify vc robot health works (basic health check)
 test_info "Test 7: Checking vc robot health with stub implementation"
-health_output=$(run_vc robot health 2>&1) || true
+health_output=$(run_vc_or_skip robot health 2>&1) || true
 assert_json_valid "$health_output" "Health output should be valid JSON"
 assert_json_field "$health_output" ".schema_version" "vc.robot.health.v1" "Health schema version"
 

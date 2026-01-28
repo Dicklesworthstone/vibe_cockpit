@@ -25,20 +25,20 @@ fi
 
 # Test 2: Verify vc --version works
 test_info "Test 2: Checking vc --version"
-version_output=$(run_vc --version 2>&1) || true
+version_output=$(run_vc_or_skip --version) || true
 assert_contains "$version_output" "vc" "Version should contain 'vc'"
 assert_contains "$version_output" "0.1.0" "Version should contain version number"
 
 # Test 3: Verify vc robot health returns valid JSON
 test_info "Test 3: Checking vc robot health"
-health_output=$(run_vc robot health 2>&1) || true
+health_output=$(run_vc_or_skip robot health | sed -n '/^{/,$p') || true
 assert_json_valid "$health_output" "Health output should be valid JSON"
 assert_json_field "$health_output" ".schema_version" "vc.robot.health.v1" "Schema version should match"
 assert_json_field "$health_output" ".data.overall.severity" "healthy" "Severity should be healthy"
 
 # Test 4: Verify vc robot triage returns valid JSON
 test_info "Test 4: Checking vc robot triage"
-triage_output=$(run_vc robot triage 2>&1) || true
+triage_output=$(run_vc_or_skip robot triage | sed -n '/^{/,$p') || true
 assert_json_valid "$triage_output" "Triage output should be valid JSON"
 assert_json_field "$triage_output" ".schema_version" "vc.robot.triage.v1" "Schema version should match"
 

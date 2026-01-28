@@ -58,7 +58,7 @@ chmod +x "$RCH_BIN_DIR/rch"
 export PATH="$RCH_BIN_DIR:$PATH"
 
 # Test 4: Invoke vc collect for rch (best-effort)
-collect_output=$(run_vc collect --collector rch 2>&1) || {
+collect_output=$(run_vc_or_skip collect --collector rch 2>&1) || {
     test_warn "rch collector invocation returned non-zero"
     test_warn "$collect_output"
 }

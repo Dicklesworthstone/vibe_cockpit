@@ -273,11 +273,25 @@ run_vc() {
 
     echo "$output"
 
+    return "$status"
+}
+
+# Run vc and skip test if command is not implemented
+run_vc_or_skip() {
+    local output=""
+    local status=0
+
+    set +e
+    output=$(run_vc "$@" 2>&1)
+    status=$?
+    set -e
+
     if [[ "$output" == *"Command not yet implemented"* ]]; then
         test_warn "Skipping: command not yet implemented (vc $*)"
         exit 2
     fi
 
+    echo "$output"
     return "$status"
 }
 

@@ -92,7 +92,7 @@ fi
 
 # Test 3: Run cass collector
 test_info "Test 3: Running cass collector"
-collect_output=$(run_vc collect --collector cass 2>&1) || {
+collect_output=$(run_vc_or_skip collect --collector cass 2>&1) || {
     test_warn "Cass collector had issues: $collect_output"
 }
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
@@ -104,14 +104,14 @@ assert_file_exists "$TEST_DB_PATH" "Database should exist"
 
 # Test 5: Run health check after cass collection
 test_info "Test 5: Checking health after cass"
-health_output=$(run_vc robot health 2>&1) || {
+health_output=$(run_vc_or_skip robot health 2>&1) || {
     health_output='{"data":{}}'
 }
 assert_json_valid "$health_output" "Health output should be valid"
 
 # Test 6: Run cass collector again (incremental test)
 test_info "Test 6: Running cass collector again"
-collect_output2=$(run_vc collect --collector cass 2>&1) || {
+collect_output2=$(run_vc_or_skip collect --collector cass 2>&1) || {
     test_warn "Second cass collect had issues"
 }
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))

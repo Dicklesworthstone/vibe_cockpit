@@ -70,7 +70,7 @@ assert_json_field "$mock_output" ".cpu.total_percent" "25.5" "CPU total should m
 
 # Test 2: Run sysmoni collector
 test_info "Test 2: Running sysmoni collector"
-collect_output=$(run_vc collect --collector sysmoni 2>&1) || {
+collect_output=$(run_vc_or_skip collect --collector sysmoni 2>&1) || {
     test_warn "Sysmoni collector had issues: $collect_output"
 }
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
@@ -82,7 +82,7 @@ assert_file_exists "$TEST_DB_PATH" "Database should exist"
 
 # Test 4: Run health check after sysmoni collection
 test_info "Test 4: Checking health after sysmoni"
-health_output=$(run_vc robot health 2>&1) || {
+health_output=$(run_vc_or_skip robot health 2>&1) || {
     health_output='{"data":{}}'
 }
 assert_json_valid "$health_output" "Health output should be valid"
@@ -90,7 +90,7 @@ assert_json_valid "$health_output" "Health output should be valid"
 # Test 5: Run collector multiple times (test incremental)
 test_info "Test 5: Running sysmoni multiple times"
 for i in 1 2 3; do
-    run_vc collect --collector sysmoni 2>&1 || true
+    run_vc_or_skip collect --collector sysmoni 2>&1 || true
 done
 TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
 test_info "PASS: Multiple sysmoni runs completed"

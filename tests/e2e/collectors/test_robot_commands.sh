@@ -18,7 +18,7 @@ setup_test_env
 
 # Test 1: Robot health returns valid JSON
 test_info "Test 1: Checking vc robot health"
-health_output=$(run_vc robot health 2>&1) || {
+health_output=$(run_vc_or_skip robot health 2>&1) || {
     test_error "Robot health command failed"
     health_output="{}"
 }
@@ -52,7 +52,7 @@ fi
 
 # Test 5: Robot triage returns valid JSON
 test_info "Test 5: Checking vc robot triage"
-triage_output=$(run_vc robot triage 2>&1) || {
+triage_output=$(run_vc_or_skip robot triage 2>&1) || {
     test_error "Robot triage command failed"
     triage_output="{}"
 }
@@ -75,7 +75,7 @@ fi
 
 # Test 8: Robot commands work with --format json flag
 test_info "Test 8: Checking --format json flag"
-json_output=$(run_vc --format json robot health 2>&1) || {
+json_output=$(run_vc_or_skip --format json robot health 2>&1) || {
     test_warn "Format flag test had issues"
     json_output="{}"
 }

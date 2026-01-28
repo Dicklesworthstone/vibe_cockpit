@@ -145,7 +145,7 @@ assert_eq "false" "$minimal_dirty" "Missing dirty should default to false"
 
 # Test 11: Verify vc robot health works
 test_info "Test 11: Checking vc robot health"
-health_output=$(run_vc robot health 2>&1) || true
+health_output=$(run_vc_or_skip robot health 2>&1) || true
 assert_json_valid "$health_output" "Health output should be valid JSON"
 
 # Test 12: Test hash stability (repo IDs should be consistent)
