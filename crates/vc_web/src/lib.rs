@@ -266,6 +266,28 @@ async fn machine_health_handler(
     Ok(Json(health))
 }
 
+/// Get collector status for a machine
+async fn machine_collectors_handler(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    Query(params): Query<PaginationParams>,
+) -> Result<Json<serde_json::Value>, WebError> {
+    let sql = format!(
+        "SELECT * FROM collector_status WHERE machine_id = '{}' ORDER BY collector_name LIMIT {} OFFSET {}",
+        id.replace('\'', "''"),
+        params.limit,
+        params.offset
+    );
+    let collectors = state.store.query_json(&sql)?;
+
+    Ok(Json(serde_json::json!({
+        "machine_id": id,
+        "collectors": collectors,
+        "limit": params.limit,
+        "offset": params.offset
+    })))
+}
+
 // =============================================================================
 // Alerts Endpoints
 // =============================================================================
@@ -281,6 +303,24 @@ async fn alerts_handler(
     Ok(Json(serde_json::json!({
         "alerts": alerts,
         "limit": params.limit
+    })))
+}
+
+/// Alert rules endpoint
+async fn alert_rules_handler(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<PaginationParams>,
+) -> Result<Json<serde_json::Value>, WebError> {
+    let sql = format!(
+        "SELECT * FROM alert_rules ORDER BY rule_id LIMIT {} OFFSET {}",
+        params.limit, params.offset
+    );
+    let rules = state.store.query_json(&sql)?;
+
+    Ok(Json(serde_json::json!({
+        "rules": rules,
+        "limit": params.limit,
+        "offset": params.offset
     })))
 }
 
@@ -351,6 +391,24 @@ async fn guardian_runs_handler(
 
     Ok(Json(serde_json::json!({
         "runs": runs,
+        "limit": params.limit,
+        "offset": params.offset
+    })))
+}
+
+/// Guardian pending approvals endpoint
+async fn guardian_pending_handler(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<PaginationParams>,
+) -> Result<Json<serde_json::Value>, WebError> {
+    let sql = format!(
+        "SELECT * FROM guardian_runs WHERE status = 'pending_approval' ORDER BY started_at DESC LIMIT {} OFFSET {}",
+        params.limit, params.offset
+    );
+    let pending = state.store.query_json(&sql)?;
+
+    Ok(Json(serde_json::json!({
+        "pending": pending,
         "limit": params.limit,
         "offset": params.offset
     })))
@@ -663,6 +721,24 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_machine_collectors_endpoint() {
+        let state = test_state();
+        let app = create_router(state);
+
+        let request = Request::builder()
+            .uri("/api/machines/test-machine/collectors")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(json.get("collectors").is_some());
+    }
+
+    #[tokio::test]
     async fn test_alerts_endpoint() {
         let state = test_state();
         let app = create_router(state);
@@ -678,6 +754,24 @@ mod tests {
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert!(json.get("alerts").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_alert_rules_endpoint() {
+        let state = test_state();
+        let app = create_router(state);
+
+        let request = Request::builder()
+            .uri("/api/alerts/rules")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(json.get("rules").is_some());
     }
 
     #[tokio::test]
@@ -750,6 +844,24 @@ mod tests {
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert!(json.get("runs").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_guardian_pending_endpoint() {
+        let state = test_state();
+        let app = create_router(state);
+
+        let request = Request::builder()
+            .uri("/api/guardian/pending")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(json.get("pending").is_some());
     }
 
     #[tokio::test]
