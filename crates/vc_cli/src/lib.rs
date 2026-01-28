@@ -2,13 +2,17 @@
 //!
 //! This crate provides:
 //! - clap-based command definitions
-//! - Robot mode output formatting
+//! - Robot mode output formatting (JSON envelope)
 //! - TOON output support
 //! - All subcommands (status, tui, daemon, robot, etc.)
 
 use clap::{Parser, Subcommand, ValueEnum};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+
+pub mod robot;
+
+pub use robot::{RobotEnvelope, HealthData, TriageData};
 
 /// CLI errors
 #[derive(Error, Debug)]
@@ -283,20 +287,43 @@ impl Cli {
                 // Status implementation will go here
             }
             Commands::Robot { command } => {
-                // Robot mode output
-                match self.format {
-                    OutputFormat::Json => {
-                        let output = serde_json::json!({
-                            "schema_version": "vc.robot.v1",
-                            "command": format!("{command:?}")
-                        });
-                        println!("{}", serde_json::to_string_pretty(&output).unwrap());
+                // Robot mode output - always JSON for robot commands
+                match command {
+                    RobotCommands::Health => {
+                        let output = robot::robot_health();
+                        println!("{}", output.to_json_pretty());
                     }
-                    OutputFormat::Toon => {
-                        println!("TOON1|...");
+                    RobotCommands::Triage => {
+                        let output = robot::robot_triage();
+                        println!("{}", output.to_json_pretty());
                     }
-                    OutputFormat::Text => {
-                        println!("Robot command: {command:?}");
+                    RobotCommands::Accounts => {
+                        let output = robot::RobotEnvelope::new(
+                            "vc.robot.accounts.v1",
+                            serde_json::json!({ "accounts": [], "warning": "not yet implemented" }),
+                        );
+                        println!("{}", output.to_json_pretty());
+                    }
+                    RobotCommands::Oracle => {
+                        let output = robot::RobotEnvelope::new(
+                            "vc.robot.oracle.v1",
+                            serde_json::json!({ "predictions": [], "warning": "not yet implemented" }),
+                        );
+                        println!("{}", output.to_json_pretty());
+                    }
+                    RobotCommands::Machines => {
+                        let output = robot::RobotEnvelope::new(
+                            "vc.robot.machines.v1",
+                            serde_json::json!({ "machines": [], "warning": "not yet implemented" }),
+                        );
+                        println!("{}", output.to_json_pretty());
+                    }
+                    RobotCommands::Repos => {
+                        let output = robot::RobotEnvelope::new(
+                            "vc.robot.repos.v1",
+                            serde_json::json!({ "repos": [], "warning": "not yet implemented" }),
+                        );
+                        println!("{}", output.to_json_pretty());
                     }
                 }
             }
@@ -322,5 +349,57 @@ mod tests {
     fn test_robot_parse() {
         let cli = Cli::parse_from(["vc", "robot", "health"]);
         assert!(matches!(cli.command, Commands::Robot { .. }));
+    }
+
+    #[test]
+    fn test_robot_health_parse() {
+        let cli = Cli::parse_from(["vc", "robot", "health"]);
+        if let Commands::Robot { command } = cli.command {
+            assert!(matches!(command, RobotCommands::Health));
+        } else {
+            panic!("Expected Robot command");
+        }
+    }
+
+    #[test]
+    fn test_robot_triage_parse() {
+        let cli = Cli::parse_from(["vc", "robot", "triage"]);
+        if let Commands::Robot { command } = cli.command {
+            assert!(matches!(command, RobotCommands::Triage));
+        } else {
+            panic!("Expected Robot command");
+        }
+    }
+
+    #[test]
+    fn test_global_format_flag() {
+        let cli = Cli::parse_from(["vc", "--format", "json", "status"]);
+        assert!(matches!(cli.format, OutputFormat::Json));
+    }
+
+    #[test]
+    fn test_global_verbose_flag() {
+        let cli = Cli::parse_from(["vc", "--verbose", "status"]);
+        assert!(cli.verbose);
+    }
+
+    #[test]
+    fn test_daemon_foreground() {
+        let cli = Cli::parse_from(["vc", "daemon", "--foreground"]);
+        if let Commands::Daemon { foreground } = cli.command {
+            assert!(foreground);
+        } else {
+            panic!("Expected Daemon command");
+        }
+    }
+
+    #[test]
+    fn test_web_port() {
+        let cli = Cli::parse_from(["vc", "web", "--port", "3000"]);
+        if let Commands::Web { port, .. } = cli.command {
+            assert_eq!(port, 3000);
+        } else {
+            panic!("Expected Web command");
+        }
     }
 }
