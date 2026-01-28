@@ -357,6 +357,48 @@ mod tests {
     }
 
     #[test]
+    fn test_insert_json_non_object_error() {
+        let store = VcStore::open_memory().unwrap();
+        store
+            .execute("CREATE TABLE test_insert (id INTEGER, name TEXT)")
+            .unwrap();
+
+        let result = store.insert_json("test_insert", &serde_json::json!(["not", "object"]));
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("insert_json requires a JSON object"));
+    }
+
+    #[test]
+    fn test_insert_json_batch_empty() {
+        let store = VcStore::open_memory().unwrap();
+        store
+            .execute("CREATE TABLE test_batch (id INTEGER, name TEXT)")
+            .unwrap();
+
+        let count = store
+            .insert_json_batch("test_batch", &[])
+            .unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn test_query_scalar() {
+        let store = VcStore::open_memory().unwrap();
+        store
+            .execute("CREATE TABLE test_scalar (id INTEGER, value INTEGER)")
+            .unwrap();
+        store.execute("INSERT INTO test_scalar VALUES (1, 42)").unwrap();
+
+        let value: i64 = store
+            .query_scalar("SELECT value FROM test_scalar WHERE id = 1")
+            .unwrap();
+        assert_eq!(value, 42);
+    }
+
+    #[test]
     fn test_upsert_json() {
         let store = VcStore::open_memory().unwrap();
 
