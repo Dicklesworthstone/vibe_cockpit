@@ -195,6 +195,53 @@ mod tests {
         }
     }
 
+    // ==========================================================================
+    // Severity Tests
+    // ==========================================================================
+
+    #[test]
+    fn test_severity_ordering() {
+        assert!(Severity::Info < Severity::Warning);
+        assert!(Severity::Warning < Severity::Critical);
+        assert!(Severity::Info < Severity::Critical);
+    }
+
+    #[test]
+    fn test_severity_serialization() {
+        assert_eq!(
+            serde_json::to_string(&Severity::Info).unwrap(),
+            "\"info\""
+        );
+        assert_eq!(
+            serde_json::to_string(&Severity::Warning).unwrap(),
+            "\"warning\""
+        );
+        assert_eq!(
+            serde_json::to_string(&Severity::Critical).unwrap(),
+            "\"critical\""
+        );
+    }
+
+    #[test]
+    fn test_severity_deserialization() {
+        assert_eq!(
+            serde_json::from_str::<Severity>("\"info\"").unwrap(),
+            Severity::Info
+        );
+        assert_eq!(
+            serde_json::from_str::<Severity>("\"warning\"").unwrap(),
+            Severity::Warning
+        );
+        assert_eq!(
+            serde_json::from_str::<Severity>("\"critical\"").unwrap(),
+            Severity::Critical
+        );
+    }
+
+    // ==========================================================================
+    // ThresholdOp Tests
+    // ==========================================================================
+
     #[test]
     fn test_threshold_op() {
         assert!(ThresholdOp::Gt.check(10.0, 5.0));
@@ -204,9 +251,266 @@ mod tests {
     }
 
     #[test]
+    fn test_threshold_op_all_operators() {
+        // Gt (greater than)
+        assert!(ThresholdOp::Gt.check(10.0, 5.0));
+        assert!(!ThresholdOp::Gt.check(5.0, 5.0)); // equal should fail
+        assert!(!ThresholdOp::Gt.check(4.0, 5.0));
+
+        // Gte (greater than or equal)
+        assert!(ThresholdOp::Gte.check(10.0, 5.0));
+        assert!(ThresholdOp::Gte.check(5.0, 5.0)); // equal should pass
+        assert!(!ThresholdOp::Gte.check(4.0, 5.0));
+
+        // Lt (less than)
+        assert!(ThresholdOp::Lt.check(4.0, 5.0));
+        assert!(!ThresholdOp::Lt.check(5.0, 5.0)); // equal should fail
+        assert!(!ThresholdOp::Lt.check(6.0, 5.0));
+
+        // Lte (less than or equal)
+        assert!(ThresholdOp::Lte.check(4.0, 5.0));
+        assert!(ThresholdOp::Lte.check(5.0, 5.0)); // equal should pass
+        assert!(!ThresholdOp::Lte.check(6.0, 5.0));
+
+        // Eq (equal)
+        assert!(ThresholdOp::Eq.check(5.0, 5.0));
+        assert!(!ThresholdOp::Eq.check(5.1, 5.0));
+    }
+
+    #[test]
+    fn test_threshold_op_edge_cases() {
+        // Very small differences
+        assert!(!ThresholdOp::Eq.check(0.0000001, 0.0));
+
+        // Negative numbers
+        assert!(ThresholdOp::Lt.check(-10.0, -5.0));
+        assert!(ThresholdOp::Gt.check(-5.0, -10.0));
+
+        // Zero
+        assert!(ThresholdOp::Eq.check(0.0, 0.0));
+        assert!(ThresholdOp::Gte.check(0.0, 0.0));
+        assert!(ThresholdOp::Lte.check(0.0, 0.0));
+    }
+
+    #[test]
+    fn test_threshold_op_serialization() {
+        assert_eq!(serde_json::to_string(&ThresholdOp::Gt).unwrap(), "\"gt\"");
+        assert_eq!(serde_json::to_string(&ThresholdOp::Gte).unwrap(), "\"gte\"");
+        assert_eq!(serde_json::to_string(&ThresholdOp::Lt).unwrap(), "\"lt\"");
+        assert_eq!(serde_json::to_string(&ThresholdOp::Lte).unwrap(), "\"lte\"");
+        assert_eq!(serde_json::to_string(&ThresholdOp::Eq).unwrap(), "\"eq\"");
+    }
+
+    // ==========================================================================
+    // AlertCondition Tests
+    // ==========================================================================
+
+    #[test]
+    fn test_alert_condition_threshold_serialization() {
+        let condition = AlertCondition::Threshold {
+            query: "SELECT MAX(usage) FROM table".to_string(),
+            operator: ThresholdOp::Gte,
+            value: 80.0,
+        };
+
+        let json = serde_json::to_string(&condition).unwrap();
+        assert!(json.contains("\"type\":\"threshold\""));
+        assert!(json.contains("\"query\""));
+        assert!(json.contains("\"operator\""));
+        assert!(json.contains("\"value\""));
+
+        // Round-trip
+        let parsed: AlertCondition = serde_json::from_str(&json).unwrap();
+        if let AlertCondition::Threshold { query, operator, value } = parsed {
+            assert_eq!(query, "SELECT MAX(usage) FROM table");
+            assert!(matches!(operator, ThresholdOp::Gte));
+            assert!((value - 80.0).abs() < f64::EPSILON);
+        } else {
+            panic!("Expected Threshold condition");
+        }
+    }
+
+    #[test]
+    fn test_alert_condition_pattern_serialization() {
+        let condition = AlertCondition::Pattern {
+            table: "logs".to_string(),
+            column: "message".to_string(),
+            regex: "error.*critical".to_string(),
+        };
+
+        let json = serde_json::to_string(&condition).unwrap();
+        assert!(json.contains("\"type\":\"pattern\""));
+
+        let parsed: AlertCondition = serde_json::from_str(&json).unwrap();
+        if let AlertCondition::Pattern { table, column, regex } = parsed {
+            assert_eq!(table, "logs");
+            assert_eq!(column, "message");
+            assert_eq!(regex, "error.*critical");
+        } else {
+            panic!("Expected Pattern condition");
+        }
+    }
+
+    #[test]
+    fn test_alert_condition_absence_serialization() {
+        let condition = AlertCondition::Absence {
+            table: "heartbeats".to_string(),
+            max_age_secs: 300,
+        };
+
+        let json = serde_json::to_string(&condition).unwrap();
+        assert!(json.contains("\"type\":\"absence\""));
+
+        let parsed: AlertCondition = serde_json::from_str(&json).unwrap();
+        if let AlertCondition::Absence { table, max_age_secs } = parsed {
+            assert_eq!(table, "heartbeats");
+            assert_eq!(max_age_secs, 300);
+        } else {
+            panic!("Expected Absence condition");
+        }
+    }
+
+    #[test]
+    fn test_alert_condition_rate_of_change_serialization() {
+        let condition = AlertCondition::RateOfChange {
+            query: "SELECT usage FROM metrics".to_string(),
+            window_secs: 60,
+            threshold_per_sec: 1.5,
+        };
+
+        let json = serde_json::to_string(&condition).unwrap();
+        assert!(json.contains("\"type\":\"rate_of_change\""));
+
+        let parsed: AlertCondition = serde_json::from_str(&json).unwrap();
+        if let AlertCondition::RateOfChange { query, window_secs, threshold_per_sec } = parsed {
+            assert_eq!(query, "SELECT usage FROM metrics");
+            assert_eq!(window_secs, 60);
+            assert!((threshold_per_sec - 1.5).abs() < f64::EPSILON);
+        } else {
+            panic!("Expected RateOfChange condition");
+        }
+    }
+
+    // ==========================================================================
+    // AlertRule Tests
+    // ==========================================================================
+
+    #[test]
+    fn test_alert_rule_serialization() {
+        let rule = AlertRule {
+            rule_id: "test-rule".to_string(),
+            name: "Test Rule".to_string(),
+            description: Some("A test rule".to_string()),
+            severity: Severity::Warning,
+            enabled: true,
+            condition: AlertCondition::Threshold {
+                query: "SELECT 1".to_string(),
+                operator: ThresholdOp::Gt,
+                value: 0.0,
+            },
+            cooldown_secs: 300,
+            channels: vec!["tui".to_string(), "webhook".to_string()],
+        };
+
+        let json = serde_json::to_string(&rule).unwrap();
+        let parsed: AlertRule = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed.rule_id, "test-rule");
+        assert_eq!(parsed.name, "Test Rule");
+        assert_eq!(parsed.description, Some("A test rule".to_string()));
+        assert_eq!(parsed.severity, Severity::Warning);
+        assert!(parsed.enabled);
+        assert_eq!(parsed.cooldown_secs, 300);
+        assert_eq!(parsed.channels.len(), 2);
+    }
+
+    // ==========================================================================
+    // Alert Tests
+    // ==========================================================================
+
+    #[test]
+    fn test_alert_serialization() {
+        let alert = Alert {
+            id: Some(42),
+            rule_id: "disk-critical".to_string(),
+            fired_at: Utc::now(),
+            severity: Severity::Critical,
+            title: "Disk Full".to_string(),
+            message: "Disk usage at 95%".to_string(),
+            machine_id: Some("server-1".to_string()),
+            context: serde_json::json!({"disk": "/dev/sda1", "usage_pct": 95.0}),
+        };
+
+        let json = serde_json::to_string(&alert).unwrap();
+        let parsed: Alert = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed.id, Some(42));
+        assert_eq!(parsed.rule_id, "disk-critical");
+        assert_eq!(parsed.severity, Severity::Critical);
+        assert_eq!(parsed.title, "Disk Full");
+        assert_eq!(parsed.machine_id, Some("server-1".to_string()));
+    }
+
+    #[test]
+    fn test_alert_minimal() {
+        let alert = Alert {
+            id: None,
+            rule_id: "test".to_string(),
+            fired_at: Utc::now(),
+            severity: Severity::Info,
+            title: "Test".to_string(),
+            message: "Test message".to_string(),
+            machine_id: None,
+            context: serde_json::json!({}),
+        };
+
+        let json = serde_json::to_string(&alert).unwrap();
+        assert!(json.contains("\"rule_id\":\"test\""));
+    }
+
+    // ==========================================================================
+    // AlertError Tests
+    // ==========================================================================
+
+    #[test]
+    fn test_alert_error_display() {
+        let err = AlertError::RuleNotFound("missing-rule".to_string());
+        assert_eq!(format!("{}", err), "Rule not found: missing-rule");
+
+        let err = AlertError::EvaluationFailed("query timeout".to_string());
+        assert_eq!(format!("{}", err), "Evaluation failed: query timeout");
+
+        let err = AlertError::DeliveryFailed("webhook unreachable".to_string());
+        assert_eq!(format!("{}", err), "Delivery failed: webhook unreachable");
+    }
+
+    // ==========================================================================
+    // AlertEngine Tests
+    // ==========================================================================
+
+    #[test]
     fn test_default_rules() {
         let engine = AlertEngine::new();
         assert!(!engine.rules().is_empty());
+    }
+
+    #[test]
+    fn test_default_rules_content() {
+        let engine = AlertEngine::new();
+        let rules = engine.rules();
+
+        // Should have rate-limit-warning rule
+        let rate_rule = rules.iter().find(|r| r.rule_id == "rate-limit-warning");
+        assert!(rate_rule.is_some());
+        let rate_rule = rate_rule.unwrap();
+        assert_eq!(rate_rule.severity, Severity::Warning);
+        assert!(rate_rule.enabled);
+
+        // Should have disk-critical rule
+        let disk_rule = rules.iter().find(|r| r.rule_id == "disk-critical");
+        assert!(disk_rule.is_some());
+        let disk_rule = disk_rule.unwrap();
+        assert_eq!(disk_rule.severity, Severity::Critical);
     }
 
     #[test]
@@ -217,10 +521,36 @@ mod tests {
         assert!(engine.is_in_cooldown("test", 60));
     }
 
+    #[test]
+    fn test_cooldown_multiple_rules() {
+        let engine = AlertEngine::new();
+
+        // Fire rule A
+        engine.record_fired("rule-a");
+        assert!(engine.is_in_cooldown("rule-a", 300));
+        assert!(!engine.is_in_cooldown("rule-b", 300));
+
+        // Fire rule B
+        engine.record_fired("rule-b");
+        assert!(engine.is_in_cooldown("rule-a", 300));
+        assert!(engine.is_in_cooldown("rule-b", 300));
+    }
+
+    #[test]
+    fn test_alert_engine_default() {
+        let engine1 = AlertEngine::new();
+        let engine2 = AlertEngine::default();
+        assert_eq!(engine1.rules().len(), engine2.rules().len());
+    }
+
+    // ==========================================================================
+    // Mock Channel Tests
+    // ==========================================================================
+
     #[tokio::test]
     async fn test_mock_channel_deliver() {
         let mut mock = MockChannel::new();
-        mock.expect_name().return_const("mock");
+        mock.expect_name().return_const("mock".to_string());
         mock.expect_deliver().returning(|_| Ok(()));
 
         let alert = Alert {
@@ -236,5 +566,28 @@ mod tests {
 
         assert_eq!(mock.name(), "mock");
         assert!(mock.deliver(&alert).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_mock_channel_delivery_failure() {
+        let mut mock = MockChannel::new();
+        mock.expect_name().return_const("failing-channel".to_string());
+        mock.expect_deliver()
+            .returning(|_| Err(AlertError::DeliveryFailed("connection refused".to_string())));
+
+        let alert = Alert {
+            id: None,
+            rule_id: "test-rule".to_string(),
+            fired_at: Utc::now(),
+            severity: Severity::Warning,
+            title: "Test".to_string(),
+            message: "Testing".to_string(),
+            machine_id: None,
+            context: serde_json::json!({}),
+        };
+
+        let result = mock.deliver(&alert).await;
+        assert!(result.is_err());
+        assert!(matches!(result, Err(AlertError::DeliveryFailed(_))));
     }
 }

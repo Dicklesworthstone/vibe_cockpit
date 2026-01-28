@@ -425,24 +425,25 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_sysmoni_collector_without_tool() {
+    async fn test_sysmoni_collector_behavior() {
         let collector = SysmoniCollector;
         let ctx = CollectContext::local("test", Duration::from_secs(5));
 
-        // This should fail with ToolNotFound since sysmoni is not installed
         let result = collector.collect(&ctx).await;
 
-        // Either ToolNotFound or ExecutionError is acceptable
-        assert!(result.is_err());
+        // Test handles both cases: sysmoni installed or not
         match result {
             Err(CollectError::ToolNotFound(tool)) => {
+                // Expected when sysmoni is not installed
                 assert_eq!(tool, "sysmoni");
             }
             Err(_) => {
-                // Other errors are acceptable (e.g., command not found)
+                // Other errors are acceptable (e.g., command not found, parse error)
             }
-            Ok(_) => {
-                // This would only succeed if sysmoni is actually installed
+            Ok(collect_result) => {
+                // If sysmoni is installed, verify the result structure
+                assert!(collect_result.success);
+                assert!(collect_result.total_rows() >= 1); // At least sys_samples row
             }
         }
     }

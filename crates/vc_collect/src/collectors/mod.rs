@@ -5,7 +5,7 @@
 
 use async_trait::async_trait;
 use chrono::Utc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use crate::{CollectContext, CollectError, CollectResult, Collector, Cursor, RowBatch};
 
@@ -284,7 +284,7 @@ pub struct RuStatusOutput {
 }
 
 /// Status of a single repo
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 pub struct RuRepoStatus {
     pub path: String,
     #[serde(default)]
@@ -907,218 +907,10 @@ impl FallbackProbeCollector {
     }
 }
 
-// =============================================================================
-// Sysmoni Collector
-// =============================================================================
-
-/// Output from `sysmoni --json`
-#[derive(Debug, Deserialize)]
-pub struct SysmoniOutput {
-    #[serde(default)]
-    pub timestamp: Option<String>,
-    #[serde(default)]
-    pub cpu: Option<SysmoniCpu>,
-    #[serde(default)]
-    pub memory: Option<SysmoniMemory>,
-    #[serde(default)]
-    pub disk: Option<SysmoniDisk>,
-    #[serde(default)]
-    pub network: Option<SysmoniNetwork>,
-    #[serde(default)]
-    pub processes: Vec<SysmoniProcess>,
-}
-
-/// CPU metrics from sysmoni
-#[derive(Debug, Deserialize)]
-pub struct SysmoniCpu {
-    #[serde(default)]
-    pub total_percent: Option<f64>,
-    #[serde(default)]
-    pub per_core: Vec<f64>,
-    #[serde(default)]
-    pub load_1: Option<f64>,
-    #[serde(default)]
-    pub load_5: Option<f64>,
-    #[serde(default)]
-    pub load_15: Option<f64>,
-}
-
-/// Memory metrics from sysmoni
-#[derive(Debug, Deserialize)]
-pub struct SysmoniMemory {
-    #[serde(default)]
-    pub total_bytes: Option<i64>,
-    #[serde(default)]
-    pub used_bytes: Option<i64>,
-    #[serde(default)]
-    pub available_bytes: Option<i64>,
-    #[serde(default)]
-    pub swap_total_bytes: Option<i64>,
-    #[serde(default)]
-    pub swap_used_bytes: Option<i64>,
-}
-
-/// Disk metrics from sysmoni
-#[derive(Debug, Deserialize)]
-pub struct SysmoniDisk {
-    #[serde(default)]
-    pub read_bytes_per_sec: Option<i64>,
-    #[serde(default)]
-    pub write_bytes_per_sec: Option<i64>,
-    #[serde(default)]
-    pub filesystems: Vec<SysmoniFilesystem>,
-}
-
-/// Filesystem info from sysmoni
-#[derive(Debug, Deserialize)]
-pub struct SysmoniFilesystem {
-    pub mount: String,
-    #[serde(default)]
-    pub total_bytes: Option<i64>,
-    #[serde(default)]
-    pub used_bytes: Option<i64>,
-}
-
-/// Network metrics from sysmoni
-#[derive(Debug, Deserialize)]
-pub struct SysmoniNetwork {
-    #[serde(default)]
-    pub rx_bytes_per_sec: Option<i64>,
-    #[serde(default)]
-    pub tx_bytes_per_sec: Option<i64>,
-}
-
-/// Process info from sysmoni
-#[derive(Debug, Deserialize)]
-pub struct SysmoniProcess {
-    #[serde(default)]
-    pub pid: Option<i32>,
-    #[serde(default)]
-    pub name: Option<String>,
-    #[serde(default)]
-    pub cpu_percent: Option<f64>,
-    #[serde(default)]
-    pub memory_bytes: Option<i64>,
-}
-
-/// Collector for system metrics via the `sysmoni` tool
-///
-/// This collector uses the CLI Snapshot pattern:
-/// - `sysmoni --json` for one-shot system metrics snapshot
-///
-/// Provides CPU, memory, disk, network, and top process data.
-pub struct SysmoniCollector;
-
-#[async_trait]
-impl Collector for SysmoniCollector {
-    fn name(&self) -> &'static str {
-        "sysmoni"
-    }
-
-    fn schema_version(&self) -> u32 {
-        1
-    }
-
-    fn required_tool(&self) -> Option<&'static str> {
-        Some("sysmoni")
-    }
-
-    fn supports_incremental(&self) -> bool {
-        false // Each collection is a point-in-time snapshot
-    }
-
-    async fn collect(&self, ctx: &CollectContext) -> Result<CollectResult, CollectError> {
-        let start = Instant::now();
-        let mut warnings = Vec::new();
-
-        // Run sysmoni --json
-        let output = ctx
-            .executor
-            .run_timeout("sysmoni --json", ctx.timeout)
-            .await?;
-
-        // Parse the JSON output
-        let data: SysmoniOutput = serde_json::from_str(&output)
-            .map_err(|e| CollectError::ParseError(format!("Failed to parse sysmoni output: {}", e)))?;
-
-        // Build sys_samples row
-        let cpu = data.cpu.as_ref();
-        let mem = data.memory.as_ref();
-        let disk = data.disk.as_ref();
-        let net = data.network.as_ref();
-
-        let sys_row = serde_json::json!({
-            "machine_id": &ctx.machine_id,
-            "collected_at": ctx.collected_at.to_rfc3339(),
-            "cpu_total": cpu.and_then(|c| c.total_percent),
-            "load1": cpu.and_then(|c| c.load_1),
-            "load5": cpu.and_then(|c| c.load_5),
-            "load15": cpu.and_then(|c| c.load_15),
-            "mem_used_bytes": mem.and_then(|m| m.used_bytes),
-            "mem_total_bytes": mem.and_then(|m| m.total_bytes),
-            "mem_available_bytes": mem.and_then(|m| m.available_bytes),
-            "swap_used_bytes": mem.and_then(|m| m.swap_used_bytes),
-            "swap_total_bytes": mem.and_then(|m| m.swap_total_bytes),
-            "disk_read_mbps": disk.and_then(|d| d.read_bytes_per_sec).map(|b| b as f64 / 1_000_000.0),
-            "disk_write_mbps": disk.and_then(|d| d.write_bytes_per_sec).map(|b| b as f64 / 1_000_000.0),
-            "net_rx_mbps": net.and_then(|n| n.rx_bytes_per_sec).map(|b| b as f64 / 1_000_000.0),
-            "net_tx_mbps": net.and_then(|n| n.tx_bytes_per_sec).map(|b| b as f64 / 1_000_000.0),
-            "raw_json": output,
-        });
-
-        // Build sys_top_processes rows (limit to top 10)
-        let proc_rows: Vec<serde_json::Value> = data
-            .processes
-            .iter()
-            .take(10)
-            .map(|p| {
-                serde_json::json!({
-                    "machine_id": &ctx.machine_id,
-                    "collected_at": ctx.collected_at.to_rfc3339(),
-                    "pid": p.pid,
-                    "comm": p.name,
-                    "cpu_pct": p.cpu_percent,
-                    "mem_bytes": p.memory_bytes,
-                })
-            })
-            .collect();
-
-        // Check for missing data and add warnings
-        if cpu.is_none() {
-            warnings.push("No CPU data in sysmoni output".to_string());
-        }
-        if mem.is_none() {
-            warnings.push("No memory data in sysmoni output".to_string());
-        }
-
-        let mut batches = vec![RowBatch {
-            table: "sys_samples".to_string(),
-            rows: vec![sys_row],
-        }];
-
-        if !proc_rows.is_empty() {
-            batches.push(RowBatch {
-                table: "sys_top_processes".to_string(),
-                rows: proc_rows,
-            });
-        }
-
-        let mut result = CollectResult::with_rows(batches)
-            .with_cursor(Cursor::now())
-            .with_duration(start.elapsed());
-
-        // Add warnings to result
-        for warning in warnings {
-            result = result.with_warning(Warning::warn(warning));
-        }
-
-        Ok(result)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
 
     #[tokio::test]
     async fn test_dummy_collector() {

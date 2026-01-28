@@ -11,7 +11,8 @@ use vc_cli::Cli;
 async fn main() -> Result<()> {
     // Parse CLI arguments with build metadata in version output
     let mut cmd = Cli::command();
-    cmd = cmd.version(build_version());
+    let version: &'static str = Box::leak(build_version().into_boxed_str());
+    cmd = cmd.version(version);
     let matches = cmd.get_matches();
     let cli = Cli::from_arg_matches(&matches)?;
 
