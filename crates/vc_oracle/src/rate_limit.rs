@@ -44,11 +44,11 @@ pub struct ForecastConfig {
 impl Default for ForecastConfig {
     fn default() -> Self {
         Self {
-            swap_now_threshold_secs: 300,      // 5 minutes
-            prepare_swap_threshold_secs: 600,  // 10 minutes
-            slow_down_threshold_secs: 1800,    // 30 minutes
-            high_velocity_threshold: 1.0,      // 1% per minute
-            slow_down_factor: 0.7,             // Target 70% of current velocity
+            swap_now_threshold_secs: 300,     // 5 minutes
+            prepare_swap_threshold_secs: 600, // 10 minutes
+            slow_down_threshold_secs: 1800,   // 30 minutes
+            high_velocity_threshold: 1.0,     // 1% per minute
+            slow_down_factor: 0.7,            // Target 70% of current velocity
         }
     }
 }
@@ -81,9 +81,7 @@ impl RateLimitForecaster {
         // Generate forecasts for each account
         let mut forecasts: Vec<_> = grouped
             .into_iter()
-            .filter_map(|(key, account_samples)| {
-                self.forecast_single(&key, &account_samples).ok()
-            })
+            .filter_map(|(key, account_samples)| self.forecast_single(&key, &account_samples).ok())
             .collect();
 
         // Sort by urgency (smallest time_to_limit first)
@@ -581,15 +579,13 @@ mod tests {
     #[test]
     fn test_rank_alternative_accounts_excludes_low_headroom() {
         let base = Utc::now();
-        let samples = vec![
-            UsageSample {
-                provider: "claude".to_string(),
-                account: "alt@example.com".to_string(),
-                used_percent: 95.0, // Only 5% headroom - excluded
-                collected_at: base,
-                resets_at: None,
-            },
-        ];
+        let samples = vec![UsageSample {
+            provider: "claude".to_string(),
+            account: "alt@example.com".to_string(),
+            used_percent: 95.0, // Only 5% headroom - excluded
+            collected_at: base,
+            resets_at: None,
+        }];
 
         let alternatives = rank_alternative_accounts(&samples, "claude", "current@example.com");
         assert!(alternatives.is_empty());
@@ -676,7 +672,12 @@ mod tests {
         let conf_many = forecaster.calculate_confidence(&samples_many, 1.0);
 
         // More samples should give higher confidence (same recency for both)
-        assert!(conf_many > conf_few, "conf_many={} should be > conf_few={}", conf_many, conf_few);
+        assert!(
+            conf_many > conf_few,
+            "conf_many={} should be > conf_few={}",
+            conf_many,
+            conf_few
+        );
     }
 
     #[test]
@@ -687,8 +688,7 @@ mod tests {
         let reset_time = Utc::now() + chrono::Duration::minutes(30);
         let time_to_limit = Duration::from_secs(3600); // 60 minutes
 
-        let optimal =
-            forecaster.calculate_optimal_swap_time(time_to_limit, Some(reset_time));
+        let optimal = forecaster.calculate_optimal_swap_time(time_to_limit, Some(reset_time));
         assert!(optimal.is_none());
     }
 

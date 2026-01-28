@@ -62,7 +62,9 @@ impl McpServer {
         vec![
             McpTool {
                 name: "vc_fleet_status".to_string(),
-                description: "Get current fleet status including machines, agents, and health scores".to_string(),
+                description:
+                    "Get current fleet status including machines, agents, and health scores"
+                        .to_string(),
                 input_schema: serde_json::json!({
                     "type": "object",
                     "properties": {
@@ -153,21 +155,15 @@ impl McpServer {
                     "health_score": 1.0
                 }))
             }
-            "vc_triage" => {
-                Ok(serde_json::json!({
-                    "recommendations": []
-                }))
-            }
-            "vc_alerts" => {
-                Ok(serde_json::json!({
-                    "alerts": []
-                }))
-            }
-            "vc_oracle" => {
-                Ok(serde_json::json!({
-                    "predictions": []
-                }))
-            }
+            "vc_triage" => Ok(serde_json::json!({
+                "recommendations": []
+            })),
+            "vc_alerts" => Ok(serde_json::json!({
+                "alerts": []
+            })),
+            "vc_oracle" => Ok(serde_json::json!({
+                "predictions": []
+            })),
             _ => Err(McpError::ToolNotFound(name.to_string())),
         }
     }
@@ -175,15 +171,11 @@ impl McpServer {
     /// Read a resource
     pub async fn read_resource(&self, uri: &str) -> Result<serde_json::Value, McpError> {
         match uri {
-            "vc://fleet/overview" => {
-                Ok(serde_json::json!({
-                    "machines": [],
-                    "health": 1.0
-                }))
-            }
-            "vc://machines" => {
-                Ok(serde_json::json!([]))
-            }
+            "vc://fleet/overview" => Ok(serde_json::json!({
+                "machines": [],
+                "health": 1.0
+            })),
+            "vc://machines" => Ok(serde_json::json!([])),
             _ => Err(McpError::InvalidRequest(format!("Unknown resource: {uri}"))),
         }
     }
@@ -223,7 +215,11 @@ mod tests {
     #[test]
     fn test_expected_tool_names() {
         let server = McpServer::new();
-        let tool_names: Vec<&str> = server.list_tools().iter().map(|t| t.name.as_str()).collect();
+        let tool_names: Vec<&str> = server
+            .list_tools()
+            .iter()
+            .map(|t| t.name.as_str())
+            .collect();
 
         assert!(tool_names.contains(&"vc_fleet_status"));
         assert!(tool_names.contains(&"vc_triage"));
@@ -234,7 +230,11 @@ mod tests {
     #[test]
     fn test_expected_resource_uris() {
         let server = McpServer::new();
-        let uris: Vec<&str> = server.list_resources().iter().map(|r| r.uri.as_str()).collect();
+        let uris: Vec<&str> = server
+            .list_resources()
+            .iter()
+            .map(|r| r.uri.as_str())
+            .collect();
 
         assert!(uris.contains(&"vc://fleet/overview"));
         assert!(uris.contains(&"vc://machines"));
@@ -244,7 +244,9 @@ mod tests {
     #[tokio::test]
     async fn test_call_tool_fleet_status() {
         let server = McpServer::new();
-        let result = server.call_tool("vc_fleet_status", serde_json::json!({})).await;
+        let result = server
+            .call_tool("vc_fleet_status", serde_json::json!({}))
+            .await;
         assert!(result.is_ok());
 
         let value = result.unwrap();
@@ -285,7 +287,9 @@ mod tests {
     #[tokio::test]
     async fn test_call_tool_not_found() {
         let server = McpServer::new();
-        let result = server.call_tool("nonexistent_tool", serde_json::json!({})).await;
+        let result = server
+            .call_tool("nonexistent_tool", serde_json::json!({}))
+            .await;
         assert!(result.is_err());
 
         match result.unwrap_err() {

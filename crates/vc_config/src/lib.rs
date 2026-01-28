@@ -101,7 +101,9 @@ pub fn expand_path(path: &Path) -> PathBuf {
         if let Some(home) = dirs::home_dir() {
             return home.join(stripped);
         }
-    } else if path_str == "~" && let Some(home) = dirs::home_dir() {
+    } else if path_str == "~"
+        && let Some(home) = dirs::home_dir()
+    {
         return home;
     }
     path.to_path_buf()
@@ -603,7 +605,12 @@ mod tests {
         config.global.poll_interval_secs = 0;
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("poll_interval_secs"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("poll_interval_secs")
+        );
     }
 
     #[test]

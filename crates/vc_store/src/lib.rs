@@ -208,8 +208,20 @@ impl VcStore {
         Ok(())
     }
 
+    /// Get access to the underlying connection
+    pub fn connection(&self) -> Arc<Mutex<Connection>> {
+        Arc::clone(&self.conn)
+    }
+
     /// Execute a query that returns no results
-    pub fn execute(&self, sql: &str) -> Result<usize, StoreError> {
+    pub fn execute(&self, sql: &str, params: &[&str]) -> Result<usize, StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let affected = conn.execute(sql, duckdb::params_from_iter(params.iter()))?;
+        Ok(affected)
+    }
+
+    /// Execute a query without parameters
+    pub fn execute_simple(&self, sql: &str) -> Result<usize, StoreError> {
         let conn = self.conn.lock().unwrap();
         let affected = conn.execute(sql, [])?;
         Ok(affected)
@@ -240,13 +252,10 @@ impl VcStore {
 
             let mut stmt = conn.prepare(&sql)?;
 
-            let params: Vec<Box<dyn duckdb::ToSql>> = map
-                .values()
-                .map(|v| json_value_to_sql(v))
-                .collect();
+            let params: Vec<Box<dyn duckdb::ToSql>> =
+                map.values().map(|v| json_value_to_sql(v)).collect();
 
-            let param_refs: Vec<&dyn duckdb::ToSql> =
-                params.iter().map(|b| b.as_ref()).collect();
+            let param_refs: Vec<&dyn duckdb::ToSql> = params.iter().map(|b| b.as_ref()).collect();
 
             stmt.execute(param_refs.as_slice())?;
             Ok(())
@@ -383,10 +392,7 @@ impl VcStore {
         }
 
         if let Some(machine_id) = &filter.machine_id {
-            clauses.push(format!(
-                "machine_id = '{}'",
-                escape_sql_literal(machine_id)
-            ));
+            clauses.push(format!("machine_id = '{}'", escape_sql_literal(machine_id)));
         }
 
         if let Some(since) = filter.since {
@@ -447,10 +453,8 @@ impl VcStore {
 
                 let mut stmt = conn.prepare(&sql)?;
 
-                let params: Vec<Box<dyn duckdb::ToSql>> = map
-                    .values()
-                    .map(|v| json_value_to_sql(v))
-                    .collect();
+                let params: Vec<Box<dyn duckdb::ToSql>> =
+                    map.values().map(|v| json_value_to_sql(v)).collect();
 
                 let param_refs: Vec<&dyn duckdb::ToSql> =
                     params.iter().map(|b| b.as_ref()).collect();
@@ -548,13 +552,19 @@ mod tests {
     #[test]
     fn test_execute_batch() {
         let store = VcStore::open_memory().unwrap();
-        store.execute_batch(r#"
+        store
+            .execute_batch(
+                r#"
             CREATE TABLE batch_test (id INTEGER, value TEXT);
             INSERT INTO batch_test VALUES (1, 'first');
             INSERT INTO batch_test VALUES (2, 'second');
-        "#).unwrap();
+        "#,
+            )
+            .unwrap();
 
-        let results = store.query_json("SELECT * FROM batch_test ORDER BY id").unwrap();
+        let results = store
+            .query_json("SELECT * FROM batch_test ORDER BY id")
+            .unwrap();
         assert_eq!(results.len(), 2);
         assert_eq!(results[0]["value"], "first");
         assert_eq!(results[1]["value"], "second");
@@ -569,23 +579,35 @@ mod tests {
         let store = VcStore::open_memory().unwrap();
 
         // Initially no cursor
-        let cursor = store.get_cursor("machine1", "collector_a", "last_ts").unwrap();
+        let cursor = store
+            .get_cursor("machine1", "collector_a", "last_ts")
+            .unwrap();
         assert!(cursor.is_none());
 
         // Set cursor
-        store.set_cursor("machine1", "collector_a", "last_ts", "2026-01-27T12:00:00Z").unwrap();
+        store
+            .set_cursor("machine1", "collector_a", "last_ts", "2026-01-27T12:00:00Z")
+            .unwrap();
 
         // Get cursor
-        let cursor = store.get_cursor("machine1", "collector_a", "last_ts").unwrap();
+        let cursor = store
+            .get_cursor("machine1", "collector_a", "last_ts")
+            .unwrap();
         assert_eq!(cursor, Some("2026-01-27T12:00:00Z".to_string()));
 
         // Update cursor
-        store.set_cursor("machine1", "collector_a", "last_ts", "2026-01-27T13:00:00Z").unwrap();
-        let cursor = store.get_cursor("machine1", "collector_a", "last_ts").unwrap();
+        store
+            .set_cursor("machine1", "collector_a", "last_ts", "2026-01-27T13:00:00Z")
+            .unwrap();
+        let cursor = store
+            .get_cursor("machine1", "collector_a", "last_ts")
+            .unwrap();
         assert_eq!(cursor, Some("2026-01-27T13:00:00Z".to_string()));
 
         // Different source
-        let other = store.get_cursor("machine1", "collector_b", "last_ts").unwrap();
+        let other = store
+            .get_cursor("machine1", "collector_b", "last_ts")
+            .unwrap();
         assert!(other.is_none());
     }
 
@@ -593,8 +615,12 @@ mod tests {
     fn test_cursor_different_machines() {
         let store = VcStore::open_memory().unwrap();
 
-        store.set_cursor("machine1", "src", "key", "value1").unwrap();
-        store.set_cursor("machine2", "src", "key", "value2").unwrap();
+        store
+            .set_cursor("machine1", "src", "key", "value1")
+            .unwrap();
+        store
+            .set_cursor("machine2", "src", "key", "value2")
+            .unwrap();
 
         let c1 = store.get_cursor("machine1", "src", "key").unwrap();
         let c2 = store.get_cursor("machine2", "src", "key").unwrap();
@@ -664,18 +690,18 @@ mod tests {
 
         let result = store.insert_json("test_insert", &serde_json::json!(["not", "object"]));
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("insert_json requires a JSON object"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("insert_json requires a JSON object")
+        );
     }
 
     #[test]
     fn test_insert_json_string_error() {
         let store = VcStore::open_memory().unwrap();
-        store
-            .execute("CREATE TABLE test_str (id INTEGER)")
-            .unwrap();
+        store.execute("CREATE TABLE test_str (id INTEGER)").unwrap();
 
         let result = store.insert_json("test_str", &serde_json::json!("just a string"));
         assert!(result.is_err());
@@ -839,9 +865,7 @@ mod tests {
             .execute("CREATE TABLE test_batch (id INTEGER, name TEXT)")
             .unwrap();
 
-        let count = store
-            .insert_json_batch("test_batch", &[])
-            .unwrap();
+        let count = store.insert_json_batch("test_batch", &[]).unwrap();
         assert_eq!(count, 0);
     }
 
@@ -860,7 +884,9 @@ mod tests {
         let count = store.insert_json_batch("test_batch_multi", &rows).unwrap();
         assert_eq!(count, 3);
 
-        let results = store.query_json("SELECT * FROM test_batch_multi ORDER BY id").unwrap();
+        let results = store
+            .query_json("SELECT * FROM test_batch_multi ORDER BY id")
+            .unwrap();
         assert_eq!(results.len(), 3);
         assert_eq!(results[0]["name"], "first");
         assert_eq!(results[1]["name"], "second");
@@ -877,7 +903,9 @@ mod tests {
         store
             .execute("CREATE TABLE test_scalar (id INTEGER, value INTEGER)")
             .unwrap();
-        store.execute("INSERT INTO test_scalar VALUES (1, 42)").unwrap();
+        store
+            .execute("INSERT INTO test_scalar VALUES (1, 42)")
+            .unwrap();
 
         let value: i64 = store
             .query_scalar("SELECT value FROM test_scalar WHERE id = 1")
@@ -891,7 +919,9 @@ mod tests {
         store
             .execute("CREATE TABLE test_str_scalar (id INTEGER, name TEXT)")
             .unwrap();
-        store.execute("INSERT INTO test_str_scalar VALUES (1, 'hello')").unwrap();
+        store
+            .execute("INSERT INTO test_str_scalar VALUES (1, 'hello')")
+            .unwrap();
 
         let name: String = store
             .query_scalar("SELECT name FROM test_str_scalar WHERE id = 1")
@@ -905,7 +935,9 @@ mod tests {
         store
             .execute("CREATE TABLE test_float (id INTEGER, val DOUBLE)")
             .unwrap();
-        store.execute("INSERT INTO test_float VALUES (1, 3.14)").unwrap();
+        store
+            .execute("INSERT INTO test_float VALUES (1, 3.14)")
+            .unwrap();
 
         let val: f64 = store
             .query_scalar("SELECT val FROM test_float WHERE id = 1")
@@ -916,7 +948,9 @@ mod tests {
     #[test]
     fn test_query_scalar_no_rows() {
         let store = VcStore::open_memory().unwrap();
-        store.execute("CREATE TABLE test_empty (id INTEGER)").unwrap();
+        store
+            .execute("CREATE TABLE test_empty (id INTEGER)")
+            .unwrap();
 
         let result: Result<i64, _> = store.query_scalar("SELECT id FROM test_empty");
         assert!(result.is_err());
@@ -925,7 +959,9 @@ mod tests {
     #[test]
     fn test_query_json_empty() {
         let store = VcStore::open_memory().unwrap();
-        store.execute("CREATE TABLE test_empty_json (id INTEGER)").unwrap();
+        store
+            .execute("CREATE TABLE test_empty_json (id INTEGER)")
+            .unwrap();
 
         let results = store.query_json("SELECT * FROM test_empty_json").unwrap();
         assert!(results.is_empty());
@@ -934,14 +970,20 @@ mod tests {
     #[test]
     fn test_query_json_multiple_rows() {
         let store = VcStore::open_memory().unwrap();
-        store.execute_batch(r#"
+        store
+            .execute_batch(
+                r#"
             CREATE TABLE test_multi (id INTEGER, name TEXT);
             INSERT INTO test_multi VALUES (1, 'a');
             INSERT INTO test_multi VALUES (2, 'b');
             INSERT INTO test_multi VALUES (3, 'c');
-        "#).unwrap();
+        "#,
+            )
+            .unwrap();
 
-        let results = store.query_json("SELECT * FROM test_multi ORDER BY id").unwrap();
+        let results = store
+            .query_json("SELECT * FROM test_multi ORDER BY id")
+            .unwrap();
         assert_eq!(results.len(), 3);
         assert_eq!(results[0]["id"], 1);
         assert_eq!(results[1]["id"], 2);
@@ -957,12 +999,16 @@ mod tests {
         let store = VcStore::open_memory().unwrap();
 
         // Create a test table with primary key
-        store.execute_batch(r#"
+        store
+            .execute_batch(
+                r#"
             CREATE TABLE test_upsert (
                 id TEXT PRIMARY KEY,
                 value INTEGER
             );
-        "#).unwrap();
+        "#,
+            )
+            .unwrap();
 
         // Insert initial data
         let rows = vec![
@@ -979,36 +1025,48 @@ mod tests {
         ];
         store.upsert_json("test_upsert", &rows, &["id"]).unwrap();
 
-        let results = store.query_json("SELECT * FROM test_upsert ORDER BY id").unwrap();
+        let results = store
+            .query_json("SELECT * FROM test_upsert ORDER BY id")
+            .unwrap();
         assert_eq!(results.len(), 3);
         assert_eq!(results[0]["value"], 10); // Updated
-        assert_eq!(results[1]["value"], 2);  // Unchanged
-        assert_eq!(results[2]["value"], 3);  // New
+        assert_eq!(results[1]["value"], 2); // Unchanged
+        assert_eq!(results[2]["value"], 3); // New
     }
 
     #[test]
     fn test_upsert_json_empty() {
         let store = VcStore::open_memory().unwrap();
-        store.execute_batch(r#"
+        store
+            .execute_batch(
+                r#"
             CREATE TABLE test_upsert_empty (
                 id TEXT PRIMARY KEY,
                 value INTEGER
             );
-        "#).unwrap();
+        "#,
+            )
+            .unwrap();
 
-        let count = store.upsert_json("test_upsert_empty", &[], &["id"]).unwrap();
+        let count = store
+            .upsert_json("test_upsert_empty", &[], &["id"])
+            .unwrap();
         assert_eq!(count, 0);
     }
 
     #[test]
     fn test_upsert_json_skips_non_objects() {
         let store = VcStore::open_memory().unwrap();
-        store.execute_batch(r#"
+        store
+            .execute_batch(
+                r#"
             CREATE TABLE test_upsert_mixed (
                 id TEXT PRIMARY KEY,
                 value INTEGER
             );
-        "#).unwrap();
+        "#,
+            )
+            .unwrap();
 
         // Mix of valid object and invalid non-object
         let rows = vec![
@@ -1016,7 +1074,9 @@ mod tests {
             serde_json::json!("not an object"),
         ];
         // Only the valid object should be inserted
-        let count = store.upsert_json("test_upsert_mixed", &rows, &["id"]).unwrap();
+        let count = store
+            .upsert_json("test_upsert_mixed", &rows, &["id"])
+            .unwrap();
         assert_eq!(count, 1);
 
         let results = store.query_json("SELECT * FROM test_upsert_mixed").unwrap();
@@ -1037,7 +1097,11 @@ mod tests {
         let err = result.unwrap_err();
         // DatabaseError should format with "Database error: ..."
         let msg = err.to_string();
-        assert!(msg.contains("Database error") || msg.contains("error"), "Error: {}", msg);
+        assert!(
+            msg.contains("Database error") || msg.contains("error"),
+            "Error: {}",
+            msg
+        );
     }
 
     #[test]
@@ -1139,14 +1203,18 @@ mod tests {
         let store = VcStore::open_memory().unwrap();
 
         // Create table
-        store.execute_batch(r#"
+        store
+            .execute_batch(
+                r#"
             CREATE TABLE workflow_test (
                 machine_id TEXT PRIMARY KEY,
                 hostname TEXT,
                 status TEXT,
                 cpu_pct DOUBLE
             );
-        "#).unwrap();
+        "#,
+            )
+            .unwrap();
 
         // Insert data
         let machines = vec![
@@ -1166,7 +1234,9 @@ mod tests {
         store.insert_json_batch("workflow_test", &machines).unwrap();
 
         // Query data
-        let results = store.query_json("SELECT * FROM workflow_test WHERE status = 'online'").unwrap();
+        let results = store
+            .query_json("SELECT * FROM workflow_test WHERE status = 'online'")
+            .unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0]["hostname"], "server-01");
 
@@ -1177,18 +1247,26 @@ mod tests {
             "status": "online",
             "cpu_pct": 30.0
         })];
-        store.upsert_json("workflow_test", &updates, &["machine_id"]).unwrap();
+        store
+            .upsert_json("workflow_test", &updates, &["machine_id"])
+            .unwrap();
 
         // Verify update
-        let online = store.query_json("SELECT * FROM workflow_test WHERE status = 'online' ORDER BY machine_id").unwrap();
+        let online = store
+            .query_json("SELECT * FROM workflow_test WHERE status = 'online' ORDER BY machine_id")
+            .unwrap();
         assert_eq!(online.len(), 2);
 
         // Scalar query
-        let count: i64 = store.query_scalar("SELECT COUNT(*) FROM workflow_test").unwrap();
+        let count: i64 = store
+            .query_scalar("SELECT COUNT(*) FROM workflow_test")
+            .unwrap();
         assert_eq!(count, 2);
 
         // Cursor management
-        store.set_cursor("m1", "collector", "last_poll", "2026-01-28T00:00:00Z").unwrap();
+        store
+            .set_cursor("m1", "collector", "last_poll", "2026-01-28T00:00:00Z")
+            .unwrap();
         let cursor = store.get_cursor("m1", "collector", "last_poll").unwrap();
         assert_eq!(cursor, Some("2026-01-28T00:00:00Z".to_string()));
     }

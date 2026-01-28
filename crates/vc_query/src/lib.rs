@@ -107,9 +107,7 @@ impl<'a> QueryBuilder<'a> {
 
     /// Get recent alerts
     pub fn recent_alerts(&self, limit: usize) -> Result<Vec<serde_json::Value>, QueryError> {
-        let sql = format!(
-            "SELECT * FROM alert_history ORDER BY fired_at DESC LIMIT {limit}"
-        );
+        let sql = format!("SELECT * FROM alert_history ORDER BY fired_at DESC LIMIT {limit}");
         Ok(self.store.query_json(&sql)?)
     }
 
@@ -249,7 +247,10 @@ mod tests {
         };
 
         assert_eq!(overview.total_machines, 5);
-        assert_eq!(overview.online_machines + overview.offline_machines, overview.total_machines);
+        assert_eq!(
+            overview.online_machines + overview.offline_machines,
+            overview.total_machines
+        );
         assert!(overview.active_agents <= overview.total_agents);
     }
 

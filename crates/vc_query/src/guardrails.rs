@@ -30,10 +30,16 @@ impl std::fmt::Display for ValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::ForbiddenStatement { statement_type } => {
-                write!(f, "Forbidden statement type: {statement_type}. Only SELECT is allowed.")
+                write!(
+                    f,
+                    "Forbidden statement type: {statement_type}. Only SELECT is allowed."
+                )
             }
             Self::RowLimitExceeded { limit, attempted } => {
-                write!(f, "Row limit exceeded: attempted {attempted}, limit is {limit}")
+                write!(
+                    f,
+                    "Row limit exceeded: attempted {attempted}, limit is {limit}"
+                )
             }
             Self::TimeoutExceeded { limit_ms } => {
                 write!(f, "Query timeout exceeded: limit is {limit_ms}ms")
@@ -70,7 +76,7 @@ impl Default for GuardrailConfig {
     fn default() -> Self {
         Self {
             max_rows: 10000,
-            max_runtime_ms: 30000, // 30 seconds
+            max_runtime_ms: 30000,              // 30 seconds
             max_output_bytes: 10 * 1024 * 1024, // 10 MB
             allow_raw_sql: true,
         }
@@ -150,7 +156,8 @@ impl QueryValidator {
                   FROM machines \
                   WHERE ({machine_id} IS NULL OR machine_id = {machine_id}) \
                   ORDER BY hostname \
-                  LIMIT {limit}".to_string(),
+                  LIMIT {limit}"
+                .to_string(),
             params: vec![
                 TemplateParam {
                     name: "machine_id".to_string(),
@@ -176,7 +183,8 @@ impl QueryValidator {
                   FROM alert_history \
                   WHERE ({severity} IS NULL OR severity = {severity}) \
                   ORDER BY fired_at DESC \
-                  LIMIT {limit}".to_string(),
+                  LIMIT {limit}"
+                .to_string(),
             params: vec![
                 TemplateParam {
                     name: "severity".to_string(),
@@ -198,11 +206,13 @@ impl QueryValidator {
         self.register_template(QueryTemplate {
             name: "repo_status".to_string(),
             description: "Get repository status summary".to_string(),
-            sql: "SELECT repo_id, path, branch, dirty, ahead, behind, modified_count, collected_at \
+            sql:
+                "SELECT repo_id, path, branch, dirty, ahead, behind, modified_count, collected_at \
                   FROM repo_status_snapshots \
                   WHERE collected_at >= TIMESTAMP {since} \
                   ORDER BY collected_at DESC \
-                  LIMIT {limit}".to_string(),
+                  LIMIT {limit}"
+                    .to_string(),
             params: vec![
                 TemplateParam {
                     name: "since".to_string(),
@@ -227,15 +237,14 @@ impl QueryValidator {
             sql: "SELECT collector_name, last_success, last_failure, success_count, failure_count \
                   FROM collector_status \
                   ORDER BY collector_name \
-                  LIMIT {limit}".to_string(),
-            params: vec![
-                TemplateParam {
-                    name: "limit".to_string(),
-                    description: "Maximum rows to return".to_string(),
-                    default: Some("100".to_string()),
-                    param_type: ParamType::Integer,
-                },
-            ],
+                  LIMIT {limit}"
+                .to_string(),
+            params: vec![TemplateParam {
+                name: "limit".to_string(),
+                description: "Maximum rows to return".to_string(),
+                default: Some("100".to_string()),
+                param_type: ParamType::Integer,
+            }],
             agent_safe: true,
         });
 
@@ -248,7 +257,8 @@ impl QueryValidator {
                   WHERE ({machine_id} IS NULL OR machine_id = {machine_id}) \
                   AND collected_at >= TIMESTAMP {since} \
                   ORDER BY collected_at DESC \
-                  LIMIT {limit}".to_string(),
+                  LIMIT {limit}"
+                .to_string(),
             params: vec![
                 TemplateParam {
                     name: "machine_id".to_string(),
@@ -300,9 +310,26 @@ impl QueryValidator {
 
         // Check for forbidden statement types
         let forbidden = [
-            "INSERT", "UPDATE", "DELETE", "DROP", "CREATE", "ALTER", "TRUNCATE",
-            "REPLACE", "MERGE", "UPSERT", "GRANT", "REVOKE", "VACUUM", "PRAGMA",
-            "ATTACH", "DETACH", "BEGIN", "COMMIT", "ROLLBACK", "SAVEPOINT",
+            "INSERT",
+            "UPDATE",
+            "DELETE",
+            "DROP",
+            "CREATE",
+            "ALTER",
+            "TRUNCATE",
+            "REPLACE",
+            "MERGE",
+            "UPSERT",
+            "GRANT",
+            "REVOKE",
+            "VACUUM",
+            "PRAGMA",
+            "ATTACH",
+            "DETACH",
+            "BEGIN",
+            "COMMIT",
+            "ROLLBACK",
+            "SAVEPOINT",
         ];
 
         for keyword in forbidden {
@@ -341,11 +368,12 @@ impl QueryValidator {
         template_name: &str,
         params: &HashMap<String, String>,
     ) -> Result<String, ValidationError> {
-        let template = self.templates.get(template_name).ok_or_else(|| {
-            ValidationError::UnknownTemplate {
-                name: template_name.to_string(),
-            }
-        })?;
+        let template =
+            self.templates
+                .get(template_name)
+                .ok_or_else(|| ValidationError::UnknownTemplate {
+                    name: template_name.to_string(),
+                })?;
 
         let mut sql = template.sql.clone();
 
@@ -359,7 +387,8 @@ impl QueryValidator {
                 })?;
 
             // Validate parameter value
-            let validated_value = self.validate_param_value(value, &param_def.param_type, &param_def.name)?;
+            let validated_value =
+                self.validate_param_value(value, &param_def.param_type, &param_def.name)?;
             sql = sql.replace(&placeholder, &validated_value);
         }
 
@@ -384,17 +413,21 @@ impl QueryValidator {
                 }
             }
             ParamType::Integer => {
-                value.parse::<i64>().map_err(|_| ValidationError::InvalidParameter {
-                    param: param_name.to_string(),
-                    reason: "Expected integer".to_string(),
-                })?;
+                value
+                    .parse::<i64>()
+                    .map_err(|_| ValidationError::InvalidParameter {
+                        param: param_name.to_string(),
+                        reason: "Expected integer".to_string(),
+                    })?;
                 Ok(value.to_string())
             }
             ParamType::Float => {
-                value.parse::<f64>().map_err(|_| ValidationError::InvalidParameter {
-                    param: param_name.to_string(),
-                    reason: "Expected float".to_string(),
-                })?;
+                value
+                    .parse::<f64>()
+                    .map_err(|_| ValidationError::InvalidParameter {
+                        param: param_name.to_string(),
+                        reason: "Expected float".to_string(),
+                    })?;
                 Ok(value.to_string())
             }
             ParamType::Boolean => {
@@ -452,9 +485,21 @@ mod tests {
     #[test]
     fn test_validate_select() {
         let validator = QueryValidator::new(GuardrailConfig::default());
-        assert!(validator.validate_readonly("SELECT * FROM machines").is_ok());
-        assert!(validator.validate_readonly("select * from machines").is_ok());
-        assert!(validator.validate_readonly("  SELECT * FROM machines  ").is_ok());
+        assert!(
+            validator
+                .validate_readonly("SELECT * FROM machines")
+                .is_ok()
+        );
+        assert!(
+            validator
+                .validate_readonly("select * from machines")
+                .is_ok()
+        );
+        assert!(
+            validator
+                .validate_readonly("  SELECT * FROM machines  ")
+                .is_ok()
+        );
     }
 
     #[test]
@@ -468,21 +513,30 @@ mod tests {
     fn test_reject_insert() {
         let validator = QueryValidator::new(GuardrailConfig::default());
         let result = validator.validate_readonly("INSERT INTO machines VALUES (1, 'test')");
-        assert!(matches!(result, Err(ValidationError::ForbiddenStatement { .. })));
+        assert!(matches!(
+            result,
+            Err(ValidationError::ForbiddenStatement { .. })
+        ));
     }
 
     #[test]
     fn test_reject_delete() {
         let validator = QueryValidator::new(GuardrailConfig::default());
         let result = validator.validate_readonly("DELETE FROM machines WHERE id = 1");
-        assert!(matches!(result, Err(ValidationError::ForbiddenStatement { .. })));
+        assert!(matches!(
+            result,
+            Err(ValidationError::ForbiddenStatement { .. })
+        ));
     }
 
     #[test]
     fn test_reject_drop() {
         let validator = QueryValidator::new(GuardrailConfig::default());
         let result = validator.validate_readonly("DROP TABLE machines");
-        assert!(matches!(result, Err(ValidationError::ForbiddenStatement { .. })));
+        assert!(matches!(
+            result,
+            Err(ValidationError::ForbiddenStatement { .. })
+        ));
     }
 
     #[test]
@@ -492,7 +546,9 @@ mod tests {
         let mut params = HashMap::new();
         params.insert("limit".to_string(), "50".to_string());
 
-        let sql = validator.expand_template("machine_status", &params).unwrap();
+        let sql = validator
+            .expand_template("machine_status", &params)
+            .unwrap();
         assert!(sql.contains("LIMIT 50"));
     }
 
@@ -504,7 +560,9 @@ mod tests {
         params.insert("machine_id".to_string(), "orko".to_string());
         params.insert("limit".to_string(), "10".to_string());
 
-        let sql = validator.expand_template("machine_status", &params).unwrap();
+        let sql = validator
+            .expand_template("machine_status", &params)
+            .unwrap();
         assert!(sql.contains("'orko'"));
     }
 
@@ -513,7 +571,10 @@ mod tests {
         let validator = QueryValidator::new(GuardrailConfig::default());
         let params = HashMap::new();
         let result = validator.expand_template("nonexistent", &params);
-        assert!(matches!(result, Err(ValidationError::UnknownTemplate { .. })));
+        assert!(matches!(
+            result,
+            Err(ValidationError::UnknownTemplate { .. })
+        ));
     }
 
     #[test]
@@ -523,17 +584,25 @@ mod tests {
         params.insert("limit".to_string(), "not_a_number".to_string());
 
         let result = validator.expand_template("machine_status", &params);
-        assert!(matches!(result, Err(ValidationError::InvalidParameter { .. })));
+        assert!(matches!(
+            result,
+            Err(ValidationError::InvalidParameter { .. })
+        ));
     }
 
     #[test]
     fn test_sql_injection_prevention() {
         let validator = QueryValidator::new(GuardrailConfig::default());
         let mut params = HashMap::new();
-        params.insert("machine_id".to_string(), "'; DROP TABLE machines; --".to_string());
+        params.insert(
+            "machine_id".to_string(),
+            "'; DROP TABLE machines; --".to_string(),
+        );
         params.insert("limit".to_string(), "10".to_string());
 
-        let sql = validator.expand_template("machine_status", &params).unwrap();
+        let sql = validator
+            .expand_template("machine_status", &params)
+            .unwrap();
         // The injection should be escaped
         assert!(sql.contains("''"));
         assert!(!sql.contains("DROP TABLE"));
@@ -557,6 +626,9 @@ mod tests {
         };
         let validator = QueryValidator::new(config);
         let result = validator.validate_raw("SELECT * FROM machines");
-        assert!(matches!(result, Err(ValidationError::ForbiddenStatement { .. })));
+        assert!(matches!(
+            result,
+            Err(ValidationError::ForbiddenStatement { .. })
+        ));
     }
 }

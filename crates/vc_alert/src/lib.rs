@@ -55,10 +55,25 @@ pub struct AlertRule {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AlertCondition {
-    Threshold { query: String, operator: ThresholdOp, value: f64 },
-    Pattern { table: String, column: String, regex: String },
-    Absence { table: String, max_age_secs: u64 },
-    RateOfChange { query: String, window_secs: u64, threshold_per_sec: f64 },
+    Threshold {
+        query: String,
+        operator: ThresholdOp,
+        value: f64,
+    },
+    Pattern {
+        table: String,
+        column: String,
+        regex: String,
+    },
+    Absence {
+        table: String,
+        max_age_secs: u64,
+    },
+    RateOfChange {
+        query: String,
+        window_secs: u64,
+        threshold_per_sec: f64,
+    },
 }
 
 /// Threshold comparison operators
@@ -483,10 +498,7 @@ mod tests {
 
     #[test]
     fn test_severity_serialization() {
-        assert_eq!(
-            serde_json::to_string(&Severity::Info).unwrap(),
-            "\"info\""
-        );
+        assert_eq!(serde_json::to_string(&Severity::Info).unwrap(), "\"info\"");
         assert_eq!(
             serde_json::to_string(&Severity::Warning).unwrap(),
             "\"warning\""
@@ -596,7 +608,12 @@ mod tests {
 
         // Round-trip
         let parsed: AlertCondition = serde_json::from_str(&json).unwrap();
-        if let AlertCondition::Threshold { query, operator, value } = parsed {
+        if let AlertCondition::Threshold {
+            query,
+            operator,
+            value,
+        } = parsed
+        {
             assert_eq!(query, "SELECT MAX(usage) FROM table");
             assert!(matches!(operator, ThresholdOp::Gte));
             assert!((value - 80.0).abs() < f64::EPSILON);
@@ -617,7 +634,12 @@ mod tests {
         assert!(json.contains("\"type\":\"pattern\""));
 
         let parsed: AlertCondition = serde_json::from_str(&json).unwrap();
-        if let AlertCondition::Pattern { table, column, regex } = parsed {
+        if let AlertCondition::Pattern {
+            table,
+            column,
+            regex,
+        } = parsed
+        {
             assert_eq!(table, "logs");
             assert_eq!(column, "message");
             assert_eq!(regex, "error.*critical");
@@ -637,7 +659,11 @@ mod tests {
         assert!(json.contains("\"type\":\"absence\""));
 
         let parsed: AlertCondition = serde_json::from_str(&json).unwrap();
-        if let AlertCondition::Absence { table, max_age_secs } = parsed {
+        if let AlertCondition::Absence {
+            table,
+            max_age_secs,
+        } = parsed
+        {
             assert_eq!(table, "heartbeats");
             assert_eq!(max_age_secs, 300);
         } else {
@@ -657,7 +683,12 @@ mod tests {
         assert!(json.contains("\"type\":\"rate_of_change\""));
 
         let parsed: AlertCondition = serde_json::from_str(&json).unwrap();
-        if let AlertCondition::RateOfChange { query, window_secs, threshold_per_sec } = parsed {
+        if let AlertCondition::RateOfChange {
+            query,
+            window_secs,
+            threshold_per_sec,
+        } = parsed
+        {
             assert_eq!(query, "SELECT usage FROM metrics");
             assert_eq!(window_secs, 60);
             assert!((threshold_per_sec - 1.5).abs() < f64::EPSILON);
@@ -846,7 +877,8 @@ mod tests {
     #[tokio::test]
     async fn test_mock_channel_delivery_failure() {
         let mut mock = MockChannel::new();
-        mock.expect_name().return_const("failing-channel".to_string());
+        mock.expect_name()
+            .return_const("failing-channel".to_string());
         mock.expect_deliver()
             .returning(|_| Err(AlertError::DeliveryFailed("connection refused".to_string())));
 
@@ -891,7 +923,10 @@ mod tests {
         assert!(agent_rule.is_some());
         let agent_rule = agent_rule.unwrap();
         assert_eq!(agent_rule.severity, Severity::Warning);
-        assert!(matches!(agent_rule.condition, AlertCondition::Absence { .. }));
+        assert!(matches!(
+            agent_rule.condition,
+            AlertCondition::Absence { .. }
+        ));
     }
 
     #[test]
@@ -903,7 +938,10 @@ mod tests {
         assert!(rch_rule.is_some());
         let rch_rule = rch_rule.unwrap();
         assert_eq!(rch_rule.severity, Severity::Warning);
-        assert!(matches!(rch_rule.condition, AlertCondition::Threshold { .. }));
+        assert!(matches!(
+            rch_rule.condition,
+            AlertCondition::Threshold { .. }
+        ));
     }
 
     #[test]

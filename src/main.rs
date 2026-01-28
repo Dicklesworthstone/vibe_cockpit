@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use clap::{CommandFactory, FromArgMatches};
-use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 use vc_cli::Cli;
 
 #[tokio::main]

@@ -68,6 +68,10 @@ async-trait = "0.1"
 dashmap = "6.1"
 futures = "0.3"
 
+# SSH
+russh = "0.45"
+russh-keys = "0.45"
+
 # Internal crates
 vc_config = { path = "crates/vc_config" }
 vc_collect = { path = "crates/vc_collect" }

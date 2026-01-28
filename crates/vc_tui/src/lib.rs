@@ -16,10 +16,8 @@ pub mod theme;
 pub mod widgets;
 
 pub use screens::{
-    render_overview, OverviewData,
-    render_accounts, AccountsData,
-    render_sessions, SessionsData,
-    render_mail, MailData,
+    AccountsData, MailData, OracleData, OverviewData, SessionsData, render_accounts, render_mail,
+    render_oracle, render_overview, render_sessions,
 };
 pub use theme::Theme;
 
@@ -123,6 +121,7 @@ pub struct App {
     pub accounts_data: AccountsData,
     pub sessions_data: SessionsData,
     pub mail_data: MailData,
+    pub oracle_data: OracleData,
 }
 
 impl App {
@@ -137,6 +136,7 @@ impl App {
             accounts_data: AccountsData::default(),
             sessions_data: SessionsData::default(),
             mail_data: MailData::default(),
+            oracle_data: OracleData::default(),
         }
     }
 
@@ -154,6 +154,9 @@ impl App {
             }
             Screen::Mail => {
                 render_mail(f, &self.mail_data, &self.theme);
+            }
+            Screen::Oracle => {
+                render_oracle(f, &self.oracle_data, &self.theme);
             }
             _ => {
                 // Placeholder for other screens - render a simple message

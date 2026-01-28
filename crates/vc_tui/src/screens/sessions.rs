@@ -3,11 +3,11 @@
 //! Displays active coding sessions from cass (session search) collector.
 
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Paragraph, Row, Table},
-    Frame,
 };
 
 use crate::theme::Theme;
@@ -250,16 +250,19 @@ fn render_sessions_table(f: &mut Frame, area: Rect, data: &SessionsData, theme: 
                 .unwrap_or(&session.project);
 
             Row::new(vec![
-                Line::from(Span::styled(active_marker, Style::default().fg(active_color))),
                 Line::from(Span::styled(
-                    project_short,
-                    Style::default().fg(theme.text),
+                    active_marker,
+                    Style::default().fg(active_color),
                 )),
+                Line::from(Span::styled(project_short, Style::default().fg(theme.text))),
                 Line::from(Span::styled(
                     &session.model,
                     Style::default().fg(theme.provider_color(&session.model)),
                 )),
-                Line::from(Span::styled(&session.agent, Style::default().fg(theme.info))),
+                Line::from(Span::styled(
+                    &session.agent,
+                    Style::default().fg(theme.info),
+                )),
                 Line::from(Span::styled(
                     session.duration_str(),
                     Style::default().fg(theme.text),
@@ -356,7 +359,10 @@ fn render_sessions_grouped(f: &mut Frame, area: Rect, data: &SessionsData, theme
                 Style::default().fg(theme.muted),
             ),
             if active_count > 0 {
-                Span::styled(format!(", {} active", active_count), Style::default().fg(theme.healthy))
+                Span::styled(
+                    format!(", {} active", active_count),
+                    Style::default().fg(theme.healthy),
+                )
             } else {
                 Span::raw("")
             },

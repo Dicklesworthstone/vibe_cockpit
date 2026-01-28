@@ -23,7 +23,11 @@ const MIGRATIONS: &[Migration] = &[
         name: "machine_registry",
         sql: include_str!("migrations/002_machine_registry.sql"),
     },
-    // Additional migrations will be added here
+    Migration {
+        version: 3,
+        name: "knowledge_base",
+        sql: include_str!("migrations/003_knowledge_base.sql"),
+    },
 ];
 
 /// Run all pending migrations
@@ -68,10 +72,7 @@ pub fn run_all(conn: &Connection) -> Result<(), StoreError> {
 
             conn.execute(
                 "INSERT INTO _migrations (version, name) VALUES (?, ?)",
-                [
-                    &migration.version.to_string(),
-                    &migration.name.to_string(),
-                ],
+                [&migration.version.to_string(), &migration.name.to_string()],
             )?;
 
             debug!(version = migration.version, "Migration applied");

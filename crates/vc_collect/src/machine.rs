@@ -282,7 +282,7 @@ impl MachineRegistry {
             status.as_str(),
             escape_sql_literal(id)
         );
-        self.store.execute(&sql)?;
+        self.store.execute_simple(&sql)?;
         Ok(())
     }
 
@@ -303,15 +303,7 @@ impl MachineRegistry {
             "UPDATE machines SET last_probe_at = current_timestamp WHERE machine_id = '{}'",
             escape_sql_literal(id)
         );
-        self.store.execute(&sql)?;
-        Ok(())
-    }
-
-    /// Insert or update a machine in the registry
-    pub fn upsert_machine(&self, machine: &Machine) -> Result<(), RegistryError> {
-        let row = machine.to_row();
-        self.store
-            .upsert_json("machines", &[row], &["machine_id"])?;
+        self.store.execute_simple(&sql)?;
         Ok(())
     }
 
@@ -321,7 +313,7 @@ impl MachineRegistry {
             if enabled { "TRUE" } else { "FALSE" },
             escape_sql_literal(id)
         );
-        self.store.execute(&sql)?;
+        self.store.execute_simple(&sql)?;
         Ok(())
     }
 }

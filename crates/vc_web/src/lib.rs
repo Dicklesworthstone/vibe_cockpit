@@ -7,15 +7,15 @@
 //! - WebSocket support for real-time updates
 
 use axum::{
-    extract::{Path, Query, State},
+    Router,
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::{IntoResponse, Json, Response},
     routing::get,
-    Router,
 };
-use http::HeaderValue;
 use futures::SinkExt;
+use http::HeaderValue;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Arc;
@@ -25,10 +25,10 @@ use tokio::net::TcpListener;
 use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
+use tracing::warn;
 use vc_config::WebConfig;
 use vc_query::{FleetOverview, QueryBuilder};
 use vc_store::VcStore;
-use tracing::warn;
 
 /// Web server errors
 #[derive(Error, Debug)]
@@ -210,7 +210,10 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/api/machines", get(machines_handler))
         .route("/api/machines/{id}", get(machine_by_id_handler))
         .route("/api/machines/{id}/health", get(machine_health_handler))
-        .route("/api/machines/{id}/collectors", get(machine_collectors_handler))
+        .route(
+            "/api/machines/{id}/collectors",
+            get(machine_collectors_handler),
+        )
         // Alerts
         .route("/api/alerts", get(alerts_handler))
         .route("/api/alerts/rules", get(alert_rules_handler))
@@ -481,10 +484,7 @@ async fn guardian_pending_handler(
 // WebSocket Endpoint
 // =============================================================================
 
-async fn ws_handler(
-    State(state): State<Arc<AppState>>,
-    ws: WebSocketUpgrade,
-) -> impl IntoResponse {
+async fn ws_handler(State(state): State<Arc<AppState>>, ws: WebSocketUpgrade) -> impl IntoResponse {
     ws.on_upgrade(move |socket| ws_session(socket, state))
 }
 
@@ -704,6 +704,26 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_overview_placeholder_values() {
+        let state = test_state();
+        let app = create_router(state);
+
+        let request = Request::builder()
+            .uri("/api/overview")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let json: FleetOverview = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json.total_machines, 0);
+        assert_eq!(json.active_alerts, 0);
+        assert_eq!(json.pending_approvals, 0);
+    }
+
+    #[tokio::test]
     async fn test_fleet_endpoint() {
         let state = test_state();
         let app = create_router(state);
@@ -715,6 +735,27 @@ mod tests {
 
         let response = app.oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn test_fleet_endpoint_payload() {
+        let state = test_state();
+        let app = create_router(state);
+
+        let request = Request::builder()
+            .uri("/api/fleet")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert!(json.get("total_machines").is_some());
+        assert!(json.get("fleet_health").is_some());
+        assert!(json.get("active_alerts").is_some());
+        assert!(json.get("pending_approvals").is_some());
     }
 
     #[tokio::test]
@@ -736,6 +777,43 @@ mod tests {
         assert!(json.get("total").is_some());
     }
 
+    #[tokio::test]
+    async fn test_machines_total_count() {
+        let state = test_state();
+        state
+            .store
+            .insert_json(
+                "machines",
+                &serde_json::json!({
+                    "machine_id": "machine-1",
+                    "hostname": "alpha-host"
+                }),
+            )
+            .unwrap();
+        state
+            .store
+            .insert_json(
+                "machines",
+                &serde_json::json!({
+                    "machine_id": "machine-2",
+                    "hostname": "bravo-host"
+                }),
+            )
+            .unwrap();
+        let app = create_router(state);
+
+        let request = Request::builder()
+            .uri("/api/machines")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["total"], 2);
+    }
     #[tokio::test]
     async fn test_machines_pagination() {
         let state = test_state();
@@ -979,6 +1057,52 @@ mod tests {
         assert_eq!(alerts[0]["id"], 2);
         assert_eq!(alerts[1]["id"], 1);
     }
+
+    #[tokio::test]
+    async fn test_alerts_limit() {
+        let state = test_state();
+        state
+            .store
+            .insert_json(
+                "alert_history",
+                &serde_json::json!({
+                    "id": 1,
+                    "rule_id": "rule-1",
+                    "fired_at": "2026-01-28T10:00:00Z",
+                    "severity": "warning",
+                    "title": "Alert 1"
+                }),
+            )
+            .unwrap();
+        state
+            .store
+            .insert_json(
+                "alert_history",
+                &serde_json::json!({
+                    "id": 2,
+                    "rule_id": "rule-2",
+                    "fired_at": "2026-01-28T12:00:00Z",
+                    "severity": "critical",
+                    "title": "Alert 2"
+                }),
+            )
+            .unwrap();
+        let app = create_router(state);
+
+        let request = Request::builder()
+            .uri("/api/alerts?limit=1")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let alerts = json["alerts"].as_array().unwrap();
+        assert_eq!(alerts.len(), 1);
+        assert_eq!(json["limit"], 1);
+    }
     #[tokio::test]
     async fn test_alert_rules_endpoint() {
         let state = test_state();
@@ -1172,6 +1296,50 @@ mod tests {
         assert_eq!(sessions.len(), 2);
         assert_eq!(sessions[0]["session_id"], "sess-2");
         assert_eq!(sessions[1]["session_id"], "sess-1");
+    }
+
+    #[tokio::test]
+    async fn test_sessions_limit() {
+        let state = test_state();
+        state
+            .store
+            .insert_json(
+                "agent_sessions",
+                &serde_json::json!({
+                    "machine_id": "machine-1",
+                    "session_id": "sess-1",
+                    "collected_at": "2026-01-28T10:00:00Z",
+                    "program": "codex-cli"
+                }),
+            )
+            .unwrap();
+        state
+            .store
+            .insert_json(
+                "agent_sessions",
+                &serde_json::json!({
+                    "machine_id": "machine-1",
+                    "session_id": "sess-2",
+                    "collected_at": "2026-01-28T12:00:00Z",
+                    "program": "claude-code"
+                }),
+            )
+            .unwrap();
+        let app = create_router(state);
+
+        let request = Request::builder()
+            .uri("/api/sessions?limit=1")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let sessions = json["sessions"].as_array().unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(json["limit"], 1);
     }
     #[tokio::test]
     async fn test_guardian_playbooks_endpoint() {

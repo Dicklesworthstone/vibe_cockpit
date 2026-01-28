@@ -13,6 +13,7 @@ workspace = true
 [dependencies]
 vc_config.workspace = true
 vc_store.workspace = true
+duckdb.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

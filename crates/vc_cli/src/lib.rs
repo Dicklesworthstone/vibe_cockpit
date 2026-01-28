@@ -672,8 +672,9 @@ impl Cli {
                             None => Executor::local(),
                         };
 
-                        let probe = executor.run("uname -s", Duration::from_secs(5)).await;
-                        let (status, detail) = match probe {
+                        // First, check connectivity with uname
+                        let connectivity = executor.run("uname -s", Duration::from_secs(5)).await;
+                        let (status, os_detail) = match connectivity {
                             Ok(output) if output.exit_code == 0 => {
                                 registry
                                     .update_status(&id, vc_collect::machine::MachineStatus::Online)
@@ -715,13 +716,28 @@ impl Cli {
                             }
                         };
 
+                        // If online, probe for tools
+                        let tools_result = if status == vc_collect::machine::MachineStatus::Online {
+                            let prober = vc_collect::ToolProber::new();
+                            Some(prober.probe_machine(&id, &executor, &registry).await)
+                        } else {
+                            None
+                        };
+
                         let payload = serde_json::json!({
                             "machine_id": id,
                             "status": status.as_str(),
-                            "probe": {
-                                "command": "uname -s",
-                                "detail": detail,
-                            }
+                            "os": os_detail,
+                            "tools": tools_result.as_ref().map(|r| {
+                                r.found_tools.iter().map(|t| serde_json::json!({
+                                    "name": t.tool_name,
+                                    "path": t.tool_path,
+                                    "version": t.tool_version,
+                                    "available": t.is_available,
+                                })).collect::<Vec<_>>()
+                            }),
+                            "tools_found": tools_result.as_ref().map(|r| r.tool_count()).unwrap_or(0),
+                            "probe_errors": tools_result.as_ref().map(|r| &r.errors),
                         });
                         print_output(&payload, self.format);
                     }

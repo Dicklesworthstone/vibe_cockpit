@@ -25,8 +25,12 @@ use thiserror::Error;
 pub mod collectors;
 pub mod executor;
 pub mod machine;
+pub mod probe;
+pub mod ssh;
 
 pub use machine::{Machine, MachineFilter, MachineRegistry, MachineStatus, ToolInfo};
+pub use probe::{ProbeResult, TOOL_SPECS, ToolProber, ToolSpec};
+pub use ssh::{CommandOutput as SshCommandOutput, PoolStats, SshError, SshRunner, SshRunnerConfig};
 
 /// Collection errors
 #[derive(Error, Debug)]

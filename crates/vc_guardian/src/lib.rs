@@ -46,8 +46,14 @@ pub struct Playbook {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum PlaybookTrigger {
-    OnAlert { rule_id: String },
-    OnThreshold { query: String, operator: String, value: f64 },
+    OnAlert {
+        rule_id: String,
+    },
+    OnThreshold {
+        query: String,
+        operator: String,
+        value: f64,
+    },
     Manual,
 }
 
@@ -55,11 +61,26 @@ pub enum PlaybookTrigger {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum PlaybookStep {
-    Log { message: String },
-    Command { cmd: String, args: Vec<String>, timeout_secs: u64, allow_failure: bool },
-    SwitchAccount { program: String, strategy: String },
-    Notify { channel: String, message: String },
-    Wait { seconds: u64 },
+    Log {
+        message: String,
+    },
+    Command {
+        cmd: String,
+        args: Vec<String>,
+        timeout_secs: u64,
+        allow_failure: bool,
+    },
+    SwitchAccount {
+        program: String,
+        strategy: String,
+    },
+    Notify {
+        channel: String,
+        message: String,
+    },
+    Wait {
+        seconds: u64,
+    },
 }
 
 /// Playbook run status
@@ -129,7 +150,8 @@ impl Guardian {
             Playbook {
                 playbook_id: "stuck-agent-restart".to_string(),
                 name: "Restart Stuck Agent".to_string(),
-                description: "Restart agent that appears stuck (no activity for 10 minutes)".to_string(),
+                description: "Restart agent that appears stuck (no activity for 10 minutes)"
+                    .to_string(),
                 trigger: PlaybookTrigger::OnAlert {
                     rule_id: "agent-stuck".to_string(),
                 },
@@ -172,7 +194,11 @@ impl Guardian {
                     },
                     PlaybookStep::Command {
                         cmd: "sudo".to_string(),
-                        args: vec!["sh".to_string(), "-c".to_string(), "echo 3 > /proc/sys/vm/drop_caches".to_string()],
+                        args: vec![
+                            "sh".to_string(),
+                            "-c".to_string(),
+                            "echo 3 > /proc/sys/vm/drop_caches".to_string(),
+                        ],
                         timeout_secs: 10,
                         allow_failure: true,
                     },
@@ -323,9 +349,13 @@ mod tests {
             description: "Has multiple steps".to_string(),
             trigger: PlaybookTrigger::Manual,
             steps: vec![
-                PlaybookStep::Log { message: "Starting".to_string() },
+                PlaybookStep::Log {
+                    message: "Starting".to_string(),
+                },
                 PlaybookStep::Wait { seconds: 5 },
-                PlaybookStep::Log { message: "Done".to_string() },
+                PlaybookStep::Log {
+                    message: "Done".to_string(),
+                },
             ],
             requires_approval: true,
             max_runs_per_hour: 5,
@@ -342,7 +372,9 @@ mod tests {
             name: "Serialize Test".to_string(),
             description: "Test serialization".to_string(),
             trigger: PlaybookTrigger::Manual,
-            steps: vec![PlaybookStep::Log { message: "hello".to_string() }],
+            steps: vec![PlaybookStep::Log {
+                message: "hello".to_string(),
+            }],
             requires_approval: false,
             max_runs_per_hour: 1,
             enabled: true,
@@ -399,7 +431,11 @@ mod tests {
     fn test_step_command() {
         let step = PlaybookStep::Command {
             cmd: "caam".to_string(),
-            args: vec!["switch".to_string(), "--strategy".to_string(), "least_used".to_string()],
+            args: vec![
+                "switch".to_string(),
+                "--strategy".to_string(),
+                "least_used".to_string(),
+            ],
             timeout_secs: 30,
             allow_failure: false,
         };
@@ -510,7 +546,12 @@ mod tests {
 
         for (status, expected) in statuses {
             let json = serde_json::to_string(&status).unwrap();
-            assert!(json.to_lowercase().contains(expected), "Expected {} in {}", expected, json);
+            assert!(
+                json.to_lowercase().contains(expected),
+                "Expected {} in {}",
+                expected,
+                json
+            );
         }
     }
 
@@ -711,14 +752,19 @@ mod tests {
         };
         assert!(!step_fail.allows_failure());
 
-        let step_log = PlaybookStep::Log { message: "test".to_string() };
+        let step_log = PlaybookStep::Log {
+            message: "test".to_string(),
+        };
         assert!(!step_log.allows_failure());
     }
 
     #[test]
     fn test_step_type_name() {
         assert_eq!(
-            PlaybookStep::Log { message: "test".to_string() }.type_name(),
+            PlaybookStep::Log {
+                message: "test".to_string()
+            }
+            .type_name(),
             "log"
         );
         assert_eq!(
@@ -727,26 +773,26 @@ mod tests {
                 args: vec![],
                 timeout_secs: 10,
                 allow_failure: false
-            }.type_name(),
+            }
+            .type_name(),
             "command"
         );
         assert_eq!(
             PlaybookStep::SwitchAccount {
                 program: "test".to_string(),
                 strategy: "test".to_string()
-            }.type_name(),
+            }
+            .type_name(),
             "switch_account"
         );
         assert_eq!(
             PlaybookStep::Notify {
                 channel: "test".to_string(),
                 message: "test".to_string()
-            }.type_name(),
+            }
+            .type_name(),
             "notify"
         );
-        assert_eq!(
-            PlaybookStep::Wait { seconds: 5 }.type_name(),
-            "wait"
-        );
+        assert_eq!(PlaybookStep::Wait { seconds: 5 }.type_name(), "wait");
     }
 }

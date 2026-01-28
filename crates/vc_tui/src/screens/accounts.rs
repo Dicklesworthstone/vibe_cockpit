@@ -3,11 +3,11 @@
 //! Displays account usage and rate limit status from caut and caam collectors.
 
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Paragraph, Row, Table},
-    Frame,
 };
 
 use crate::theme::Theme;
@@ -234,7 +234,10 @@ fn render_accounts_table(f: &mut Frame, area: Rect, data: &AccountsData, theme: 
                     &account.program,
                     Style::default().fg(theme.provider_color(&account.program)),
                 )),
-                Line::from(Span::styled(&account.account, Style::default().fg(theme.text))),
+                Line::from(Span::styled(
+                    &account.account,
+                    Style::default().fg(theme.text),
+                )),
                 Line::from(Span::styled(usage_text, Style::default().fg(theme.text))),
                 Line::from(Span::styled(pct_text, Style::default().fg(status_color))),
                 Line::from(Span::styled(

@@ -5,7 +5,7 @@
 
 mod common;
 
-use common::{init_tracing, RU_LIST_FIXTURE, RU_STATUS_FIXTURE};
+use common::{RU_LIST_FIXTURE, RU_STATUS_FIXTURE, init_tracing};
 use serde_json;
 
 /// Test that RuCollector can parse ru list output

@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use std::sync::Once;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 static INIT: Once = Once::new();
 

@@ -13,8 +13,7 @@ use thiserror::Error;
 
 pub mod rate_limit;
 pub use rate_limit::{
-    AccountKey, ForecastConfig, RateLimitForecaster, UsageSample,
-    rank_alternative_accounts,
+    AccountKey, ForecastConfig, RateLimitForecaster, UsageSample, rank_alternative_accounts,
 };
 
 /// Oracle errors
@@ -248,7 +247,10 @@ mod tests {
             confidence: 0.85,
             recommended_action: RateLimitAction::PrepareSwap { in_minutes: 30 },
             optimal_swap_time: Some(Utc::now()),
-            alternative_accounts: vec![("backup-1".to_string(), 0.2), ("backup-2".to_string(), 0.1)],
+            alternative_accounts: vec![
+                ("backup-1".to_string(), 0.2),
+                ("backup-2".to_string(), 0.1),
+            ],
         };
 
         let json = serde_json::to_string(&forecast).unwrap();
@@ -371,7 +373,10 @@ mod tests {
             (now + chrono::Duration::minutes(2), 50.0),
         ];
         let velocity = Oracle::calculate_velocity(&samples);
-        assert!(velocity.abs() < f64::EPSILON, "Constant data should have zero velocity");
+        assert!(
+            velocity.abs() < f64::EPSILON,
+            "Constant data should have zero velocity"
+        );
     }
 
     #[test]
@@ -384,7 +389,10 @@ mod tests {
             (now + chrono::Duration::minutes(3), 40.0),
         ];
         let velocity = Oracle::calculate_velocity(&samples);
-        assert!(velocity > 0.0, "Increasing data should have positive velocity");
+        assert!(
+            velocity > 0.0,
+            "Increasing data should have positive velocity"
+        );
         // Linear increase of 10 per step
         assert!((velocity - 10.0).abs() < f64::EPSILON);
     }
@@ -398,7 +406,10 @@ mod tests {
             (now + chrono::Duration::minutes(2), 60.0),
         ];
         let velocity = Oracle::calculate_velocity(&samples);
-        assert!(velocity < 0.0, "Decreasing data should have negative velocity");
+        assert!(
+            velocity < 0.0,
+            "Decreasing data should have negative velocity"
+        );
     }
 
     #[test]

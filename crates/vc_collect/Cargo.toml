@@ -20,7 +20,11 @@ async-trait.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 chrono.workspace = true
+regex.workspace = true
 anyhow.workspace = true
+dashmap.workspace = true
+russh.workspace = true
+russh-keys.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

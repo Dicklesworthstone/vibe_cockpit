@@ -3,11 +3,11 @@
 //! Displays agent communication threads and messages from mcp_agent_mail collector.
 
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Paragraph},
-    Frame,
 };
 
 use crate::theme::Theme;
@@ -221,7 +221,9 @@ fn render_threads_pane(f: &mut Frame, area: Rect, data: &MailData, theme: &Theme
             .enumerate()
             .filter(|(_, t)| {
                 t.subject.to_lowercase().contains(&filter_lower)
-                    || t.participants.iter().any(|p| p.to_lowercase().contains(&filter_lower))
+                    || t.participants
+                        .iter()
+                        .any(|p| p.to_lowercase().contains(&filter_lower))
             })
             .collect()
     };
@@ -293,18 +295,17 @@ fn render_messages_pane(f: &mut Frame, area: Rect, data: &MailData, theme: &Them
         } else {
             "Select a thread to view messages"
         };
-        let empty = Paragraph::new(Span::styled(hint, Style::default().fg(theme.muted)))
-            .block(
-                Block::default()
-                    .title(Span::styled(
-                        " MESSAGES ",
-                        Style::default()
-                            .fg(theme.accent)
-                            .add_modifier(Modifier::BOLD),
-                    ))
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(border_color)),
-            );
+        let empty = Paragraph::new(Span::styled(hint, Style::default().fg(theme.muted))).block(
+            Block::default()
+                .title(Span::styled(
+                    " MESSAGES ",
+                    Style::default()
+                        .fg(theme.accent)
+                        .add_modifier(Modifier::BOLD),
+                ))
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(border_color)),
+        );
         f.render_widget(empty, area);
         return;
     }
