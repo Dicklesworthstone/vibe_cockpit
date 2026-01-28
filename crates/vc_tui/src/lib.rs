@@ -170,10 +170,89 @@ impl Default for App {
 mod tests {
     use super::*;
 
+    // ==========================================================================
+    // Screen Tests
+    // ==========================================================================
+
     #[test]
     fn test_screen_shortcuts() {
         assert_eq!(Screen::Overview.shortcut(), Some('o'));
+        assert_eq!(Screen::Machines.shortcut(), Some('m'));
+        assert_eq!(Screen::Repos.shortcut(), Some('r'));
+        assert_eq!(Screen::Accounts.shortcut(), Some('a'));
+        assert_eq!(Screen::Sessions.shortcut(), Some('s'));
+        assert_eq!(Screen::Mail.shortcut(), Some('l'));
+        assert_eq!(Screen::Alerts.shortcut(), Some('!'));
+        assert_eq!(Screen::Guardian.shortcut(), Some('g'));
+        assert_eq!(Screen::Oracle.shortcut(), Some('p'));
+        assert_eq!(Screen::Events.shortcut(), Some('e'));
+        assert_eq!(Screen::Beads.shortcut(), Some('b'));
         assert_eq!(Screen::Settings.shortcut(), None);
+        assert_eq!(Screen::Help.shortcut(), Some('?'));
+    }
+
+    #[test]
+    fn test_screen_titles() {
+        assert_eq!(Screen::Overview.title(), "Overview");
+        assert_eq!(Screen::Machines.title(), "Machines");
+        assert_eq!(Screen::Repos.title(), "Repositories");
+        assert_eq!(Screen::Accounts.title(), "Accounts");
+        assert_eq!(Screen::Sessions.title(), "Sessions");
+        assert_eq!(Screen::Mail.title(), "Agent Mail");
+        assert_eq!(Screen::Alerts.title(), "Alerts");
+        assert_eq!(Screen::Guardian.title(), "Guardian");
+        assert_eq!(Screen::Oracle.title(), "Oracle");
+        assert_eq!(Screen::Events.title(), "Events");
+        assert_eq!(Screen::Beads.title(), "Beads");
+        assert_eq!(Screen::Settings.title(), "Settings");
+        assert_eq!(Screen::Help.title(), "Help");
+    }
+
+    #[test]
+    fn test_screen_all() {
+        let screens = Screen::all();
+        assert_eq!(screens.len(), 13);
+        assert_eq!(screens[0], Screen::Overview);
+        assert_eq!(screens[screens.len() - 1], Screen::Help);
+    }
+
+    #[test]
+    fn test_screen_serialization() {
+        let screen = Screen::Overview;
+        let json = serde_json::to_string(&screen).unwrap();
+        assert_eq!(json, "\"Overview\"");
+
+        let parsed: Screen = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, Screen::Overview);
+    }
+
+    #[test]
+    fn test_all_screens_serialize_roundtrip() {
+        for screen in Screen::all() {
+            let json = serde_json::to_string(screen).unwrap();
+            let parsed: Screen = serde_json::from_str(&json).unwrap();
+            assert_eq!(*screen, parsed);
+        }
+    }
+
+    // ==========================================================================
+    // App Tests
+    // ==========================================================================
+
+    #[test]
+    fn test_app_new() {
+        let app = App::new();
+        assert_eq!(app.current_screen, Screen::Overview);
+        assert!(!app.should_quit);
+        assert!(app.last_error.is_none());
+    }
+
+    #[test]
+    fn test_app_default() {
+        let app1 = App::new();
+        let app2 = App::default();
+        assert_eq!(app1.current_screen, app2.current_screen);
+        assert_eq!(app1.should_quit, app2.should_quit);
     }
 
     #[test]
@@ -182,5 +261,113 @@ mod tests {
         assert!(!app.should_quit);
         app.handle_key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE));
         assert!(app.should_quit);
+    }
+
+    #[test]
+    fn test_app_quit_ctrl_c() {
+        let mut app = App::new();
+        assert!(!app.should_quit);
+        app.handle_key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL));
+        assert!(app.should_quit);
+    }
+
+    #[test]
+    fn test_app_quit_ctrl_q() {
+        let mut app = App::new();
+        assert!(!app.should_quit);
+        app.handle_key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::CONTROL));
+        assert!(app.should_quit);
+    }
+
+    #[test]
+    fn test_app_screen_navigation_shortcuts() {
+        let mut app = App::new();
+
+        // Navigate to Machines with 'm'
+        app.handle_key(KeyEvent::new(KeyCode::Char('m'), KeyModifiers::NONE));
+        assert_eq!(app.current_screen, Screen::Machines);
+
+        // Navigate to Repos with 'r'
+        app.handle_key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::NONE));
+        assert_eq!(app.current_screen, Screen::Repos);
+
+        // Navigate to Help with '?'
+        app.handle_key(KeyEvent::new(KeyCode::Char('?'), KeyModifiers::NONE));
+        assert_eq!(app.current_screen, Screen::Help);
+
+        // Navigate back to Overview with 'o'
+        app.handle_key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::NONE));
+        assert_eq!(app.current_screen, Screen::Overview);
+    }
+
+    #[test]
+    fn test_app_tab_navigation() {
+        let mut app = App::new();
+        assert_eq!(app.current_screen, Screen::Overview);
+
+        // Tab should move to next screen
+        app.handle_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
+        assert_eq!(app.current_screen, Screen::Machines);
+
+        // Tab again
+        app.handle_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
+        assert_eq!(app.current_screen, Screen::Repos);
+    }
+
+    #[test]
+    fn test_app_tab_wraps_around() {
+        let mut app = App::new();
+        let screens = Screen::all();
+
+        // Navigate to last screen
+        app.current_screen = screens[screens.len() - 1];
+        assert_eq!(app.current_screen, Screen::Help);
+
+        // Tab should wrap to first screen
+        app.handle_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
+        assert_eq!(app.current_screen, Screen::Overview);
+    }
+
+    #[test]
+    fn test_app_unknown_key_no_effect() {
+        let mut app = App::new();
+        let initial_screen = app.current_screen;
+
+        // Random key should not change state
+        app.handle_key(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::NONE));
+        assert_eq!(app.current_screen, initial_screen);
+        assert!(!app.should_quit);
+    }
+
+    #[test]
+    fn test_app_all_screen_shortcuts_work() {
+        for screen in Screen::all() {
+            if let Some(shortcut) = screen.shortcut() {
+                let mut app = App::new();
+                app.handle_key(KeyEvent::new(KeyCode::Char(shortcut), KeyModifiers::NONE));
+                assert_eq!(
+                    app.current_screen, *screen,
+                    "Shortcut '{}' should navigate to {:?}",
+                    shortcut, screen
+                );
+            }
+        }
+    }
+
+    // ==========================================================================
+    // TuiError Tests
+    // ==========================================================================
+
+    #[test]
+    fn test_tui_error_display() {
+        let err = TuiError::TerminalError("resize failed".to_string());
+        assert_eq!(format!("{}", err), "Terminal error: resize failed");
+    }
+
+    #[test]
+    fn test_tui_error_from_io() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::Other, "test");
+        let tui_err: TuiError = io_err.into();
+        assert!(matches!(tui_err, TuiError::IoError(_)));
     }
 }
