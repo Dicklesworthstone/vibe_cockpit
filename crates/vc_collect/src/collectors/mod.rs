@@ -52,10 +52,14 @@ pub use github::GhCollector;
 pub mod ntm;
 pub use ntm::NtmCollector;
 
+pub mod afsc;
+pub use afsc::AfscCollector;
+
+pub mod cloud_bench;
+pub use cloud_bench::CloudBenchCollector;
+
 // Future collectors will be added here as submodules:
 // pub mod bv_br;
-// pub mod afsc;
-// pub mod cloud_benchmarker;
 
 /// Dummy collector for testing the collector infrastructure
 ///

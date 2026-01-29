@@ -7,6 +7,8 @@
 //! - Path expansion (`~/` to home directory)
 //! - Auto-discovery from standard config paths
 //! - Machine inventory definitions
+//! - Configuration linting with actionable suggestions
+//! - Configuration wizard for generating new configs
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -14,6 +16,139 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use thiserror::Error;
 use tracing::info;
+
+// =============================================================================
+// Lint Types
+// =============================================================================
+
+/// Severity level for lint issues
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LintSeverity {
+    /// Critical issue that will prevent vc from working
+    Error,
+    /// Issue that may cause problems or suboptimal behavior
+    Warning,
+    /// Informational suggestion for improvement
+    Info,
+}
+
+impl std::fmt::Display for LintSeverity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LintSeverity::Error => write!(f, "error"),
+            LintSeverity::Warning => write!(f, "warning"),
+            LintSeverity::Info => write!(f, "info"),
+        }
+    }
+}
+
+/// A suggestion for fixing a lint issue
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LintSuggestion {
+    /// Human-readable description of the fix
+    pub description: String,
+    /// The config path to modify (e.g., "machines.orko.ssh_user")
+    pub path: String,
+    /// Suggested new value (as TOML string)
+    pub suggested_value: Option<String>,
+}
+
+/// A single lint issue found in the configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LintIssue {
+    /// Severity of the issue
+    pub severity: LintSeverity,
+    /// Config path where the issue was found (e.g., "machines.orko.ssh_host")
+    pub path: String,
+    /// Human-readable message describing the issue
+    pub message: String,
+    /// Optional suggestion for fixing the issue
+    pub suggestion: Option<LintSuggestion>,
+}
+
+impl LintIssue {
+    /// Create an error-level lint issue
+    pub fn error(path: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            severity: LintSeverity::Error,
+            path: path.into(),
+            message: message.into(),
+            suggestion: None,
+        }
+    }
+
+    /// Create a warning-level lint issue
+    pub fn warning(path: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            severity: LintSeverity::Warning,
+            path: path.into(),
+            message: message.into(),
+            suggestion: None,
+        }
+    }
+
+    /// Create an info-level lint issue
+    pub fn info(path: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            severity: LintSeverity::Info,
+            path: path.into(),
+            message: message.into(),
+            suggestion: None,
+        }
+    }
+
+    /// Add a suggestion to this issue
+    pub fn with_suggestion(mut self, suggestion: LintSuggestion) -> Self {
+        self.suggestion = Some(suggestion);
+        self
+    }
+}
+
+/// Result of linting a configuration
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct LintResult {
+    /// All issues found
+    pub issues: Vec<LintIssue>,
+    /// Number of errors
+    pub error_count: usize,
+    /// Number of warnings
+    pub warning_count: usize,
+    /// Number of info messages
+    pub info_count: usize,
+}
+
+impl LintResult {
+    /// Create an empty lint result
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Add an issue to the result
+    pub fn add(&mut self, issue: LintIssue) {
+        match issue.severity {
+            LintSeverity::Error => self.error_count += 1,
+            LintSeverity::Warning => self.warning_count += 1,
+            LintSeverity::Info => self.info_count += 1,
+        }
+        self.issues.push(issue);
+    }
+
+    /// Check if there are any errors
+    pub fn has_errors(&self) -> bool {
+        self.error_count > 0
+    }
+
+    /// Check if there are any issues (errors or warnings)
+    pub fn has_issues(&self) -> bool {
+        !self.issues.is_empty()
+    }
+
+    /// Get issues filtered by severity
+    pub fn by_severity(&self, severity: LintSeverity) -> impl Iterator<Item = &LintIssue> {
+        self.issues.iter().filter(move |i| i.severity == severity)
+    }
+}
 
 /// Configuration errors
 #[derive(Error, Debug)]
@@ -584,6 +719,311 @@ impl VcConfig {
             _ => false, // Unknown collectors are disabled
         }
     }
+
+    /// Lint the configuration and return all issues found.
+    ///
+    /// This performs more extensive checks than `validate()`, including:
+    /// - Validation errors (also caught by validate())
+    /// - Warnings about suboptimal configurations
+    /// - Suggestions for improvements
+    pub fn lint(&self) -> LintResult {
+        let mut result = LintResult::new();
+
+        // === ERRORS ===
+
+        // Poll interval must be positive
+        if self.global.poll_interval_secs == 0 {
+            result.add(
+                LintIssue::error("global.poll_interval_secs", "Poll interval must be greater than 0")
+                    .with_suggestion(LintSuggestion {
+                        description: "Set a reasonable poll interval (e.g., 120 seconds)".to_string(),
+                        path: "global.poll_interval_secs".to_string(),
+                        suggested_value: Some("120".to_string()),
+                    }),
+            );
+        }
+
+        // Collector timeout must be positive
+        if self.collectors.timeout_secs == 0 {
+            result.add(
+                LintIssue::error("collectors.timeout_secs", "Collector timeout must be greater than 0")
+                    .with_suggestion(LintSuggestion {
+                        description: "Set a reasonable timeout (e.g., 30 seconds)".to_string(),
+                        path: "collectors.timeout_secs".to_string(),
+                        suggested_value: Some("30".to_string()),
+                    }),
+            );
+        }
+
+        // Validate log level
+        let valid_levels = ["trace", "debug", "info", "warn", "error"];
+        if !valid_levels.contains(&self.global.log_level.to_lowercase().as_str()) {
+            result.add(
+                LintIssue::error(
+                    "global.log_level",
+                    format!(
+                        "Invalid log level '{}'. Must be one of: {}",
+                        self.global.log_level,
+                        valid_levels.join(", ")
+                    ),
+                )
+                .with_suggestion(LintSuggestion {
+                    description: "Use a valid log level".to_string(),
+                    path: "global.log_level".to_string(),
+                    suggested_value: Some("\"info\"".to_string()),
+                }),
+            );
+        }
+
+        // Autopilot confidence must be in [0, 1]
+        if self.autopilot.min_confidence < 0.0 || self.autopilot.min_confidence > 1.0 {
+            result.add(
+                LintIssue::error(
+                    "autopilot.min_confidence",
+                    "Min confidence must be between 0.0 and 1.0",
+                )
+                .with_suggestion(LintSuggestion {
+                    description: "Set confidence to a value between 0 and 1".to_string(),
+                    path: "autopilot.min_confidence".to_string(),
+                    suggested_value: Some("0.8".to_string()),
+                }),
+            );
+        }
+
+        // Web port must be positive
+        if self.web.port == 0 {
+            result.add(
+                LintIssue::error("web.port", "Web port must be greater than 0")
+                    .with_suggestion(LintSuggestion {
+                        description: "Set a valid port number".to_string(),
+                        path: "web.port".to_string(),
+                        suggested_value: Some("8080".to_string()),
+                    }),
+            );
+        }
+
+        // Machine SSH validation
+        for (id, machine) in &self.machines {
+            let path_prefix = format!("machines.{id}");
+
+            // SSH host without user
+            if machine.ssh_host.is_some() && machine.ssh_user.is_none() {
+                result.add(
+                    LintIssue::error(
+                        format!("{path_prefix}.ssh_user"),
+                        format!("Machine '{id}' has ssh_host but missing ssh_user"),
+                    )
+                    .with_suggestion(LintSuggestion {
+                        description: "Add SSH user for remote machine".to_string(),
+                        path: format!("{path_prefix}.ssh_user"),
+                        suggested_value: Some("\"ubuntu\"".to_string()),
+                    }),
+                );
+            }
+
+            // SSH key path doesn't exist
+            if let Some(ref key_path) = machine.ssh_key {
+                let expanded = expand_path(key_path);
+                if !expanded.exists() {
+                    result.add(LintIssue::error(
+                        format!("{path_prefix}.ssh_key"),
+                        format!("SSH key file does not exist: {}", expanded.display()),
+                    ));
+                }
+            }
+        }
+
+        // === WARNINGS ===
+
+        // Very short poll interval
+        if self.global.poll_interval_secs > 0 && self.global.poll_interval_secs < 30 {
+            result.add(LintIssue::warning(
+                "global.poll_interval_secs",
+                format!(
+                    "Poll interval of {} seconds is very short and may cause high load",
+                    self.global.poll_interval_secs
+                ),
+            ));
+        }
+
+        // Very long poll interval
+        if self.global.poll_interval_secs > 600 {
+            result.add(LintIssue::warning(
+                "global.poll_interval_secs",
+                format!(
+                    "Poll interval of {} seconds is long; data may become stale",
+                    self.global.poll_interval_secs
+                ),
+            ));
+        }
+
+        // Autopilot enabled with low confidence
+        if self.autopilot.enabled && self.autopilot.min_confidence < 0.5 {
+            result.add(LintIssue::warning(
+                "autopilot.min_confidence",
+                "Autopilot enabled with low confidence threshold; may take risky actions",
+            ));
+        }
+
+        // Autopilot enabled but account switching disabled
+        if self.autopilot.enabled && !self.autopilot.auto_switch_accounts {
+            result.add(LintIssue::info(
+                "autopilot.auto_switch_accounts",
+                "Autopilot is enabled but account switching is disabled",
+            ));
+        }
+
+        // Web enabled without CORS in production
+        if self.web.enabled && !self.web.cors_enabled && self.web.bind_address != "127.0.0.1" {
+            result.add(LintIssue::warning(
+                "web.cors_enabled",
+                "Web dashboard bound to non-localhost without CORS configuration",
+            ));
+        }
+
+        // Alerts enabled but no delivery channels configured
+        if self.alerts.enabled
+            && self.alerts.webhook_url.is_none()
+            && self.alerts.slack_webhook_url.is_none()
+            && self.alerts.discord_webhook_url.is_none()
+            && !self.alerts.desktop_notifications
+        {
+            result.add(LintIssue::warning(
+                "alerts",
+                "Alerts are enabled but no delivery channels are configured",
+            ));
+        }
+
+        // === INFO ===
+
+        // No machines defined
+        if self.machines.is_empty() {
+            result.add(LintIssue::info(
+                "machines",
+                "No machines defined; vc will only monitor local machine",
+            ));
+        }
+
+        // All collectors disabled
+        if !self.collectors.sysmoni
+            && !self.collectors.ru
+            && !self.collectors.caut
+            && !self.collectors.caam
+        {
+            result.add(LintIssue::warning(
+                "collectors",
+                "All primary collectors are disabled; vc will collect minimal data",
+            ));
+        }
+
+        // Debug logging in production
+        if self.global.log_level.to_lowercase() == "trace"
+            || self.global.log_level.to_lowercase() == "debug"
+        {
+            result.add(LintIssue::info(
+                "global.log_level",
+                "Debug/trace logging enabled; logs may grow large",
+            ));
+        }
+
+        // Machine with no tags
+        for (id, machine) in &self.machines {
+            if machine.tags.is_empty() {
+                result.add(LintIssue::info(
+                    format!("machines.{id}.tags"),
+                    format!("Machine '{id}' has no tags; consider adding tags for filtering"),
+                ));
+            }
+        }
+
+        result
+    }
+
+    /// Generate a minimal default configuration as TOML string.
+    pub fn generate_default_toml() -> String {
+        r#"# Vibe Cockpit Configuration
+# Generated by vc config wizard
+
+[global]
+# Path to DuckDB database (default: ~/.local/share/vc/vc.duckdb)
+# db_path = "~/.local/share/vc/vc.duckdb"
+
+# Poll interval in seconds (default: 120)
+poll_interval_secs = 120
+
+# Log level: trace, debug, info, warn, error (default: info)
+log_level = "info"
+
+[collectors]
+# Enable/disable individual collectors
+sysmoni = true          # System metrics (CPU, memory, disk, network)
+ru = true               # Repo updater status
+caut = true             # Claude usage tracking
+caam = true             # Claude account management
+cass = true             # Claude session search
+mcp_agent_mail = true   # MCP Agent Mail
+ntm = true              # Named Tmux Manager
+rch = true              # Remote Compilation Helper
+rano = true             # Network observer
+dcg = true              # Dangerous command guard
+pt = true               # Process tracker
+bv_br = true            # Beads (issue tracker)
+
+# Collector timeout in seconds
+timeout_secs = 30
+
+[alerts]
+enabled = true
+default_cooldown_secs = 300
+# webhook_url = "https://example.com/webhook"
+# slack_webhook_url = "https://hooks.slack.com/services/..."
+desktop_notifications = false
+
+[autopilot]
+enabled = false
+min_confidence = 0.8
+auto_switch_accounts = false
+switch_threshold = 0.75
+preemptive_mins = 15
+
+[tui]
+refresh_ms = 1000
+mouse_support = true
+theme = "default"
+show_charts = true
+
+[web]
+enabled = false
+bind_address = "127.0.0.1"
+port = 8080
+
+# Machine inventory (uncomment and customize for remote monitoring)
+# [machines.local]
+# name = "Local Machine"
+# enabled = true
+# tags = ["primary"]
+
+# [machines.remote-server]
+# name = "Remote Server"
+# ssh_host = "192.168.1.100"
+# ssh_user = "ubuntu"
+# ssh_port = 22
+# # ssh_key = "~/.ssh/id_ed25519"
+# enabled = true
+# tags = ["worker", "builder"]
+"#
+        .to_string()
+    }
+
+    /// Generate a TOML representation of this config.
+    ///
+    /// # Errors
+    /// Returns an error if serialization fails.
+    pub fn to_toml(&self) -> Result<String, ConfigError> {
+        toml::to_string_pretty(self).map_err(|e| {
+            ConfigError::ValidationError(format!("Failed to serialize config: {e}"))
+        })
+    }
 }
 
 #[cfg(test)]
@@ -841,5 +1281,157 @@ enabled = true
         let config = VcConfig::default();
         assert_eq!(config.poll_interval(), Duration::from_secs(120));
         assert_eq!(config.collector_timeout(), Duration::from_secs(30));
+    }
+
+    // =============================================================================
+    // Lint Tests
+    // =============================================================================
+
+    #[test]
+    fn test_lint_valid_config() {
+        let config = VcConfig::default();
+        let result = config.lint();
+        // Default config should have no errors
+        assert!(!result.has_errors());
+        // But may have info (no machines defined)
+        assert!(result.issues.iter().any(|i| i.severity == LintSeverity::Info));
+    }
+
+    #[test]
+    fn test_lint_poll_interval_zero() {
+        let mut config = VcConfig::default();
+        config.global.poll_interval_secs = 0;
+        let result = config.lint();
+        assert!(result.has_errors());
+        assert!(result.error_count == 1);
+        assert!(result.issues.iter().any(|i| i.path == "global.poll_interval_secs"));
+    }
+
+    #[test]
+    fn test_lint_poll_interval_too_short() {
+        let mut config = VcConfig::default();
+        config.global.poll_interval_secs = 10;
+        let result = config.lint();
+        assert!(!result.has_errors());
+        assert!(result.warning_count >= 1);
+        assert!(result
+            .issues
+            .iter()
+            .any(|i| i.path == "global.poll_interval_secs"
+                && i.severity == LintSeverity::Warning));
+    }
+
+    #[test]
+    fn test_lint_invalid_log_level() {
+        let mut config = VcConfig::default();
+        config.global.log_level = "invalid".to_string();
+        let result = config.lint();
+        assert!(result.has_errors());
+        assert!(result.issues.iter().any(|i| i.path == "global.log_level"));
+    }
+
+    #[test]
+    fn test_lint_machine_ssh_missing_user() {
+        let mut config = VcConfig::default();
+        config.machines.insert(
+            "broken".to_string(),
+            MachineConfig {
+                name: "Broken".to_string(),
+                ssh_host: Some("example.com".to_string()),
+                ssh_user: None,
+                ssh_key: None,
+                ssh_port: 22,
+                enabled: true,
+                collectors: HashMap::new(),
+                tags: vec![],
+            },
+        );
+        let result = config.lint();
+        assert!(result.has_errors());
+        assert!(result
+            .issues
+            .iter()
+            .any(|i| i.path.contains("ssh_user")));
+    }
+
+    #[test]
+    fn test_lint_alerts_no_channels() {
+        let mut config = VcConfig::default();
+        config.alerts.enabled = true;
+        config.alerts.webhook_url = None;
+        config.alerts.slack_webhook_url = None;
+        config.alerts.discord_webhook_url = None;
+        config.alerts.desktop_notifications = false;
+        let result = config.lint();
+        // Should warn about no delivery channels
+        assert!(result
+            .issues
+            .iter()
+            .any(|i| i.path == "alerts" && i.severity == LintSeverity::Warning));
+    }
+
+    #[test]
+    fn test_lint_autopilot_low_confidence() {
+        let mut config = VcConfig::default();
+        config.autopilot.enabled = true;
+        config.autopilot.min_confidence = 0.3;
+        let result = config.lint();
+        // Should warn about low confidence
+        assert!(result
+            .issues
+            .iter()
+            .any(|i| i.path == "autopilot.min_confidence"
+                && i.severity == LintSeverity::Warning));
+    }
+
+    #[test]
+    fn test_lint_suggestion() {
+        let mut config = VcConfig::default();
+        config.global.poll_interval_secs = 0;
+        let result = config.lint();
+        let issue = result
+            .issues
+            .iter()
+            .find(|i| i.path == "global.poll_interval_secs")
+            .expect("should find poll interval issue");
+        assert!(issue.suggestion.is_some());
+        let suggestion = issue.suggestion.as_ref().unwrap();
+        assert_eq!(suggestion.suggested_value, Some("120".to_string()));
+    }
+
+    #[test]
+    fn test_lint_result_counts() {
+        let mut result = LintResult::new();
+        result.add(LintIssue::error("path1", "error"));
+        result.add(LintIssue::warning("path2", "warning"));
+        result.add(LintIssue::info("path3", "info"));
+        result.add(LintIssue::error("path4", "error2"));
+
+        assert_eq!(result.error_count, 2);
+        assert_eq!(result.warning_count, 1);
+        assert_eq!(result.info_count, 1);
+        assert_eq!(result.issues.len(), 4);
+        assert!(result.has_errors());
+        assert!(result.has_issues());
+    }
+
+    #[test]
+    fn test_generate_default_toml() {
+        let toml = VcConfig::generate_default_toml();
+        assert!(toml.contains("[global]"));
+        assert!(toml.contains("[collectors]"));
+        assert!(toml.contains("[alerts]"));
+        assert!(toml.contains("[autopilot]"));
+        assert!(toml.contains("[tui]"));
+        assert!(toml.contains("[web]"));
+        assert!(toml.contains("poll_interval_secs"));
+    }
+
+    #[test]
+    fn test_config_to_toml() {
+        let config = VcConfig::default();
+        let toml = config.to_toml().expect("should serialize");
+        assert!(toml.contains("[global]"));
+        assert!(toml.contains("poll_interval_secs = 120"));
     }
 }

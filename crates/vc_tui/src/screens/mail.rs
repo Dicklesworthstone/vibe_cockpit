@@ -357,13 +357,13 @@ fn render_messages_pane(f: &mut Frame, area: Rect, data: &MailData, theme: &Them
                     importance_indicator,
                     ack_indicator,
                     Span::raw(" "),
-                    Span::styled(&from_display, Style::default().fg(theme.info)),
+                    Span::styled(from_display, Style::default().fg(theme.info)),
                     Span::raw("  "),
-                    Span::styled(&msg.timestamp, Style::default().fg(theme.muted)),
+                    Span::styled(msg.timestamp.clone(), Style::default().fg(theme.muted)),
                 ]),
                 Line::from(vec![
                     Span::raw("     "),
-                    Span::styled(&preview, Style::default().fg(theme.text)),
+                    Span::styled(preview, Style::default().fg(theme.text)),
                 ]),
             ])
             .style(row_style)

@@ -21,6 +21,12 @@ pub enum KnowledgeError {
     #[error("Store error: {0}")]
     StoreError(#[from] vc_store::StoreError),
 
+    #[error("Database error: {0}")]
+    DatabaseError(#[from] duckdb::Error),
+
+    #[error("Serialization error: {0}")]
+    SerializationError(#[from] serde_json::Error),
+
     #[error("Invalid entry type: {0}")]
     InvalidEntryType(String),
 

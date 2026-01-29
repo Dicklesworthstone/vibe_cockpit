@@ -9,6 +9,7 @@
 use chrono::{DateTime, Utc};
 use clap::{Parser, Subcommand, ValueEnum};
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
@@ -183,6 +184,60 @@ pub enum Commands {
         #[command(subcommand)]
         command: QueryCommands,
     },
+
+    /// Configuration management
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommands,
+    },
+}
+
+/// Configuration subcommands
+#[derive(Subcommand, Debug)]
+pub enum ConfigCommands {
+    /// Lint configuration file for errors and warnings
+    Lint {
+        /// Path to config file (uses auto-discovery if not specified)
+        #[arg(short, long)]
+        file: Option<PathBuf>,
+
+        /// Show only errors (no warnings or info)
+        #[arg(long)]
+        errors_only: bool,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Generate a new configuration file interactively
+    Wizard {
+        /// Output file path (default: vc.toml in current directory)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Overwrite existing file without prompting
+        #[arg(long)]
+        overwrite: bool,
+
+        /// Generate minimal config (skip optional sections)
+        #[arg(long)]
+        minimal: bool,
+    },
+
+    /// Show the current configuration
+    Show {
+        /// Path to config file (uses auto-discovery if not specified)
+        #[arg(short, long)]
+        file: Option<PathBuf>,
+
+        /// Output as JSON instead of TOML
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Show config file search paths
+    Paths,
 }
 
 /// Query subcommands
@@ -828,6 +883,140 @@ impl Cli {
                             })
                             .collect();
                         print_output(&templates, self.format);
+                    }
+                }
+            }
+            Commands::Config { command } => {
+                use vc_config::{LintResult, LintSeverity};
+
+                match command {
+                    ConfigCommands::Lint {
+                        file,
+                        errors_only,
+                        json,
+                    } => {
+                        // Load config from specified file or discover
+                        let config = match file {
+                            Some(path) => VcConfig::load(&path)?,
+                            None => VcConfig::discover()?,
+                        };
+
+                        // Run lint
+                        let result = config.lint();
+
+                        if json {
+                            // JSON output
+                            print_output(&result, OutputFormat::Json);
+                        } else {
+                            // Human-readable output
+                            if result.issues.is_empty() {
+                                println!("✓ Configuration is valid with no issues");
+                            } else {
+                                for issue in &result.issues {
+                                    if errors_only && issue.severity != LintSeverity::Error {
+                                        continue;
+                                    }
+
+                                    let severity_icon = match issue.severity {
+                                        LintSeverity::Error => "✗",
+                                        LintSeverity::Warning => "⚠",
+                                        LintSeverity::Info => "ℹ",
+                                    };
+
+                                    println!(
+                                        "{} [{}] {}: {}",
+                                        severity_icon, issue.severity, issue.path, issue.message
+                                    );
+
+                                    if let Some(ref suggestion) = issue.suggestion {
+                                        println!(
+                                            "  → Fix: {}",
+                                            suggestion.description
+                                        );
+                                        if let Some(ref val) = suggestion.suggested_value {
+                                            println!("    {} = {}", suggestion.path, val);
+                                        }
+                                    }
+                                }
+
+                                println!();
+                                println!(
+                                    "Summary: {} error(s), {} warning(s), {} info",
+                                    result.error_count, result.warning_count, result.info_count
+                                );
+                            }
+                        }
+
+                        // Exit with error if there are errors
+                        if result.has_errors() {
+                            return Err(CliError::CommandFailed(
+                                "Configuration has errors".to_string(),
+                            ));
+                        }
+                    }
+                    ConfigCommands::Wizard {
+                        output,
+                        overwrite,
+                        minimal: _,
+                    } => {
+                        let output_path = output.unwrap_or_else(|| PathBuf::from("vc.toml"));
+
+                        // Check if file exists
+                        if output_path.exists() && !overwrite {
+                            return Err(CliError::CommandFailed(format!(
+                                "File already exists: {}. Use --overwrite to replace.",
+                                output_path.display()
+                            )));
+                        }
+
+                        // Generate default config
+                        let content = VcConfig::generate_default_toml();
+
+                        // Write to file
+                        std::fs::write(&output_path, &content).map_err(|e| {
+                            CliError::CommandFailed(format!(
+                                "Failed to write config: {}",
+                                e
+                            ))
+                        })?;
+
+                        println!("✓ Generated configuration: {}", output_path.display());
+                        println!();
+                        println!("Next steps:");
+                        println!("  1. Edit {} to customize settings", output_path.display());
+                        println!("  2. Run 'vc config lint' to validate");
+                        println!("  3. Run 'vc daemon' to start monitoring");
+                    }
+                    ConfigCommands::Show { file, json } => {
+                        let config = match file {
+                            Some(path) => VcConfig::load(&path)?,
+                            None => VcConfig::discover()?,
+                        };
+
+                        if json {
+                            print_output(&config, OutputFormat::Json);
+                        } else {
+                            let toml = config.to_toml()?;
+                            println!("{toml}");
+                        }
+                    }
+                    ConfigCommands::Paths => {
+                        let paths = VcConfig::config_paths();
+                        println!("Config file search paths (in order of precedence):");
+                        for (i, path) in paths.iter().enumerate() {
+                            let exists = path.exists();
+                            let marker = if exists { "✓" } else { " " };
+                            println!("  {} {}. {}", marker, i + 1, path.display());
+                        }
+
+                        // Show which one is currently loaded
+                        for path in &paths {
+                            if path.exists() {
+                                println!();
+                                println!("Currently using: {}", path.display());
+                                break;
+                            }
+                        }
                     }
                 }
             }

@@ -43,6 +43,21 @@ const MIGRATIONS: &[Migration] = &[
         name: "ntm_collector",
         sql: include_str!("migrations/006_ntm_collector.sql"),
     },
+    Migration {
+        version: 7,
+        name: "cost_attribution",
+        sql: include_str!("migrations/007_cost_attribution.sql"),
+    },
+    Migration {
+        version: 8,
+        name: "afsc_collector",
+        sql: include_str!("migrations/008_afsc_collector.sql"),
+    },
+    Migration {
+        version: 9,
+        name: "cloud_benchmarker",
+        sql: include_str!("migrations/009_cloud_benchmarker.sql"),
+    },
 ];
 
 /// Run all pending migrations

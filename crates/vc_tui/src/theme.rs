@@ -25,6 +25,10 @@ pub struct Theme {
     pub text: Color,
     /// Accent color for highlights
     pub accent: Color,
+    /// Highlight color for selected items
+    pub highlight: Color,
+    /// Border color
+    pub border: Color,
     /// Claude provider color
     pub claude: Color,
     /// Codex provider color
@@ -45,6 +49,8 @@ impl Default for Theme {
             muted: Color::Rgb(139, 148, 158),
             text: Color::Rgb(230, 237, 243),
             accent: Color::Rgb(136, 87, 229),
+            highlight: Color::Rgb(88, 166, 255),
+            border: Color::Rgb(48, 54, 61),
             claude: Color::Rgb(217, 119, 87),
             codex: Color::Rgb(16, 163, 127),
             gemini: Color::Rgb(66, 133, 244),

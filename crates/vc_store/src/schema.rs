@@ -40,6 +40,17 @@ pub mod tables {
     pub const EXPERIMENT_ASSIGNMENTS: &str = "experiment_assignments";
     pub const EXPERIMENT_OBSERVATIONS: &str = "experiment_observations";
     pub const EXPERIMENT_RESULTS: &str = "experiment_results";
+    pub const COST_ATTRIBUTION_SNAPSHOT: &str = "cost_attribution_snapshot";
+    pub const COST_DAILY_SUMMARY: &str = "cost_daily_summary";
+    pub const COST_ANOMALIES: &str = "cost_anomalies";
+    pub const PROVIDER_PRICING: &str = "provider_pricing";
+    pub const AFSC_STATUS_SNAPSHOT: &str = "afsc_status_snapshot";
+    pub const AFSC_RUN_FACTS: &str = "afsc_run_facts";
+    pub const AFSC_EVENT_LOGS: &str = "afsc_event_logs";
+    pub const AFSC_ERROR_CLUSTERS: &str = "afsc_error_clusters";
+    pub const CLOUD_BENCH_RAW: &str = "cloud_bench_raw";
+    pub const CLOUD_BENCH_OVERALL: &str = "cloud_bench_overall";
+    pub const CLOUD_BENCH_HISTORY: &str = "cloud_bench_history";
 }
 
 /// Common column names

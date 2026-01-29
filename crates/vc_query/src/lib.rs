@@ -14,6 +14,13 @@ use vc_store::VcStore;
 pub mod guardrails;
 pub use guardrails::{GuardrailConfig, QueryTemplate, QueryValidator, ValidationError};
 
+pub mod cost;
+pub use cost::{
+    AnomalySeverity, AnomalyType, ConfidenceFactors, CostAnomaly, CostAttribution,
+    CostDriver, CostQueryBuilder, CostSummary, CostTrend, MachineCost, ProviderCost,
+    ProviderPricing, RepoCost, estimate_cost,
+};
+
 /// Query errors
 #[derive(Error, Debug)]
 pub enum QueryError {
