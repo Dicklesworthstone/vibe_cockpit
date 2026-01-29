@@ -149,6 +149,29 @@ pub struct AuditEventFilter {
     pub limit: usize,
 }
 
+/// Retention policy configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RetentionPolicy {
+    pub policy_id: String,
+    pub table_name: String,
+    pub retention_days: i32,
+    pub aggregate_table: Option<String>,
+    pub enabled: bool,
+    pub last_vacuum_at: Option<String>,
+}
+
+/// Result of a vacuum operation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VacuumResult {
+    pub table_name: String,
+    pub rows_deleted: i64,
+    pub rows_would_delete: i64,
+    pub rows_aggregated: i64,
+    pub duration_ms: i64,
+    pub dry_run: bool,
+    pub error: Option<String>,
+}
+
 /// Main storage handle
 pub struct VcStore {
     conn: Arc<Mutex<Connection>>,
@@ -406,7 +429,10 @@ impl VcStore {
         }
 
         if let Some(since) = filter.since {
-            clauses.push(format!("ts >= '{}'", since.to_rfc3339()));
+            clauses.push(format!(
+                "ts >= '{}'",
+                escape_sql_literal(&since.to_rfc3339())
+            ));
         }
 
         let where_sql = if clauses.is_empty() {
@@ -432,6 +458,285 @@ impl VcStore {
         );
         let mut rows = self.query_json(&sql)?;
         Ok(rows.pop())
+    }
+
+    // =========================================================================
+    // Retention Policy Methods
+    // =========================================================================
+
+    /// List all retention policies
+    pub fn list_retention_policies(&self) -> Result<Vec<RetentionPolicy>, StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT policy_id, table_name, retention_days, aggregate_table, enabled, last_vacuum_at \
+             FROM retention_policies ORDER BY table_name",
+        )?;
+
+        let rows = stmt.query_map([], |row| {
+            Ok(RetentionPolicy {
+                policy_id: row.get(0)?,
+                table_name: row.get(1)?,
+                retention_days: row.get(2)?,
+                aggregate_table: row.get(3)?,
+                enabled: row.get(4)?,
+                last_vacuum_at: row.get(5)?,
+            })
+        })?;
+
+        let mut policies = Vec::new();
+        for row in rows {
+            policies.push(row?);
+        }
+        Ok(policies)
+    }
+
+    /// Get a single retention policy by table name
+    pub fn get_retention_policy(
+        &self,
+        table_name: &str,
+    ) -> Result<Option<RetentionPolicy>, StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT policy_id, table_name, retention_days, aggregate_table, enabled, last_vacuum_at \
+             FROM retention_policies WHERE table_name = ?",
+        )?;
+
+        let result = stmt.query_row([table_name], |row| {
+            Ok(RetentionPolicy {
+                policy_id: row.get(0)?,
+                table_name: row.get(1)?,
+                retention_days: row.get(2)?,
+                aggregate_table: row.get(3)?,
+                enabled: row.get(4)?,
+                last_vacuum_at: row.get(5)?,
+            })
+        });
+
+        match result {
+            Ok(policy) => Ok(Some(policy)),
+            Err(duckdb::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    /// Set retention policy for a table (upsert)
+    pub fn set_retention_policy(
+        &self,
+        table_name: &str,
+        retention_days: i32,
+        aggregate_table: Option<&str>,
+        enabled: bool,
+    ) -> Result<(), StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let policy_id = format!("retention_{}", table_name);
+
+        conn.execute(
+            "INSERT OR REPLACE INTO retention_policies (policy_id, table_name, retention_days, aggregate_table, enabled) \
+             VALUES (?, ?, ?, ?, ?)",
+            duckdb::params![policy_id, table_name, retention_days, aggregate_table, enabled],
+        )?;
+
+        Ok(())
+    }
+
+    /// Run vacuum for all enabled retention policies (or specific table)
+    pub fn run_vacuum(
+        &self,
+        dry_run: bool,
+        specific_table: Option<&str>,
+    ) -> Result<Vec<VacuumResult>, StoreError> {
+        let policies = self.list_retention_policies()?;
+        let mut results = Vec::new();
+
+        for policy in policies {
+            // Skip disabled policies
+            if !policy.enabled {
+                continue;
+            }
+
+            // Skip if specific table requested and doesn't match
+            if let Some(table) = specific_table {
+                if policy.table_name != table {
+                    continue;
+                }
+            }
+
+            let result = self.vacuum_table(&policy, dry_run)?;
+            results.push(result);
+        }
+
+        Ok(results)
+    }
+
+    /// Vacuum a single table based on its retention policy
+    fn vacuum_table(
+        &self,
+        policy: &RetentionPolicy,
+        dry_run: bool,
+    ) -> Result<VacuumResult, StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let start = std::time::Instant::now();
+
+        // Calculate cutoff date
+        let cutoff = Utc::now() - chrono::Duration::days(policy.retention_days as i64);
+        let cutoff_str = cutoff.format("%Y-%m-%d %H:%M:%S").to_string();
+
+        // Count rows that would be deleted
+        // Try common timestamp column names
+        let ts_column = self.detect_timestamp_column(&conn, &policy.table_name)?;
+
+        let count_sql = format!(
+            "SELECT COUNT(*) FROM {} WHERE {} < '{}'",
+            policy.table_name, ts_column, cutoff_str
+        );
+
+        let rows_to_delete: i64 = conn
+            .query_row(&count_sql, [], |row| row.get(0))
+            .unwrap_or(0);
+
+        if dry_run {
+            // Log dry-run result
+            self.log_vacuum_result(
+                &conn,
+                policy,
+                0,
+                0,
+                start.elapsed().as_millis() as i64,
+                true,
+                None,
+            )?;
+
+            return Ok(VacuumResult {
+                table_name: policy.table_name.clone(),
+                rows_deleted: 0,
+                rows_would_delete: rows_to_delete,
+                rows_aggregated: 0,
+                duration_ms: start.elapsed().as_millis() as i64,
+                dry_run: true,
+                error: None,
+            });
+        }
+
+        // Actually delete old rows
+        let delete_sql = format!(
+            "DELETE FROM {} WHERE {} < '{}'",
+            policy.table_name, ts_column, cutoff_str
+        );
+
+        let deleted = match conn.execute(&delete_sql, []) {
+            Ok(n) => n as i64,
+            Err(e) => {
+                let error_msg = e.to_string();
+                self.log_vacuum_result(
+                    &conn,
+                    policy,
+                    0,
+                    0,
+                    start.elapsed().as_millis() as i64,
+                    false,
+                    Some(&error_msg),
+                )?;
+                return Ok(VacuumResult {
+                    table_name: policy.table_name.clone(),
+                    rows_deleted: 0,
+                    rows_would_delete: rows_to_delete,
+                    rows_aggregated: 0,
+                    duration_ms: start.elapsed().as_millis() as i64,
+                    dry_run: false,
+                    error: Some(error_msg),
+                });
+            }
+        };
+
+        // Update last_vacuum_at
+        conn.execute(
+            "UPDATE retention_policies SET last_vacuum_at = current_timestamp WHERE policy_id = ?",
+            [&policy.policy_id],
+        )?;
+
+        // Log success
+        self.log_vacuum_result(
+            &conn,
+            policy,
+            deleted,
+            0,
+            start.elapsed().as_millis() as i64,
+            false,
+            None,
+        )?;
+
+        Ok(VacuumResult {
+            table_name: policy.table_name.clone(),
+            rows_deleted: deleted,
+            rows_would_delete: rows_to_delete,
+            rows_aggregated: 0,
+            duration_ms: start.elapsed().as_millis() as i64,
+            dry_run: false,
+            error: None,
+        })
+    }
+
+    /// Detect the timestamp column for a table
+    fn detect_timestamp_column(
+        &self,
+        conn: &Connection,
+        table_name: &str,
+    ) -> Result<String, StoreError> {
+        // Common timestamp column names in order of preference
+        let candidates = ["collected_at", "ts", "created_at", "timestamp", "time"];
+
+        for col in candidates {
+            let check_sql = format!(
+                "SELECT 1 FROM information_schema.columns WHERE table_name = '{}' AND column_name = '{}' LIMIT 1",
+                table_name, col
+            );
+            if conn.query_row(&check_sql, [], |_| Ok(())).is_ok() {
+                return Ok(col.to_string());
+            }
+        }
+
+        Err(StoreError::QueryError(format!(
+            "No timestamp column found in table '{}'. Expected one of: {:?}",
+            table_name, candidates
+        )))
+    }
+
+    /// Log a vacuum operation to retention_log
+    fn log_vacuum_result(
+        &self,
+        conn: &Connection,
+        policy: &RetentionPolicy,
+        rows_deleted: i64,
+        rows_aggregated: i64,
+        duration_ms: i64,
+        dry_run: bool,
+        error_message: Option<&str>,
+    ) -> Result<(), StoreError> {
+        // Get next ID
+        let next_id: i64 = conn.query_row(
+            "SELECT COALESCE(MAX(id), 0) + 1 FROM retention_log",
+            [],
+            |row| row.get(0),
+        )?;
+
+        conn.execute(
+            "INSERT INTO retention_log (id, policy_id, table_name, rows_deleted, rows_aggregated, duration_ms, dry_run, error_message) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            duckdb::params![next_id, policy.policy_id, policy.table_name, rows_deleted, rows_aggregated, duration_ms, dry_run, error_message],
+        )?;
+
+        Ok(())
+    }
+
+    /// Get vacuum history
+    pub fn list_vacuum_history(&self, limit: usize) -> Result<Vec<serde_json::Value>, StoreError> {
+        let limit = limit.min(1000);
+        let sql = format!(
+            "SELECT id, ts, policy_id, table_name, rows_deleted, rows_aggregated, duration_ms, dry_run, error_message \
+             FROM retention_log ORDER BY ts DESC LIMIT {}",
+            limit
+        );
+        self.query_json(&sql)
     }
 
     /// Insert or replace rows (handles conflicts via PRIMARY KEY)
@@ -1287,5 +1592,78 @@ mod tests {
     fn test_db_path_accessor() {
         let store = VcStore::open_memory().unwrap();
         assert_eq!(store.db_path(), ":memory:");
+    }
+
+    // =============================================================================
+    // Retention Policy Tests
+    // =============================================================================
+
+    #[test]
+    fn test_retention_policy_crud() {
+        let store = VcStore::open_memory().unwrap();
+
+        // Initially no policies
+        let policies = store.list_retention_policies().unwrap();
+        assert!(policies.is_empty());
+
+        // Set a policy
+        store
+            .set_retention_policy("sys_samples", 7, None, true)
+            .unwrap();
+
+        // List policies
+        let policies = store.list_retention_policies().unwrap();
+        assert_eq!(policies.len(), 1);
+        assert_eq!(policies[0].table_name, "sys_samples");
+        assert_eq!(policies[0].retention_days, 7);
+        assert!(policies[0].enabled);
+
+        // Get specific policy
+        let policy = store.get_retention_policy("sys_samples").unwrap();
+        assert!(policy.is_some());
+        let policy = policy.unwrap();
+        assert_eq!(policy.retention_days, 7);
+
+        // Non-existent policy
+        let none = store.get_retention_policy("nonexistent").unwrap();
+        assert!(none.is_none());
+    }
+
+    #[test]
+    fn test_retention_policy_update() {
+        let store = VcStore::open_memory().unwrap();
+
+        // Set initial policy
+        store
+            .set_retention_policy("sys_samples", 7, None, true)
+            .unwrap();
+
+        // Update policy
+        store
+            .set_retention_policy("sys_samples", 30, None, false)
+            .unwrap();
+
+        // Verify update
+        let policy = store.get_retention_policy("sys_samples").unwrap().unwrap();
+        assert_eq!(policy.retention_days, 30);
+        assert!(!policy.enabled);
+    }
+
+    #[test]
+    fn test_vacuum_dry_run_no_policies() {
+        let store = VcStore::open_memory().unwrap();
+
+        // Run vacuum with no policies
+        let results = store.run_vacuum(true, None).unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_vacuum_history() {
+        let store = VcStore::open_memory().unwrap();
+
+        // Initially no history
+        let history = store.list_vacuum_history(10).unwrap();
+        assert!(history.is_empty());
     }
 }

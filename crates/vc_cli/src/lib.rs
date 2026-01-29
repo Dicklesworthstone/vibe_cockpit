@@ -18,8 +18,10 @@ use vc_config::VcConfig;
 use vc_store::{AuditEventFilter, AuditEventType, VcStore};
 
 pub mod robot;
+pub mod schema_registry;
 
 pub use robot::{HealthData, RobotEnvelope, StatusData, TriageData};
+pub use schema_registry::{SchemaEntry, SchemaIndex, SchemaRegistry};
 
 /// CLI errors
 #[derive(Error, Debug)]
@@ -189,6 +191,41 @@ pub enum Commands {
     Config {
         #[command(subcommand)]
         command: ConfigCommands,
+    },
+
+    /// Data retention policy management
+    Retention {
+        #[command(subcommand)]
+        command: RetentionCommands,
+    },
+}
+
+/// Retention policy subcommands
+#[derive(Subcommand, Debug)]
+pub enum RetentionCommands {
+    /// List all retention policies
+    List,
+
+    /// Set retention policy for a table
+    Set {
+        /// Table name
+        #[arg(long)]
+        table: String,
+
+        /// Retention period in days
+        #[arg(long)]
+        days: i32,
+
+        /// Disable the policy (default: enabled)
+        #[arg(long)]
+        disabled: bool,
+    },
+
+    /// Show vacuum operation history
+    History {
+        /// Number of entries to show
+        #[arg(long, default_value = "20")]
+        limit: usize,
     },
 }
 
@@ -1010,6 +1047,81 @@ impl Cli {
                                 println!("Currently using: {}", path.display());
                                 break;
                             }
+                        }
+                    }
+                }
+            }
+            Commands::Vacuum { dry_run, table } => {
+                let store = open_store(self.config.as_ref())?;
+
+                let results = store
+                    .run_vacuum(dry_run, table.as_deref())
+                    .map_err(|e| CliError::CommandFailed(format!("Vacuum failed: {e}")))?;
+
+                if results.is_empty() {
+                    if table.is_some() {
+                        println!("No retention policy found for specified table");
+                    } else {
+                        println!("No enabled retention policies found");
+                    }
+                } else {
+                    let summary = serde_json::json!({
+                        "dry_run": dry_run,
+                        "tables_processed": results.len(),
+                        "total_rows_deleted": results.iter().map(|r| r.rows_deleted).sum::<i64>(),
+                        "total_rows_would_delete": results.iter().map(|r| r.rows_would_delete).sum::<i64>(),
+                        "results": results,
+                    });
+                    print_output(&summary, self.format);
+                }
+            }
+            Commands::Retention { command } => {
+                let store = open_store(self.config.as_ref())?;
+
+                match command {
+                    RetentionCommands::List => {
+                        let policies = store.list_retention_policies().map_err(|e| {
+                            CliError::CommandFailed(format!("Failed to list policies: {e}"))
+                        })?;
+
+                        if policies.is_empty() {
+                            println!("No retention policies configured");
+                            println!();
+                            println!("To add a policy, use:");
+                            println!("  vc retention set --table <table_name> --days <days>");
+                        } else {
+                            print_output(&policies, self.format);
+                        }
+                    }
+                    RetentionCommands::Set {
+                        table,
+                        days,
+                        disabled,
+                    } => {
+                        let enabled = !disabled;
+                        store
+                            .set_retention_policy(&table, days, None, enabled)
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!("Failed to set policy: {e}"))
+                            })?;
+
+                        let policy = store.get_retention_policy(&table).map_err(|e| {
+                            CliError::CommandFailed(format!("Failed to fetch policy: {e}"))
+                        })?;
+
+                        if let Some(policy) = policy {
+                            print_output(&policy, self.format);
+                        }
+                    }
+                    RetentionCommands::History { limit } => {
+                        let history = store.list_vacuum_history(limit).map_err(|e| {
+                            CliError::CommandFailed(format!("Failed to fetch history: {e}"))
+                        })?;
+
+                        if history.is_empty() {
+                            println!("No vacuum operations recorded yet");
+                        } else {
+                            print_output(&history, self.format);
                         }
                     }
                 }
@@ -1911,6 +2023,86 @@ mod tests {
             }
         } else {
             panic!("Expected Audit command");
+        }
+    }
+
+    // =============================================================================
+    // Commands::Retention Tests
+    // =============================================================================
+
+    #[test]
+    fn test_retention_list_parse() {
+        let cli = Cli::parse_from(["vc", "retention", "list"]);
+        if let Commands::Retention { command } = cli.command {
+            assert!(matches!(command, RetentionCommands::List));
+        } else {
+            panic!("Expected Retention command");
+        }
+    }
+
+    #[test]
+    fn test_retention_set_parse() {
+        let cli = Cli::parse_from([
+            "vc",
+            "retention",
+            "set",
+            "--table",
+            "sys_samples",
+            "--days",
+            "30",
+        ]);
+        if let Commands::Retention { command } = cli.command {
+            if let RetentionCommands::Set {
+                table,
+                days,
+                disabled,
+            } = command
+            {
+                assert_eq!(table, "sys_samples");
+                assert_eq!(days, 30);
+                assert!(!disabled); // default is not disabled (i.e., enabled)
+            } else {
+                panic!("Expected Retention set");
+            }
+        } else {
+            panic!("Expected Retention command");
+        }
+    }
+
+    #[test]
+    fn test_retention_set_disabled() {
+        let cli = Cli::parse_from([
+            "vc",
+            "retention",
+            "set",
+            "--table",
+            "test",
+            "--days",
+            "7",
+            "--disabled",
+        ]);
+        if let Commands::Retention { command } = cli.command {
+            if let RetentionCommands::Set { disabled, .. } = command {
+                assert!(disabled);
+            } else {
+                panic!("Expected Retention set");
+            }
+        } else {
+            panic!("Expected Retention command");
+        }
+    }
+
+    #[test]
+    fn test_retention_history_parse() {
+        let cli = Cli::parse_from(["vc", "retention", "history", "--limit", "50"]);
+        if let Commands::Retention { command } = cli.command {
+            if let RetentionCommands::History { limit } = command {
+                assert_eq!(limit, 50);
+            } else {
+                panic!("Expected Retention history");
+            }
+        } else {
+            panic!("Expected Retention command");
         }
     }
 

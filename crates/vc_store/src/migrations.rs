@@ -58,6 +58,11 @@ const MIGRATIONS: &[Migration] = &[
         name: "cloud_benchmarker",
         sql: include_str!("migrations/009_cloud_benchmarker.sql"),
     },
+    Migration {
+        version: 10,
+        name: "retention_log",
+        sql: include_str!("migrations/010_retention_log.sql"),
+    },
 ];
 
 /// Run all pending migrations
