@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibe-cockpit.dev/schemas/robot-envelope.json",
+  "title": "RobotEnvelope",
+  "description": "Standard envelope for all robot mode output. Every robot command returns data wrapped in this envelope, providing consistent metadata for agent consumption.",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "data"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Schema version identifier (e.g., 'vc.robot.health.v1')",
+      "pattern": "^vc\\.robot\\.[a-z]+\\.v[0-9]+$",
+      "examples": ["vc.robot.health.v1", "vc.robot.status.v1", "vc.robot.triage.v1"]
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this output was generated (RFC3339 timestamp)"
+    },
+    "data": {
+      "description": "The actual data payload - schema depends on command"
+    },
+    "staleness": {
+      "type": "object",
+      "description": "Data staleness by source (seconds since last collection)",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "examples": [{"sysmoni": 60, "ru": 120}]
+    },
+    "warnings": {
+      "type": "array",
+      "description": "Warnings about data quality or collection issues",
+      "items": {
+        "type": "string"
+      },
+      "examples": [["No collectors have run yet - data may be incomplete"]]
+    }
+  },
+  "additionalProperties": false
+}

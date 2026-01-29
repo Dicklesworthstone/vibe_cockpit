@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibe-cockpit.dev/schemas/robot-triage.json",
+  "title": "vc.robot.triage.v1",
+  "description": "Triage recommendations returned by 'vc robot triage'",
+  "allOf": [
+    { "$ref": "robot-envelope.json" },
+    {
+      "properties": {
+        "schema_version": { "const": "vc.robot.triage.v1" },
+        "data": { "$ref": "#/$defs/TriageData" }
+      }
+    }
+  ],
+  "$defs": {
+    "TriageData": {
+      "type": "object",
+      "required": ["recommendations", "suggested_commands"],
+      "properties": {
+        "recommendations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Recommendation" },
+          "description": "Prioritized recommendations"
+        },
+        "suggested_commands": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/SuggestedCommand" },
+          "description": "Suggested commands to run"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Recommendation": {
+      "type": "object",
+      "required": ["id", "priority", "title", "description", "scope", "action"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Priority (1 = highest)"
+        },
+        "title": {
+          "type": "string",
+          "description": "Short title"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description"
+        },
+        "scope": {
+          "type": "string",
+          "description": "Affected scope (machine, collector, etc.)"
+        },
+        "action": {
+          "type": "string",
+          "description": "Suggested action"
+        }
+      },
+      "additionalProperties": false
+    },
+    "SuggestedCommand": {
+      "type": "object",
+      "required": ["command", "reason", "confidence"],
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "Command to run"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Why this is suggested"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Confidence level (0.0 to 1.0)"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

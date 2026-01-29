@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibe-cockpit.dev/schemas/index.json",
+  "title": "Vibe Cockpit Schema Registry",
+  "description": "Index of all JSON schemas for robot outputs and API responses",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "schemas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "file", "title", "description", "command"],
+        "properties": {
+          "id": { "type": "string" },
+          "file": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "command": { "type": "string" }
+        }
+      }
+    }
+  },
+  "default": {
+    "version": "1.0.0",
+    "schemas": [
+      {
+        "id": "robot-envelope",
+        "file": "robot-envelope.json",
+        "title": "RobotEnvelope",
+        "description": "Standard envelope for all robot mode output",
+        "command": "(base schema)"
+      },
+      {
+        "id": "vc.robot.health.v1",
+        "file": "robot-health.json",
+        "title": "Health Data",
+        "description": "Overall fleet health data",
+        "command": "vc robot health"
+      },
+      {
+        "id": "vc.robot.status.v1",
+        "file": "robot-status.json",
+        "title": "Status Data",
+        "description": "Comprehensive fleet status data",
+        "command": "vc robot status"
+      },
+      {
+        "id": "vc.robot.triage.v1",
+        "file": "robot-triage.json",
+        "title": "Triage Data",
+        "description": "Triage recommendations",
+        "command": "vc robot triage"
+      }
+    ]
+  }
+}

@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibe-cockpit.dev/schemas/robot-health.json",
+  "title": "vc.robot.health.v1",
+  "description": "Overall fleet health data returned by 'vc robot health'",
+  "allOf": [
+    { "$ref": "robot-envelope.json" },
+    {
+      "properties": {
+        "schema_version": { "const": "vc.robot.health.v1" },
+        "data": { "$ref": "#/$defs/HealthData" }
+      }
+    }
+  ],
+  "$defs": {
+    "HealthData": {
+      "type": "object",
+      "required": ["overall", "machines", "alerts_by_severity"],
+      "properties": {
+        "overall": { "$ref": "#/$defs/OverallHealth" },
+        "machines": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/MachineHealth" }
+        },
+        "alerts_by_severity": { "$ref": "#/$defs/AlertCounts" }
+      },
+      "additionalProperties": false
+    },
+    "OverallHealth": {
+      "type": "object",
+      "required": ["score", "severity", "active_alerts", "machine_count", "agent_count"],
+      "properties": {
+        "score": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Health score (0.0 to 1.0)"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["healthy", "warning", "critical"],
+          "description": "Severity level"
+        },
+        "active_alerts": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total active alerts"
+        },
+        "machine_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of machines monitored"
+        },
+        "agent_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of active agents"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MachineHealth": {
+      "type": "object",
+      "required": ["id", "name", "score", "status", "last_seen", "agent_count"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Machine identifier"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name"
+        },
+        "score": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Health score (0.0 to 1.0)"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["online", "degraded", "offline", "unknown"],
+          "description": "Machine status"
+        },
+        "top_issue": {
+          "type": ["string", "null"],
+          "description": "Top issue affecting this machine"
+        },
+        "last_seen": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last data collection timestamp"
+        },
+        "agent_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Active agent count on this machine"
+        },
+        "cpu_percent": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 100,
+          "description": "CPU usage percentage (0-100)"
+        },
+        "memory_percent": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Memory usage percentage (0-100)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "AlertCounts": {
+      "type": "object",
+      "required": ["critical", "warning", "info"],
+      "properties": {
+        "critical": { "type": "integer", "minimum": 0 },
+        "warning": { "type": "integer", "minimum": 0 },
+        "info": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vibe-cockpit.dev/schemas/robot-status.json",
+  "title": "vc.robot.status.v1",
+  "description": "Comprehensive fleet status data returned by 'vc robot status'",
+  "allOf": [
+    { "$ref": "robot-envelope.json" },
+    {
+      "properties": {
+        "schema_version": { "const": "vc.robot.status.v1" },
+        "data": { "$ref": "#/$defs/StatusData" }
+      }
+    }
+  ],
+  "$defs": {
+    "StatusData": {
+      "type": "object",
+      "required": ["fleet", "machines", "repos", "alerts"],
+      "properties": {
+        "fleet": { "$ref": "#/$defs/FleetSummary" },
+        "machines": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/MachineStatus" }
+        },
+        "repos": { "$ref": "#/$defs/RepoSummary" },
+        "alerts": { "$ref": "#/$defs/AlertSummary" }
+      },
+      "additionalProperties": false
+    },
+    "FleetSummary": {
+      "type": "object",
+      "required": ["total_machines", "online", "offline", "health_score"],
+      "properties": {
+        "total_machines": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of machines"
+        },
+        "online": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of online machines"
+        },
+        "offline": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of offline machines"
+        },
+        "health_score": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Overall fleet health score (0.0 to 1.0)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MachineStatus": {
+      "type": "object",
+      "required": ["id", "status", "last_seen", "health_score"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Machine identifier"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["online", "offline", "degraded"],
+          "description": "Machine status"
+        },
+        "last_seen": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last data collection timestamp"
+        },
+        "health_score": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Health score (0.0 to 1.0)"
+        },
+        "metrics": {
+          "oneOf": [
+            { "$ref": "#/$defs/MachineMetrics" },
+            { "type": "null" }
+          ],
+          "description": "Current metrics (None if offline)"
+        },
+        "top_issue": {
+          "type": ["string", "null"],
+          "description": "Top issue affecting this machine"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MachineMetrics": {
+      "type": "object",
+      "required": ["cpu_pct", "mem_pct", "load5", "disk_free_pct"],
+      "properties": {
+        "cpu_pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "CPU usage percentage (0-100)"
+        },
+        "mem_pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Memory usage percentage (0-100)"
+        },
+        "load5": {
+          "type": "number",
+          "minimum": 0,
+          "description": "5-minute load average"
+        },
+        "disk_free_pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Available disk percentage (0-100)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "RepoSummary": {
+      "type": "object",
+      "required": ["total", "dirty", "ahead", "behind"],
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total tracked repositories"
+        },
+        "dirty": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Repositories with uncommitted changes"
+        },
+        "ahead": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Repositories ahead of remote"
+        },
+        "behind": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Repositories behind remote"
+        }
+      },
+      "additionalProperties": false
+    },
+    "AlertSummary": {
+      "type": "object",
+      "required": ["critical", "high", "medium", "low"],
+      "properties": {
+        "critical": { "type": "integer", "minimum": 0 },
+        "high": { "type": "integer", "minimum": 0 },
+        "medium": { "type": "integer", "minimum": 0 },
+        "low": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  }
+}
