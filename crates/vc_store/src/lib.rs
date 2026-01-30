@@ -149,6 +149,14 @@ pub struct AuditEventFilter {
     pub limit: usize,
 }
 
+/// Trait for types that can produce audit events.
+///
+/// Implement this for collector runs, guardian actions, autopilot executions,
+/// and any other actionable types to enable uniform audit logging.
+pub trait Auditable {
+    fn to_audit_event(&self) -> AuditEvent;
+}
+
 /// Retention policy configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RetentionPolicy {
@@ -1149,6 +1157,220 @@ mod tests {
         let rows = store.list_audit_events(&filter).unwrap();
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0]["machine_id"], "alpha");
+    }
+
+    #[test]
+    fn test_audit_event_all_types() {
+        let store = VcStore::open_memory().unwrap();
+
+        // Insert one event of each type
+        let types = [
+            (AuditEventType::CollectorRun, "collector_run"),
+            (AuditEventType::AutopilotAction, "autopilot_action"),
+            (AuditEventType::UserCommand, "user_command"),
+            (AuditEventType::GuardianAction, "guardian_action"),
+        ];
+
+        for (event_type, _expected_str) in &types {
+            let event = AuditEvent::new(
+                *event_type,
+                "test_actor",
+                "test_action",
+                AuditResult::Success,
+                serde_json::json!({}),
+            );
+            store.insert_audit_event(&event).unwrap();
+        }
+
+        // Verify all 4 events were inserted
+        let filter = AuditEventFilter {
+            limit: 100,
+            ..Default::default()
+        };
+        let rows = store.list_audit_events(&filter).unwrap();
+        assert_eq!(rows.len(), 4);
+
+        // Verify each type can be filtered individually
+        for (event_type, expected_str) in &types {
+            let filter = AuditEventFilter {
+                event_type: Some(*event_type),
+                limit: 100,
+                ..Default::default()
+            };
+            let rows = store.list_audit_events(&filter).unwrap();
+            assert_eq!(rows.len(), 1);
+            assert_eq!(rows[0]["event_type"], *expected_str);
+        }
+    }
+
+    #[test]
+    fn test_audit_event_all_results() {
+        let store = VcStore::open_memory().unwrap();
+
+        let results = [
+            (AuditResult::Success, "success"),
+            (AuditResult::Failure, "failure"),
+            (AuditResult::Skipped, "skipped"),
+        ];
+
+        for (result, _expected) in &results {
+            let event = AuditEvent::new(
+                AuditEventType::CollectorRun,
+                "test",
+                "test",
+                *result,
+                serde_json::json!({}),
+            );
+            store.insert_audit_event(&event).unwrap();
+        }
+
+        let filter = AuditEventFilter {
+            limit: 100,
+            ..Default::default()
+        };
+        let rows = store.list_audit_events(&filter).unwrap();
+        assert_eq!(rows.len(), 3);
+    }
+
+    #[test]
+    fn test_audit_event_get_by_id() {
+        let store = VcStore::open_memory().unwrap();
+
+        let event = AuditEvent::new(
+            AuditEventType::GuardianAction,
+            "guardian",
+            "restart_service",
+            AuditResult::Success,
+            serde_json::json!({"service": "nginx", "playbook": "web-recovery"}),
+        )
+        .with_machine_id("web-01");
+
+        store.insert_audit_event(&event).unwrap();
+
+        // Get the event by ID (first event = ID 1)
+        let fetched = store.get_audit_event(1).unwrap();
+        assert!(fetched.is_some());
+        let fetched = fetched.unwrap();
+        assert_eq!(fetched["event_type"], "guardian_action");
+        assert_eq!(fetched["actor"], "guardian");
+        assert_eq!(fetched["machine_id"], "web-01");
+
+        // Non-existent ID
+        let missing = store.get_audit_event(999).unwrap();
+        assert!(missing.is_none());
+    }
+
+    #[test]
+    fn test_audit_event_limit() {
+        let store = VcStore::open_memory().unwrap();
+
+        // Insert 5 events
+        for i in 0..5 {
+            let event = AuditEvent::new(
+                AuditEventType::CollectorRun,
+                format!("collector_{i}"),
+                "collect",
+                AuditResult::Success,
+                serde_json::json!({"iteration": i}),
+            );
+            store.insert_audit_event(&event).unwrap();
+        }
+
+        // Limit to 3
+        let filter = AuditEventFilter {
+            limit: 3,
+            ..Default::default()
+        };
+        let rows = store.list_audit_events(&filter).unwrap();
+        assert_eq!(rows.len(), 3);
+
+        // Limit of 0 defaults to 100
+        let filter = AuditEventFilter {
+            limit: 0,
+            ..Default::default()
+        };
+        let rows = store.list_audit_events(&filter).unwrap();
+        assert_eq!(rows.len(), 5);
+    }
+
+    #[test]
+    fn test_audit_event_type_roundtrip() {
+        // Test FromStr and as_str for all event types
+        let types = [
+            "collector_run",
+            "autopilot_action",
+            "user_command",
+            "guardian_action",
+        ];
+        for type_str in types {
+            let parsed: AuditEventType = type_str.parse().unwrap();
+            assert_eq!(parsed.as_str(), type_str);
+        }
+
+        // Invalid type
+        let err = "invalid_type".parse::<AuditEventType>();
+        assert!(err.is_err());
+    }
+
+    #[test]
+    fn test_audit_result_roundtrip() {
+        let results = ["success", "failure", "skipped"];
+        for result_str in results {
+            let parsed: AuditResult = result_str.parse().unwrap();
+            assert_eq!(parsed.as_str(), result_str);
+        }
+
+        let err = "invalid".parse::<AuditResult>();
+        assert!(err.is_err());
+    }
+
+    #[test]
+    fn test_auditable_trait() {
+        // Test that the Auditable trait works with a custom type
+        struct TestCollectorRun {
+            collector_name: String,
+            machine_id: String,
+            rows_inserted: u64,
+            success: bool,
+        }
+
+        impl Auditable for TestCollectorRun {
+            fn to_audit_event(&self) -> AuditEvent {
+                AuditEvent::new(
+                    AuditEventType::CollectorRun,
+                    &self.collector_name,
+                    format!("collect {} rows", self.rows_inserted),
+                    if self.success {
+                        AuditResult::Success
+                    } else {
+                        AuditResult::Failure
+                    },
+                    serde_json::json!({"rows_inserted": self.rows_inserted}),
+                )
+                .with_machine_id(&self.machine_id)
+            }
+        }
+
+        let run = TestCollectorRun {
+            collector_name: "sysmoni".to_string(),
+            machine_id: "orko".to_string(),
+            rows_inserted: 42,
+            success: true,
+        };
+
+        let store = VcStore::open_memory().unwrap();
+        let event = run.to_audit_event();
+        store.insert_audit_event(&event).unwrap();
+
+        let filter = AuditEventFilter {
+            limit: 10,
+            ..Default::default()
+        };
+        let rows = store.list_audit_events(&filter).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["actor"], "sysmoni");
+        assert_eq!(rows[0]["machine_id"], "orko");
+        assert_eq!(rows[0]["event_type"], "collector_run");
     }
 
     #[test]
