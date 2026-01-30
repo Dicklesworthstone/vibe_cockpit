@@ -5,6 +5,9 @@
 //! - Automated remediation
 //! - Fleet orchestration commands
 //! - Approval workflow
+//! - Autopilot mode for autonomous fleet management
+
+pub mod autopilot;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

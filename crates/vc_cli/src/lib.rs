@@ -141,6 +141,12 @@ pub enum Commands {
         command: GuardianCommands,
     },
 
+    /// Autopilot management
+    Autopilot {
+        #[command(subcommand)]
+        command: AutopilotCommands,
+    },
+
     /// Fleet management
     Fleet {
         #[command(subcommand)]
@@ -434,6 +440,27 @@ pub enum GuardianCommands {
         /// Run ID
         run_id: i64,
     },
+}
+
+/// Autopilot subcommands
+#[derive(Subcommand, Debug)]
+pub enum AutopilotCommands {
+    /// Show autopilot status
+    Status,
+
+    /// List recent autopilot decisions
+    Decisions {
+        /// Filter by decision type (account_switch, workload_balance, cost_optimization)
+        #[arg(long)]
+        decision_type: Option<String>,
+
+        /// Maximum number of decisions to show
+        #[arg(long, default_value = "20")]
+        limit: usize,
+    },
+
+    /// Show decision summary statistics
+    Summary,
 }
 
 /// Fleet subcommands
@@ -1287,6 +1314,83 @@ impl Cli {
                     }
                 }
             }
+            Commands::Autopilot { command } => {
+                let store = open_store(self.config.as_ref())?;
+
+                match command {
+                    AutopilotCommands::Status => {
+                        use vc_guardian::autopilot::AutopilotStatus;
+
+                        let config = match &self.config {
+                            Some(path) => VcConfig::load_with_env(path)?,
+                            None => VcConfig::discover_with_env()?,
+                        };
+
+                        let mode = if config.autopilot.enabled {
+                            vc_guardian::autopilot::AutopilotMode::Suggest
+                        } else {
+                            vc_guardian::autopilot::AutopilotMode::Off
+                        };
+
+                        let decisions = store.list_autopilot_decisions(None, 1).unwrap_or_default();
+                        let last_decision_at = decisions
+                            .first()
+                            .and_then(|d| d["decided_at"].as_str().map(String::from));
+
+                        let summary = store.autopilot_decision_summary().unwrap_or_default();
+                        let account_switches = summary
+                            .iter()
+                            .find(|s| s["decision_type"] == "account_switch")
+                            .and_then(|s| s["total"].as_u64())
+                            .unwrap_or(0);
+                        let cost_alerts = summary
+                            .iter()
+                            .find(|s| s["decision_type"] == "cost_optimization")
+                            .and_then(|s| s["total"].as_u64())
+                            .unwrap_or(0);
+                        let decisions_today = summary
+                            .iter()
+                            .filter_map(|s| s["total"].as_u64())
+                            .sum::<u64>();
+
+                        let status = AutopilotStatus {
+                            mode,
+                            decisions_today,
+                            last_decision_at,
+                            account_switches,
+                            cost_alerts,
+                        };
+                        print_output(&status, self.format);
+                    }
+                    AutopilotCommands::Decisions {
+                        decision_type,
+                        limit,
+                    } => {
+                        let decisions = store
+                            .list_autopilot_decisions(decision_type.as_deref(), limit)
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!("Failed to list decisions: {e}"))
+                            })?;
+
+                        if decisions.is_empty() {
+                            println!("No autopilot decisions recorded yet");
+                        } else {
+                            print_output(&decisions, self.format);
+                        }
+                    }
+                    AutopilotCommands::Summary => {
+                        let summary = store.autopilot_decision_summary().map_err(|e| {
+                            CliError::CommandFailed(format!("Failed to get decision summary: {e}"))
+                        })?;
+
+                        if summary.is_empty() {
+                            println!("No autopilot decisions recorded yet");
+                        } else {
+                            print_output(&summary, self.format);
+                        }
+                    }
+                }
+            }
             _ => {
                 println!("Command not yet implemented: {:?}", self.command);
             }
@@ -1892,6 +1996,76 @@ mod tests {
             }
         } else {
             panic!("Expected Guardian command");
+        }
+    }
+
+    // =============================================================================
+    // Commands::Autopilot Tests
+    // =============================================================================
+
+    #[test]
+    fn test_autopilot_status_parse() {
+        let cli = Cli::parse_from(["vc", "autopilot", "status"]);
+        if let Commands::Autopilot { command } = cli.command {
+            assert!(matches!(command, AutopilotCommands::Status));
+        } else {
+            panic!("Expected Autopilot command");
+        }
+    }
+
+    #[test]
+    fn test_autopilot_decisions_parse() {
+        let cli = Cli::parse_from(["vc", "autopilot", "decisions"]);
+        if let Commands::Autopilot { command } = cli.command {
+            if let AutopilotCommands::Decisions {
+                decision_type,
+                limit,
+            } = command
+            {
+                assert!(decision_type.is_none());
+                assert_eq!(limit, 20);
+            } else {
+                panic!("Expected Decisions subcommand");
+            }
+        } else {
+            panic!("Expected Autopilot command");
+        }
+    }
+
+    #[test]
+    fn test_autopilot_decisions_with_filter_parse() {
+        let cli = Cli::parse_from([
+            "vc",
+            "autopilot",
+            "decisions",
+            "--decision-type",
+            "account_switch",
+            "--limit",
+            "5",
+        ]);
+        if let Commands::Autopilot { command } = cli.command {
+            if let AutopilotCommands::Decisions {
+                decision_type,
+                limit,
+            } = command
+            {
+                assert_eq!(decision_type.as_deref(), Some("account_switch"));
+                assert_eq!(limit, 5);
+            } else {
+                panic!("Expected Decisions subcommand");
+            }
+        } else {
+            panic!("Expected Autopilot command");
+        }
+    }
+
+    #[test]
+    fn test_autopilot_summary_parse() {
+        let cli = Cli::parse_from(["vc", "autopilot", "summary"]);
+        if let Commands::Autopilot { command } = cli.command {
+            assert!(matches!(command, AutopilotCommands::Summary));
+        } else {
+            panic!("Expected Autopilot command");
         }
     }
 

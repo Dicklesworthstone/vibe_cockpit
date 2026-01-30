@@ -1300,6 +1300,118 @@ impl VcStore {
         Ok(results)
     }
 
+    // =========================================================================
+    // Autopilot Decision Methods
+    // =========================================================================
+
+    /// Log an autopilot decision
+    pub fn insert_autopilot_decision(
+        &self,
+        decision_type: &str,
+        reason: &str,
+        confidence: f64,
+        executed: bool,
+        details_json: Option<&str>,
+    ) -> Result<(), StoreError> {
+        let conn = self.conn.lock().unwrap();
+
+        let next_id: i64 = conn.query_row(
+            "SELECT COALESCE(MAX(id), 0) + 1 FROM autopilot_decisions",
+            [],
+            |row| row.get(0),
+        )?;
+
+        conn.execute(
+            "INSERT INTO autopilot_decisions (id, decision_type, reason, confidence, executed, details_json)
+             VALUES (?, ?, ?, ?, ?, ?)",
+            duckdb::params![next_id, decision_type, reason, confidence, executed, details_json],
+        )?;
+        Ok(())
+    }
+
+    /// List recent autopilot decisions
+    pub fn list_autopilot_decisions(
+        &self,
+        decision_type: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<serde_json::Value>, StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let limit = if limit == 0 { 50 } else { limit.min(1000) };
+
+        let (sql, params): (String, Vec<Box<dyn duckdb::ToSql>>) = if let Some(dt) = decision_type {
+            (
+                format!(
+                    "SELECT id, decision_type, reason, confidence, executed, \
+                     CAST(decided_at AS TEXT) AS decided_at, details_json \
+                     FROM autopilot_decisions WHERE decision_type = ? \
+                     ORDER BY decided_at DESC LIMIT {}",
+                    limit
+                ),
+                vec![Box::new(dt.to_string())],
+            )
+        } else {
+            (
+                format!(
+                    "SELECT id, decision_type, reason, confidence, executed, \
+                     CAST(decided_at AS TEXT) AS decided_at, details_json \
+                     FROM autopilot_decisions \
+                     ORDER BY decided_at DESC LIMIT {}",
+                    limit
+                ),
+                vec![],
+            )
+        };
+
+        let mut stmt = conn.prepare(&sql)?;
+        let param_refs: Vec<&dyn duckdb::ToSql> = params.iter().map(|b| b.as_ref()).collect();
+        let rows = stmt.query_map(param_refs.as_slice(), |row| {
+            Ok(serde_json::json!({
+                "id": row.get::<_, i64>(0)?,
+                "decision_type": row.get::<_, String>(1)?,
+                "reason": row.get::<_, String>(2)?,
+                "confidence": row.get::<_, f64>(3)?,
+                "executed": row.get::<_, bool>(4)?,
+                "decided_at": row.get::<_, Option<String>>(5)?,
+                "details_json": row.get::<_, Option<String>>(6)?,
+            }))
+        })?;
+
+        let mut results = Vec::new();
+        for row in rows {
+            results.push(row?);
+        }
+        Ok(results)
+    }
+
+    /// Get autopilot decision summary (counts by type and executed status)
+    pub fn autopilot_decision_summary(&self) -> Result<Vec<serde_json::Value>, StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT decision_type, \
+                    COUNT(*) AS total, \
+                    SUM(CASE WHEN executed THEN 1 ELSE 0 END) AS executed_count, \
+                    SUM(CASE WHEN NOT executed THEN 1 ELSE 0 END) AS suggested_count \
+             FROM autopilot_decisions \
+             GROUP BY decision_type \
+             ORDER BY decision_type",
+        )?;
+
+        let rows = stmt.query_map([], |row| {
+            Ok(serde_json::json!({
+                "decision_type": row.get::<_, String>(0)?,
+                "total": row.get::<_, i64>(1)?,
+                "executed": row.get::<_, i64>(2)?,
+                "suggested": row.get::<_, i64>(3)?,
+            }))
+        })?;
+
+        let mut results = Vec::new();
+        for row in rows {
+            results.push(row?);
+        }
+        Ok(results)
+    }
+
     /// Insert or replace rows (handles conflicts via PRIMARY KEY)
     /// Uses INSERT OR REPLACE which replaces the row if a conflict occurs
     pub fn upsert_json(
@@ -3088,6 +3200,134 @@ mod tests {
     fn test_delivery_summary_empty() {
         let store = VcStore::open_memory().unwrap();
         let summary = store.delivery_summary().unwrap();
+        assert!(summary.is_empty());
+    }
+
+    // =========================================================================
+    // Autopilot Decision Tests
+    // =========================================================================
+
+    #[test]
+    fn test_insert_autopilot_decision() {
+        let store = VcStore::open_memory().unwrap();
+        store
+            .insert_autopilot_decision(
+                "account_switch",
+                "Usage at 80%",
+                0.92,
+                true,
+                Some(r#"{"from":"acc1","to":"acc2"}"#),
+            )
+            .unwrap();
+
+        let decisions = store.list_autopilot_decisions(None, 10).unwrap();
+        assert_eq!(decisions.len(), 1);
+        assert_eq!(decisions[0]["decision_type"], "account_switch");
+        assert_eq!(decisions[0]["reason"], "Usage at 80%");
+        assert_eq!(decisions[0]["confidence"], 0.92);
+        assert_eq!(decisions[0]["executed"], true);
+    }
+
+    #[test]
+    fn test_autopilot_decision_suggested_only() {
+        let store = VcStore::open_memory().unwrap();
+        store
+            .insert_autopilot_decision(
+                "cost_optimization",
+                "Daily spend exceeds budget",
+                0.95,
+                false,
+                None,
+            )
+            .unwrap();
+
+        let decisions = store.list_autopilot_decisions(None, 10).unwrap();
+        assert_eq!(decisions[0]["executed"], false);
+        assert!(decisions[0]["details_json"].is_null());
+    }
+
+    #[test]
+    fn test_autopilot_decision_filter_by_type() {
+        let store = VcStore::open_memory().unwrap();
+        store
+            .insert_autopilot_decision("account_switch", "r1", 0.9, true, None)
+            .unwrap();
+        store
+            .insert_autopilot_decision("cost_optimization", "r2", 0.8, false, None)
+            .unwrap();
+        store
+            .insert_autopilot_decision("account_switch", "r3", 0.85, true, None)
+            .unwrap();
+
+        let switches = store
+            .list_autopilot_decisions(Some("account_switch"), 10)
+            .unwrap();
+        assert_eq!(switches.len(), 2);
+
+        let costs = store
+            .list_autopilot_decisions(Some("cost_optimization"), 10)
+            .unwrap();
+        assert_eq!(costs.len(), 1);
+
+        let all = store.list_autopilot_decisions(None, 10).unwrap();
+        assert_eq!(all.len(), 3);
+    }
+
+    #[test]
+    fn test_autopilot_decision_limit() {
+        let store = VcStore::open_memory().unwrap();
+        for i in 0..10 {
+            store
+                .insert_autopilot_decision(
+                    "workload_balance",
+                    &format!("reason-{i}"),
+                    0.7,
+                    false,
+                    None,
+                )
+                .unwrap();
+        }
+
+        let decisions = store.list_autopilot_decisions(None, 5).unwrap();
+        assert_eq!(decisions.len(), 5);
+    }
+
+    #[test]
+    fn test_autopilot_decision_summary() {
+        let store = VcStore::open_memory().unwrap();
+        store
+            .insert_autopilot_decision("account_switch", "r1", 0.9, true, None)
+            .unwrap();
+        store
+            .insert_autopilot_decision("account_switch", "r2", 0.85, false, None)
+            .unwrap();
+        store
+            .insert_autopilot_decision("cost_optimization", "r3", 0.8, true, None)
+            .unwrap();
+
+        let summary = store.autopilot_decision_summary().unwrap();
+        assert_eq!(summary.len(), 2);
+
+        let switch_summary = summary
+            .iter()
+            .find(|s| s["decision_type"] == "account_switch")
+            .unwrap();
+        assert_eq!(switch_summary["total"], 2);
+        assert_eq!(switch_summary["executed"], 1);
+        assert_eq!(switch_summary["suggested"], 1);
+
+        let cost_summary = summary
+            .iter()
+            .find(|s| s["decision_type"] == "cost_optimization")
+            .unwrap();
+        assert_eq!(cost_summary["total"], 1);
+        assert_eq!(cost_summary["executed"], 1);
+    }
+
+    #[test]
+    fn test_autopilot_decision_summary_empty() {
+        let store = VcStore::open_memory().unwrap();
+        let summary = store.autopilot_decision_summary().unwrap();
         assert!(summary.is_empty());
     }
 }
