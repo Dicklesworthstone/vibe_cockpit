@@ -1454,6 +1454,1305 @@ impl VcStore {
 
         Ok(count)
     }
+
+    // ========================================================================
+    // Incident Management
+    // ========================================================================
+
+    /// Create a new incident
+    pub fn create_incident(
+        &self,
+        incident_id: &str,
+        title: &str,
+        severity: &str,
+        description: Option<&str>,
+    ) -> Result<(), StoreError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO incidents (incident_id, title, description, severity, status, started_at, created_at) \
+             VALUES (?, ?, ?, ?, 'open', current_timestamp, current_timestamp)",
+            duckdb::params![incident_id, title, description, severity],
+        )?;
+        Ok(())
+    }
+
+    /// Get an incident by ID
+    pub fn get_incident(&self, incident_id: &str) -> Result<Option<serde_json::Value>, StoreError> {
+        let sql = "SELECT to_json(_row) FROM \
+                   (SELECT * FROM incidents WHERE incident_id = ?) AS _row";
+        let conn = self.conn.lock().unwrap();
+        let result = conn.query_row(sql, [incident_id], |row| {
+            let json_str: String = row.get(0)?;
+            Ok(json_str)
+        });
+
+        match result {
+            Ok(json_str) => {
+                let val: serde_json::Value = serde_json::from_str(&json_str)?;
+                Ok(Some(val))
+            }
+            Err(duckdb::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(StoreError::DatabaseError(e)),
+        }
+    }
+
+    /// List incidents with optional status filter
+    pub fn list_incidents(
+        &self,
+        status: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<serde_json::Value>, StoreError> {
+        let limit = if limit == 0 { 50 } else { limit.min(1000) };
+        let (sql, params): (String, Vec<String>) = if let Some(status) = status {
+            (
+                format!(
+                    "SELECT to_json(_row) FROM \
+                     (SELECT * FROM incidents WHERE status = ? ORDER BY created_at DESC LIMIT {limit}) AS _row"
+                ),
+                vec![status.to_string()],
+            )
+        } else {
+            (
+                format!(
+                    "SELECT to_json(_row) FROM \
+                     (SELECT * FROM incidents ORDER BY created_at DESC LIMIT {limit}) AS _row"
+                ),
+                vec![],
+            )
+        };
+
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(&sql)?;
+
+        let param_refs: Vec<&dyn duckdb::ToSql> = params
+            .iter()
+            .map(|p| p as &dyn duckdb::ToSql)
+            .collect();
+
+        let rows = stmt.query_map(param_refs.as_slice(), |row| {
+            let json_str: String = row.get(0)?;
+            Ok(json_str)
+        })?;
+
+        let mut results = Vec::new();
+        for row in rows {
+            let json_str = row?;
+            let val: serde_json::Value = serde_json::from_str(&json_str)
+                .map_err(|e| StoreError::QueryError(format!("JSON parse error: {e}")))?;
+            results.push(val);
+        }
+        Ok(results)
+    }
+
+    /// Update incident status
+    pub fn update_incident_status(
+        &self,
+        incident_id: &str,
+        status: &str,
+        resolution: Option<&str>,
+        root_cause: Option<&str>,
+    ) -> Result<usize, StoreError> {
+        let conn = self.conn.lock().unwrap();
+
+        let mut set_clauses = vec!["status = ?".to_string(), "updated_at = current_timestamp".to_string()];
+        let mut params: Vec<Box<dyn duckdb::ToSql>> = vec![Box::new(status.to_string())];
+
+        if let Some(res) = resolution {
+            set_clauses.push("resolution = ?".to_string());
+            params.push(Box::new(res.to_string()));
+        }
+
+        if let Some(cause) = root_cause {
+            set_clauses.push("root_cause = ?".to_string());
+            params.push(Box::new(cause.to_string()));
+        }
+
+        // Add ended_at when closing
+        if status == "closed" || status == "mitigated" {
+            set_clauses.push("ended_at = current_timestamp".to_string());
+        }
+
+        params.push(Box::new(incident_id.to_string()));
+
+        let sql = format!(
+            "UPDATE incidents SET {} WHERE incident_id = ?",
+            set_clauses.join(", ")
+        );
+
+        let param_refs: Vec<&dyn duckdb::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+        let affected = conn.execute(&sql, param_refs.as_slice())?;
+        Ok(affected)
+    }
+
+    /// Add a note to an incident
+    pub fn add_incident_note(
+        &self,
+        incident_id: &str,
+        author: Option<&str>,
+        content: &str,
+    ) -> Result<i64, StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let id: i64 = conn.query_row(
+            "INSERT INTO incident_notes (incident_id, author, content, created_at) \
+             VALUES (?, ?, ?, current_timestamp) RETURNING id",
+            duckdb::params![incident_id, author, content],
+            |row| row.get(0),
+        )?;
+        Ok(id)
+    }
+
+    /// Get incident notes
+    pub fn get_incident_notes(
+        &self,
+        incident_id: &str,
+    ) -> Result<Vec<serde_json::Value>, StoreError> {
+        let sql = "SELECT to_json(_row) FROM \
+                   (SELECT * FROM incident_notes WHERE incident_id = ? ORDER BY created_at ASC) AS _row";
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(sql)?;
+        let rows = stmt.query_map([incident_id], |row| {
+            let json_str: String = row.get(0)?;
+            Ok(json_str)
+        })?;
+
+        let mut results = Vec::new();
+        for row in rows {
+            let json_str = row?;
+            let val: serde_json::Value = serde_json::from_str(&json_str)
+                .map_err(|e| StoreError::QueryError(format!("JSON parse error: {e}")))?;
+            results.push(val);
+        }
+        Ok(results)
+    }
+
+    /// Add a timeline event to an incident
+    pub fn add_incident_timeline_event(
+        &self,
+        incident_id: &str,
+        event_type: &str,
+        source: &str,
+        description: &str,
+        details_json: Option<&str>,
+    ) -> Result<i64, StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let id: i64 = conn.query_row(
+            "INSERT INTO incident_timeline_events (incident_id, ts, event_type, source, description, details_json) \
+             VALUES (?, current_timestamp, ?, ?, ?, ?) RETURNING id",
+            duckdb::params![incident_id, event_type, source, description, details_json],
+            |row| row.get(0),
+        )?;
+        Ok(id)
+    }
+
+    // ========================================================================
+    // Fleet Commands
+    // ========================================================================
+
+    /// Record a fleet command
+    pub fn record_fleet_command(
+        &self,
+        command_id: &str,
+        command_type: &str,
+        params_json: &str,
+        initiated_by: Option<&str>,
+    ) -> Result<(), StoreError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO fleet_commands (command_id, command_type, params_json, status, started_at, initiated_by) \
+             VALUES (?, ?, ?, 'pending', current_timestamp, ?)",
+            duckdb::params![command_id, command_type, params_json, initiated_by],
+        )?;
+        Ok(())
+    }
+
+    /// Update fleet command status
+    pub fn update_fleet_command(
+        &self,
+        command_id: &str,
+        status: &str,
+        result_json: Option<&str>,
+        error_message: Option<&str>,
+    ) -> Result<usize, StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let affected = conn.execute(
+            "UPDATE fleet_commands SET status = ?, completed_at = current_timestamp, \
+             result_json = ?, error_message = ? WHERE command_id = ?",
+            duckdb::params![status, result_json, error_message, command_id],
+        )?;
+        Ok(affected)
+    }
+
+    /// List fleet commands
+    pub fn list_fleet_commands(
+        &self,
+        command_type: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<serde_json::Value>, StoreError> {
+        let limit = if limit == 0 { 50 } else { limit.min(1000) };
+        let (sql, params): (String, Vec<String>) = if let Some(ct) = command_type {
+            (
+                format!(
+                    "SELECT to_json(_row) FROM \
+                     (SELECT * FROM fleet_commands WHERE command_type = ? ORDER BY started_at DESC LIMIT {limit}) AS _row"
+                ),
+                vec![ct.to_string()],
+            )
+        } else {
+            (
+                format!(
+                    "SELECT to_json(_row) FROM \
+                     (SELECT * FROM fleet_commands ORDER BY started_at DESC LIMIT {limit}) AS _row"
+                ),
+                vec![],
+            )
+        };
+
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(&sql)?;
+        let param_refs: Vec<&dyn duckdb::ToSql> = params
+            .iter()
+            .map(|p| p as &dyn duckdb::ToSql)
+            .collect();
+
+        let rows = stmt.query_map(param_refs.as_slice(), |row| {
+            let json_str: String = row.get(0)?;
+            Ok(json_str)
+        })?;
+
+        let mut results = Vec::new();
+        for row in rows {
+            let json_str = row?;
+            let val: serde_json::Value = serde_json::from_str(&json_str)
+                .map_err(|e| StoreError::QueryError(format!("JSON parse error: {e}")))?;
+            results.push(val);
+        }
+        Ok(results)
+    }
+
+    // =========================================================================
+    // Solution Mining: mined_sessions table
+    // =========================================================================
+
+    /// Mark a session as mined
+    pub fn mark_session_mined(
+        &self,
+        session_id: &str,
+        machine_id: &str,
+        solutions: i32,
+        patterns: i32,
+        quality_avg: Option<f64>,
+    ) -> Result<(), StoreError> {
+        let sql = "INSERT INTO mined_sessions (session_id, machine_id, solutions_extracted, patterns_extracted, quality_avg) \
+                   VALUES (?, ?, ?, ?, ?)";
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            sql,
+            duckdb::params![session_id, machine_id, solutions, patterns, quality_avg],
+        )?;
+        Ok(())
+    }
+
+    /// Check if a session has already been mined
+    pub fn is_session_mined(&self, session_id: &str) -> Result<bool, StoreError> {
+        let sql = "SELECT COUNT(*) FROM mined_sessions WHERE session_id = ?";
+        let conn = self.conn.lock().unwrap();
+        let count: i64 = conn.query_row(sql, [session_id], |row| row.get(0))?;
+        Ok(count > 0)
+    }
+
+    /// List unmined successful sessions for mining candidates
+    pub fn list_unmined_sessions(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<serde_json::Value>, StoreError> {
+        let sql = format!(
+            "SELECT to_json(_row) FROM \
+            (SELECT s.machine_id, s.session_id, s.program, s.model, s.repo_path, s.started_at, s.ended_at, s.token_count \
+             FROM agent_sessions s \
+             WHERE s.ended_at IS NOT NULL \
+               AND NOT EXISTS (SELECT 1 FROM mined_sessions m WHERE m.session_id = s.session_id) \
+             ORDER BY s.ended_at DESC \
+             LIMIT {limit}) AS _row"
+        );
+        self.query_json(&sql)
+    }
+
+    /// Get mining statistics
+    pub fn mining_stats(&self) -> Result<serde_json::Value, StoreError> {
+        let sql = "SELECT to_json(_row) FROM \
+                   (SELECT COUNT(*) as total_mined, \
+                    COALESCE(SUM(solutions_extracted), 0) as total_solutions, \
+                    COALESCE(SUM(patterns_extracted), 0) as total_patterns, \
+                    COALESCE(AVG(quality_avg), 0) as avg_quality \
+                    FROM mined_sessions) AS _row";
+        let results = self.query_json(sql)?;
+        Ok(results.into_iter().next().unwrap_or(serde_json::json!({})))
+    }
+
+    /// Get incident timeline events
+    pub fn get_incident_timeline(
+        &self,
+        incident_id: &str,
+    ) -> Result<Vec<serde_json::Value>, StoreError> {
+        let sql = "SELECT to_json(_row) FROM \
+                   (SELECT * FROM incident_timeline_events WHERE incident_id = ? ORDER BY ts ASC) AS _row";
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(sql)?;
+        let rows = stmt.query_map([incident_id], |row| {
+            let json_str: String = row.get(0)?;
+            Ok(json_str)
+        })?;
+
+        let mut results = Vec::new();
+        for row in rows {
+            let json_str = row?;
+            let val: serde_json::Value = serde_json::from_str(&json_str)
+                .map_err(|e| StoreError::QueryError(format!("JSON parse error: {e}")))?;
+            results.push(val);
+        }
+        Ok(results)
+    }
+
+    // =========================================================================
+    // Incident replay / time-travel methods
+    // =========================================================================
+
+    /// Build a point-in-time replay snapshot for an incident
+    pub fn build_replay_snapshot(
+        &self,
+        incident_id: &str,
+        at_ts: &str,
+    ) -> Result<serde_json::Value, StoreError> {
+        // Get the incident itself
+        let incident = self.get_incident(incident_id)?;
+        let incident = incident.ok_or_else(|| {
+            StoreError::QueryError(format!("Incident not found: {incident_id}"))
+        })?;
+
+        // Machines state at timestamp
+        let machines_sql = format!(
+            "SELECT * FROM machines WHERE last_seen <= '{at_ts}' ORDER BY hostname"
+        );
+        let machines = self.query_json(&machines_sql).unwrap_or_default();
+
+        // Alerts active around the timestamp
+        let alerts_sql = format!(
+            "SELECT * FROM alerts WHERE fired_at <= '{at_ts}' \
+             ORDER BY fired_at DESC LIMIT 50"
+        );
+        let alerts = self.query_json(&alerts_sql).unwrap_or_default();
+
+        // Audit events around the timestamp (context window: 1 hour before to 1 hour after)
+        let audit_sql = format!(
+            "SELECT * FROM audit_events \
+             WHERE timestamp BETWEEN (TIMESTAMP '{at_ts}' - INTERVAL 1 HOUR) \
+             AND (TIMESTAMP '{at_ts}' + INTERVAL 1 HOUR) \
+             ORDER BY timestamp ASC LIMIT 100"
+        );
+        let audit_events = self.query_json(&audit_sql).unwrap_or_default();
+
+        // Collector health at timestamp
+        let collector_sql = format!(
+            "SELECT * FROM collector_health \
+             WHERE checked_at <= '{at_ts}' \
+             ORDER BY checked_at DESC LIMIT 20"
+        );
+        let collectors = self.query_json(&collector_sql).unwrap_or_default();
+
+        // Timeline events for this incident up to timestamp
+        let timeline_sql = "SELECT to_json(_row) FROM \
+            (SELECT * FROM incident_timeline_events \
+             WHERE incident_id = ? AND ts <= ? \
+             ORDER BY ts ASC) AS _row";
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(timeline_sql)?;
+        let rows = stmt.query_map([incident_id, at_ts], |row| {
+            let json_str: String = row.get(0)?;
+            Ok(json_str)
+        })?;
+        let mut timeline = Vec::new();
+        for row in rows {
+            let json_str = row?;
+            let val: serde_json::Value = serde_json::from_str(&json_str)
+                .map_err(|e| StoreError::QueryError(format!("JSON parse: {e}")))?;
+            timeline.push(val);
+        }
+        drop(stmt);
+        drop(conn);
+
+        // Health scores at timestamp
+        let health_sql = format!(
+            "SELECT * FROM health_scores WHERE computed_at <= '{at_ts}' \
+             ORDER BY computed_at DESC LIMIT 20"
+        );
+        let health_scores = self.query_json(&health_sql).unwrap_or_default();
+
+        Ok(serde_json::json!({
+            "incident": incident,
+            "snapshot_at": at_ts,
+            "machines": machines,
+            "alerts": alerts,
+            "audit_events": audit_events,
+            "collectors": collectors,
+            "timeline": timeline,
+            "health_scores": health_scores,
+        }))
+    }
+
+    /// Cache a replay snapshot for fast retrieval
+    pub fn cache_replay_snapshot(
+        &self,
+        incident_id: &str,
+        snapshot_ts: &str,
+        snapshot_json: &str,
+    ) -> Result<(), StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let next_id: i64 = conn
+            .query_row(
+                "SELECT COALESCE(MAX(id), 0) + 1 FROM incident_replay_snapshots",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(1);
+
+        conn.execute(
+            "INSERT INTO incident_replay_snapshots (id, incident_id, snapshot_ts, snapshot_json) \
+             VALUES (?, ?, ?, ?)",
+            duckdb::params![next_id, incident_id, snapshot_ts, snapshot_json],
+        )?;
+        Ok(())
+    }
+
+    /// Get a cached replay snapshot
+    pub fn get_cached_replay(
+        &self,
+        incident_id: &str,
+        snapshot_ts: &str,
+    ) -> Result<Option<serde_json::Value>, StoreError> {
+        let sql = "SELECT snapshot_json FROM incident_replay_snapshots \
+                   WHERE incident_id = ? AND snapshot_ts = ? \
+                   ORDER BY created_at DESC LIMIT 1";
+        let conn = self.conn.lock().unwrap();
+        let result = conn.query_row(sql, [incident_id, snapshot_ts], |row| {
+            let json_str: String = row.get(0)?;
+            Ok(json_str)
+        });
+
+        match result {
+            Ok(json_str) => {
+                let val: serde_json::Value = serde_json::from_str(&json_str)
+                    .map_err(|e| StoreError::QueryError(format!("JSON parse: {e}")))?;
+                Ok(Some(val))
+            }
+            Err(duckdb::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    /// List cached replay timestamps for an incident
+    pub fn list_replay_snapshots(
+        &self,
+        incident_id: &str,
+    ) -> Result<Vec<serde_json::Value>, StoreError> {
+        self.query_json(&format!(
+            "SELECT id, incident_id, snapshot_ts, created_at \
+             FROM incident_replay_snapshots \
+             WHERE incident_id = '{incident_id}' \
+             ORDER BY snapshot_ts ASC"
+        ))
+    }
+
+    /// Get replay with caching: returns cached snapshot if available, otherwise builds and caches
+    pub fn get_or_build_replay(
+        &self,
+        incident_id: &str,
+        at_ts: &str,
+    ) -> Result<serde_json::Value, StoreError> {
+        // Check cache first
+        if let Some(cached) = self.get_cached_replay(incident_id, at_ts)? {
+            return Ok(cached);
+        }
+
+        // Build fresh snapshot
+        let snapshot = self.build_replay_snapshot(incident_id, at_ts)?;
+
+        // Cache it
+        let snapshot_str = serde_json::to_string(&snapshot)
+            .map_err(|e| StoreError::QueryError(format!("JSON serialize: {e}")))?;
+        self.cache_replay_snapshot(incident_id, at_ts, &snapshot_str)?;
+
+        Ok(snapshot)
+    }
+
+    /// Export incident replay as structured JSON (all snapshots + metadata)
+    pub fn export_incident_replay(
+        &self,
+        incident_id: &str,
+    ) -> Result<serde_json::Value, StoreError> {
+        let incident = self.get_incident(incident_id)?;
+        let incident = incident.ok_or_else(|| {
+            StoreError::QueryError(format!("Incident not found: {incident_id}"))
+        })?;
+
+        let timeline = self.get_incident_timeline(incident_id)?;
+        let notes = self.get_incident_notes(incident_id)?;
+        let cached_snapshots = self.list_replay_snapshots(incident_id)?;
+
+        Ok(serde_json::json!({
+            "export_version": "1.0",
+            "incident": incident,
+            "timeline": timeline,
+            "notes": notes,
+            "snapshots": cached_snapshots,
+        }))
+    }
+
+    // =========================================================================
+    // Adaptive polling methods
+    // =========================================================================
+
+    /// Record a poll schedule decision
+    pub fn insert_poll_decision(
+        &self,
+        machine_id: &str,
+        collector: &str,
+        next_interval_seconds: i32,
+        reason_json: Option<&str>,
+    ) -> Result<(), StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let next_id: i64 = conn
+            .query_row(
+                "SELECT COALESCE(MAX(id), 0) + 1 FROM poll_schedule_decisions",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(1);
+
+        conn.execute(
+            "INSERT INTO poll_schedule_decisions (id, machine_id, collector, next_interval_seconds, reason_json) \
+             VALUES (?, ?, ?, ?, ?)",
+            duckdb::params![next_id, machine_id, collector, next_interval_seconds, reason_json],
+        )?;
+        Ok(())
+    }
+
+    /// Get the latest poll interval for a machine/collector
+    pub fn get_latest_poll_interval(
+        &self,
+        machine_id: &str,
+        collector: &str,
+    ) -> Result<Option<i32>, StoreError> {
+        let sql = "SELECT next_interval_seconds FROM poll_schedule_decisions \
+                   WHERE machine_id = ? AND collector = ? \
+                   ORDER BY decided_at DESC LIMIT 1";
+        let conn = self.conn.lock().unwrap();
+        match conn.query_row(sql, [machine_id, collector], |row| row.get::<_, i32>(0)) {
+            Ok(val) => Ok(Some(val)),
+            Err(duckdb::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    /// List recent poll decisions
+    pub fn list_poll_decisions(
+        &self,
+        machine_id: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<serde_json::Value>, StoreError> {
+        let sql = if let Some(mid) = machine_id {
+            format!(
+                "SELECT * FROM poll_schedule_decisions \
+                 WHERE machine_id = '{mid}' \
+                 ORDER BY decided_at DESC LIMIT {limit}"
+            )
+        } else {
+            format!(
+                "SELECT * FROM poll_schedule_decisions \
+                 ORDER BY decided_at DESC LIMIT {limit}"
+            )
+        };
+        self.query_json(&sql)
+    }
+
+    /// Insert a profiling sample
+    pub fn insert_profile_sample(
+        &self,
+        machine_id: &str,
+        profile_id: &str,
+        metrics_json: Option<&str>,
+        raw_json: Option<&str>,
+    ) -> Result<(), StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let next_id: i64 = conn
+            .query_row(
+                "SELECT COALESCE(MAX(id), 0) + 1 FROM sys_profile_samples",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(1);
+
+        conn.execute(
+            "INSERT INTO sys_profile_samples (id, machine_id, profile_id, metrics_json, raw_json) \
+             VALUES (?, ?, ?, ?, ?)",
+            duckdb::params![next_id, machine_id, profile_id, metrics_json, raw_json],
+        )?;
+        Ok(())
+    }
+
+    /// List profiling samples, optionally filtered by machine or profile
+    pub fn list_profile_samples(
+        &self,
+        machine_id: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<serde_json::Value>, StoreError> {
+        let sql = if let Some(mid) = machine_id {
+            format!(
+                "SELECT * FROM sys_profile_samples \
+                 WHERE machine_id = '{mid}' \
+                 ORDER BY collected_at DESC LIMIT {limit}"
+            )
+        } else {
+            format!(
+                "SELECT * FROM sys_profile_samples \
+                 ORDER BY collected_at DESC LIMIT {limit}"
+            )
+        };
+        self.query_json(&sql)
+    }
+
+    // =========================================================================
+    // Digest report methods
+    // =========================================================================
+
+    /// Store a generated digest report
+    pub fn insert_digest_report(
+        &self,
+        report_id: &str,
+        window_hours: i32,
+        summary_json: &str,
+        markdown: &str,
+    ) -> Result<(), StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let next_id: i64 = conn
+            .query_row(
+                "SELECT COALESCE(MAX(id), 0) + 1 FROM digest_reports",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(1);
+        conn.execute(
+            "INSERT INTO digest_reports (id, report_id, window_hours, summary_json, markdown) \
+             VALUES (?, ?, ?, ?, ?)",
+            duckdb::params![next_id, report_id, window_hours, summary_json, markdown],
+        )?;
+        Ok(())
+    }
+
+    /// Get a digest report by ID
+    pub fn get_digest_report(&self, report_id: &str) -> Result<Option<serde_json::Value>, StoreError> {
+        let results = self.query_json(&format!(
+            "SELECT * FROM digest_reports WHERE report_id = '{report_id}' LIMIT 1"
+        ))?;
+        Ok(results.into_iter().next())
+    }
+
+    /// List recent digest reports
+    pub fn list_digest_reports(&self, limit: usize) -> Result<Vec<serde_json::Value>, StoreError> {
+        self.query_json(&format!(
+            "SELECT id, report_id, window_hours, generated_at \
+             FROM digest_reports ORDER BY generated_at DESC LIMIT {limit}"
+        ))
+    }
+
+    // =========================================================================
+    // Redaction audit methods
+    // =========================================================================
+
+    /// Record a redaction event
+    pub fn insert_redaction_event(
+        &self,
+        machine_id: &str,
+        collector: &str,
+        redacted_fields: i32,
+        redacted_bytes: i64,
+        rules_version: &str,
+        sample_hash: Option<&str>,
+    ) -> Result<(), StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let next_id: i64 = conn
+            .query_row(
+                "SELECT COALESCE(MAX(id), 0) + 1 FROM redaction_events",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(1);
+        conn.execute(
+            "INSERT INTO redaction_events (id, machine_id, collector, redacted_fields, redacted_bytes, rules_version, sample_hash) \
+             VALUES (?, ?, ?, ?, ?, ?, ?)",
+            duckdb::params![next_id, machine_id, collector, redacted_fields, redacted_bytes, rules_version, sample_hash.unwrap_or("")],
+        )?;
+        Ok(())
+    }
+
+    /// List recent redaction events
+    pub fn list_redaction_events(
+        &self,
+        machine_id: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<serde_json::Value>, StoreError> {
+        let sql = if let Some(mid) = machine_id {
+            format!(
+                "SELECT * FROM redaction_events \
+                 WHERE machine_id = '{mid}' \
+                 ORDER BY collected_at DESC LIMIT {limit}"
+            )
+        } else {
+            format!(
+                "SELECT * FROM redaction_events \
+                 ORDER BY collected_at DESC LIMIT {limit}"
+            )
+        };
+        self.query_json(&sql)
+    }
+
+    /// Get redaction summary (total redacted fields/bytes per collector)
+    pub fn redaction_summary(&self) -> Result<Vec<serde_json::Value>, StoreError> {
+        self.query_json(
+            "SELECT collector, \
+                    COUNT(*) as event_count, \
+                    SUM(redacted_fields) as total_fields, \
+                    SUM(redacted_bytes) as total_bytes, \
+                    MAX(rules_version) as latest_rules_version \
+             FROM redaction_events \
+             GROUP BY collector \
+             ORDER BY total_fields DESC"
+        )
+    }
+
+    // =========================================================================
+    // Node ingest / deduplication methods
+    // =========================================================================
+
+    /// Check if a content hash has already been ingested
+    pub fn has_ingest_record(&self, content_hash: &str) -> Result<bool, StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM node_ingest_log WHERE content_hash = ?",
+                [content_hash],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+        Ok(count > 0)
+    }
+
+    /// Record a successful ingest for future dedup
+    pub fn record_ingest(
+        &self,
+        bundle_id: &str,
+        machine_id: &str,
+        collector: &str,
+        content_hash: &str,
+        row_count: usize,
+    ) -> Result<(), StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let next_id: i64 = conn
+            .query_row(
+                "SELECT COALESCE(MAX(id), 0) + 1 FROM node_ingest_log",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(1);
+        conn.execute(
+            "INSERT INTO node_ingest_log (id, bundle_id, machine_id, collector, content_hash, row_count) \
+             VALUES (?, ?, ?, ?, ?, ?)",
+            duckdb::params![next_id, bundle_id, machine_id, collector, content_hash, row_count as i64],
+        )?;
+        Ok(())
+    }
+
+    /// List recent ingest records
+    pub fn list_ingest_records(
+        &self,
+        machine_id: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<serde_json::Value>, StoreError> {
+        let sql = if let Some(mid) = machine_id {
+            format!(
+                "SELECT * FROM node_ingest_log \
+                 WHERE machine_id = '{mid}' \
+                 ORDER BY ingested_at DESC LIMIT {limit}"
+            )
+        } else {
+            format!(
+                "SELECT * FROM node_ingest_log \
+                 ORDER BY ingested_at DESC LIMIT {limit}"
+            )
+        };
+        self.query_json(&sql)
+    }
+
+    // =========================================================================
+    // Data export/backup methods
+    // =========================================================================
+
+    /// List all user tables in the database (excludes internal tables)
+    pub fn list_tables(&self) -> Result<Vec<String>, StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT table_name FROM duckdb_tables() \
+             WHERE schema_name = 'main' \
+             AND table_name NOT LIKE '\\_%' ESCAPE '\\' \
+             ORDER BY table_name"
+        )?;
+        let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+        let mut tables = Vec::new();
+        for row in rows {
+            tables.push(row?);
+        }
+        Ok(tables)
+    }
+
+    /// Export a single table as JSONL (one JSON object per line)
+    pub fn export_table_jsonl(
+        &self,
+        table: &str,
+        since: Option<&str>,
+        until: Option<&str>,
+    ) -> Result<Vec<String>, StoreError> {
+        // Build query with optional time filtering
+        let ts_column = self.guess_timestamp_column(table);
+
+        let mut sql = format!("SELECT * FROM \"{table}\"");
+        let mut conditions = Vec::new();
+
+        if let (Some(col), Some(since)) = (&ts_column, since) {
+            conditions.push(format!("{col} >= '{since}'"));
+        }
+        if let (Some(col), Some(until)) = (&ts_column, until) {
+            conditions.push(format!("{col} <= '{until}'"));
+        }
+        if !conditions.is_empty() {
+            sql.push_str(&format!(" WHERE {}", conditions.join(" AND ")));
+        }
+
+        let rows = self.query_json(&sql)?;
+        let lines: Vec<String> = rows
+            .iter()
+            .map(|r| serde_json::to_string(r).unwrap_or_default())
+            .collect();
+        Ok(lines)
+    }
+
+    /// Guess the timestamp column for a table (for time-window filtering)
+    fn guess_timestamp_column(&self, table: &str) -> Option<String> {
+        // Common timestamp column names in order of preference
+        let candidates = [
+            "created_at",
+            "timestamp",
+            "fired_at",
+            "checked_at",
+            "computed_at",
+            "started_at",
+            "routed_at",
+            "captured_at",
+            "applied_at",
+            "snapshot_ts",
+            "last_seen",
+            "ts",
+        ];
+
+        let conn = self.conn.lock().unwrap();
+        for col in &candidates {
+            let sql = format!(
+                "SELECT column_name FROM duckdb_columns() \
+                 WHERE table_name = '{table}' AND column_name = '{col}' LIMIT 1"
+            );
+            if let Ok(name) = conn.query_row(&sql, [], |row| row.get::<_, String>(0)) {
+                return Some(name);
+            }
+        }
+        None
+    }
+
+    /// Get row count for a table
+    pub fn table_row_count(&self, table: &str) -> Result<i64, StoreError> {
+        self.query_scalar(&format!("SELECT COUNT(*) FROM \"{table}\""))
+    }
+
+    /// Build an export manifest (metadata about the export)
+    pub fn build_export_manifest(
+        &self,
+        tables: &[String],
+        since: Option<&str>,
+        until: Option<&str>,
+    ) -> Result<serde_json::Value, StoreError> {
+        let mut table_info = Vec::new();
+        for table in tables {
+            let count = self.table_row_count(table).unwrap_or(0);
+            table_info.push(serde_json::json!({
+                "table": table,
+                "row_count": count,
+            }));
+        }
+
+        Ok(serde_json::json!({
+            "export_version": "1.0",
+            "schema_version": 20,
+            "exported_at": chrono::Utc::now().to_rfc3339(),
+            "tables": table_info,
+            "filter": {
+                "since": since,
+                "until": until,
+            },
+        }))
+    }
+
+    /// Import JSONL data into a table (append mode)
+    pub fn import_table_jsonl(
+        &self,
+        table: &str,
+        lines: &[String],
+    ) -> Result<usize, StoreError> {
+        let mut imported = 0;
+        for line in lines {
+            if line.trim().is_empty() {
+                continue;
+            }
+            let value: serde_json::Value = serde_json::from_str(line)
+                .map_err(|e| StoreError::QueryError(format!("JSON parse error: {e}")))?;
+
+            match self.insert_json(table, &value) {
+                Ok(_) => imported += 1,
+                Err(e) => {
+                    tracing::warn!(table, error = %e, "Skipping row during import");
+                }
+            }
+        }
+        Ok(imported)
+    }
+
+    // =========================================================================
+    // Alert routing event methods
+    // =========================================================================
+
+    /// Record an alert routing decision
+    pub fn insert_routing_event(
+        &self,
+        alert_id: &str,
+        rule_id: Option<&str>,
+        channel: &str,
+        action: &str,
+        reason_json: Option<&str>,
+    ) -> Result<(), StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let next_id: i64 = conn
+            .query_row(
+                "SELECT COALESCE(MAX(id), 0) + 1 FROM alert_routing_events",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(1);
+
+        conn.execute(
+            "INSERT INTO alert_routing_events (id, alert_id, rule_id, channel, action, reason_json) \
+             VALUES (?, ?, ?, ?, ?, ?)",
+            duckdb::params![next_id, alert_id, rule_id, channel, action, reason_json],
+        )?;
+        Ok(())
+    }
+
+    /// List routing events for an alert
+    pub fn list_routing_events(
+        &self,
+        alert_id: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<serde_json::Value>, StoreError> {
+        let sql = if let Some(aid) = alert_id {
+            format!(
+                "SELECT * FROM alert_routing_events \
+                 WHERE alert_id = '{aid}' \
+                 ORDER BY routed_at DESC LIMIT {limit}"
+            )
+        } else {
+            format!(
+                "SELECT * FROM alert_routing_events \
+                 ORDER BY routed_at DESC LIMIT {limit}"
+            )
+        };
+        self.query_json(&sql)
+    }
+
+    /// Count routing events by action type
+    pub fn routing_event_summary(
+        &self,
+    ) -> Result<Vec<serde_json::Value>, StoreError> {
+        self.query_json(
+            "SELECT action, COUNT(*) AS count FROM alert_routing_events \
+             GROUP BY action ORDER BY count DESC"
+        )
+    }
+
+    // =========================================================================
+    // Resolution capture methods (playbook auto-generation)
+    // =========================================================================
+
+    pub fn insert_resolution(
+        &self,
+        alert_type: &str,
+        actions_json: &str,
+        outcome: &str,
+        alert_id: Option<i64>,
+        machine_id: Option<&str>,
+        operator: Option<&str>,
+    ) -> Result<i64, StoreError> {
+        let conn = self.conn.lock().unwrap();
+        // DuckDB doesn't auto-increment INTEGER PRIMARY KEY
+        let next_id: i64 = conn.query_row(
+            "SELECT COALESCE(MAX(id), 0) + 1 FROM resolutions",
+            [],
+            |row| row.get(0),
+        )?;
+        conn.execute(
+            "INSERT INTO resolutions (id, alert_type, actions, outcome, alert_id, machine_id, operator) \
+             VALUES (?, ?, ?, ?, ?, ?, ?)",
+            duckdb::params![
+                next_id,
+                alert_type,
+                actions_json,
+                outcome,
+                alert_id,
+                machine_id,
+                operator,
+            ],
+        )?;
+        Ok(next_id)
+    }
+
+    pub fn list_resolutions(
+        &self,
+        alert_type: Option<&str>,
+        outcome: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<serde_json::Value>, StoreError> {
+        let limit = limit.min(1000);
+        let sql = match (alert_type, outcome) {
+            (Some(at), Some(oc)) => format!(
+                "SELECT * FROM resolutions WHERE alert_type = '{}' AND outcome = '{}' \
+                 ORDER BY captured_at DESC LIMIT {}",
+                escape_sql_literal(at),
+                escape_sql_literal(oc),
+                limit
+            ),
+            (Some(at), None) => format!(
+                "SELECT * FROM resolutions WHERE alert_type = '{}' \
+                 ORDER BY captured_at DESC LIMIT {}",
+                escape_sql_literal(at),
+                limit
+            ),
+            (None, Some(oc)) => format!(
+                "SELECT * FROM resolutions WHERE outcome = '{}' \
+                 ORDER BY captured_at DESC LIMIT {}",
+                escape_sql_literal(oc),
+                limit
+            ),
+            (None, None) => format!(
+                "SELECT * FROM resolutions ORDER BY captured_at DESC LIMIT {}",
+                limit
+            ),
+        };
+        self.query_json(&sql)
+    }
+
+    pub fn count_resolutions_by_type(
+        &self,
+        alert_type: &str,
+        outcome: &str,
+    ) -> Result<i64, StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM resolutions WHERE alert_type = ? AND outcome = ?",
+            [alert_type, outcome],
+            |row| row.get(0),
+        )?;
+        Ok(count)
+    }
+
+    pub fn distinct_resolution_alert_types(&self) -> Result<Vec<String>, StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT DISTINCT alert_type FROM resolutions WHERE outcome = 'success' ORDER BY alert_type",
+        )?;
+        let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+        let mut types = Vec::new();
+        for row in rows {
+            types.push(row?);
+        }
+        Ok(types)
+    }
+
+    // =========================================================================
+    // Playbook draft methods
+    // =========================================================================
+
+    pub fn insert_playbook_draft(
+        &self,
+        draft_id: &str,
+        name: &str,
+        description: &str,
+        alert_type: &str,
+        trigger_json: &str,
+        steps_json: &str,
+        confidence: f64,
+        sample_count: i32,
+        source_pattern_json: Option<&str>,
+    ) -> Result<(), StoreError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO playbook_drafts \
+             (draft_id, name, description, alert_type, trigger_json, steps_json, \
+              confidence, sample_count, source_pattern_json) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            duckdb::params![
+                draft_id,
+                name,
+                description,
+                alert_type,
+                trigger_json,
+                steps_json,
+                confidence,
+                sample_count,
+                source_pattern_json,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn list_playbook_drafts(
+        &self,
+        status: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<serde_json::Value>, StoreError> {
+        let limit = limit.min(1000);
+        let sql = match status {
+            Some(s) => format!(
+                "SELECT * FROM playbook_drafts WHERE status = '{}' \
+                 ORDER BY created_at DESC LIMIT {}",
+                escape_sql_literal(s),
+                limit
+            ),
+            None => format!(
+                "SELECT * FROM playbook_drafts ORDER BY created_at DESC LIMIT {}",
+                limit
+            ),
+        };
+        self.query_json(&sql)
+    }
+
+    pub fn get_playbook_draft(
+        &self,
+        draft_id: &str,
+    ) -> Result<Option<serde_json::Value>, StoreError> {
+        let sql = "SELECT to_json(_row) FROM \
+                   (SELECT * FROM playbook_drafts WHERE draft_id = ?) AS _row";
+        let conn = self.conn.lock().unwrap();
+        let result = conn.query_row(sql, [draft_id], |row| {
+            let json_str: String = row.get(0)?;
+            Ok(json_str)
+        });
+
+        match result {
+            Ok(json_str) => {
+                let val: serde_json::Value = serde_json::from_str(&json_str)?;
+                Ok(Some(val))
+            }
+            Err(duckdb::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(StoreError::DatabaseError(e)),
+        }
+    }
+
+    pub fn approve_playbook_draft(
+        &self,
+        draft_id: &str,
+        approver: &str,
+    ) -> Result<usize, StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let affected = conn.execute(
+            "UPDATE playbook_drafts SET status = 'approved', approved_by = ?, \
+             approved_at = current_timestamp WHERE draft_id = ? AND status = 'pending_review'",
+            [approver, draft_id],
+        )?;
+        Ok(affected)
+    }
+
+    pub fn reject_playbook_draft(
+        &self,
+        draft_id: &str,
+        reason: Option<&str>,
+    ) -> Result<usize, StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let affected = conn.execute(
+            "UPDATE playbook_drafts SET status = 'rejected' WHERE draft_id = ? AND status = 'pending_review'",
+            [draft_id],
+        )?;
+        // Record rejection reason as description update if provided
+        if affected > 0 {
+            if let Some(reason) = reason {
+                let desc = format!("[Rejected] {reason}");
+                conn.execute(
+                    "UPDATE playbook_drafts SET description = ? WHERE draft_id = ?",
+                    [&desc, draft_id],
+                )?;
+            }
+        }
+        Ok(affected)
+    }
+
+    pub fn activate_playbook_from_draft(
+        &self,
+        draft_id: &str,
+    ) -> Result<Option<serde_json::Value>, StoreError> {
+        let draft = self.get_playbook_draft(draft_id)?;
+        let draft = match draft {
+            Some(d) => d,
+            None => return Ok(None),
+        };
+
+        let status = draft["status"].as_str().unwrap_or("");
+        if status != "approved" {
+            return Err(StoreError::QueryError(
+                "Draft must be approved before activation".to_string(),
+            ));
+        }
+
+        // Insert into guardian_playbooks
+        let playbook_id = draft["draft_id"].as_str().unwrap_or(draft_id);
+        let name = draft["name"].as_str().unwrap_or("");
+        let description = draft["description"].as_str().unwrap_or("");
+        let trigger_json = draft["trigger_json"].as_str().unwrap_or("{}");
+        let steps_json = draft["steps_json"].as_str().unwrap_or("[]");
+
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO guardian_playbooks \
+             (playbook_id, name, description, trigger_condition, steps, \
+              enabled, requires_approval, max_runs_per_hour) \
+             VALUES (?, ?, ?, ?, ?, TRUE, TRUE, 3)",
+            duckdb::params![playbook_id, name, description, trigger_json, steps_json],
+        )?;
+
+        // Mark draft as activated
+        conn.execute(
+            "UPDATE playbook_drafts SET status = 'activated' WHERE draft_id = ?",
+            [draft_id],
+        )?;
+
+        Ok(Some(serde_json::json!({
+            "playbook_id": playbook_id,
+            "name": name,
+            "status": "activated",
+        })))
+    }
 }
 
 /// Convert JSON value to a SQL parameter
@@ -3329,5 +4628,315 @@ mod tests {
         let store = VcStore::open_memory().unwrap();
         let summary = store.autopilot_decision_summary().unwrap();
         assert!(summary.is_empty());
+    }
+
+    // =========================================================================
+    // Incident replay / time-travel tests
+    // =========================================================================
+
+    #[test]
+    fn test_build_replay_snapshot() {
+        let store = VcStore::open_memory().unwrap();
+        store
+            .create_incident("inc-replay-1", "Test incident", "critical", Some("A test"))
+            .unwrap();
+
+        let snapshot = store
+            .build_replay_snapshot("inc-replay-1", "2099-01-01T00:00:00")
+            .unwrap();
+
+        assert!(snapshot.get("incident").is_some());
+        assert!(snapshot.get("snapshot_at").is_some());
+        assert_eq!(snapshot["snapshot_at"], "2099-01-01T00:00:00");
+        assert!(snapshot.get("machines").is_some());
+        assert!(snapshot.get("alerts").is_some());
+        assert!(snapshot.get("audit_events").is_some());
+        assert!(snapshot.get("timeline").is_some());
+        assert!(snapshot.get("health_scores").is_some());
+    }
+
+    #[test]
+    fn test_build_replay_snapshot_not_found() {
+        let store = VcStore::open_memory().unwrap();
+        let result = store.build_replay_snapshot("nonexistent", "2026-01-01T00:00:00");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_cache_and_get_replay() {
+        let store = VcStore::open_memory().unwrap();
+        let snapshot = serde_json::json!({"test": "data", "machines": []});
+        let snapshot_str = serde_json::to_string(&snapshot).unwrap();
+
+        store
+            .cache_replay_snapshot("inc-1", "2026-01-01T12:00:00", &snapshot_str)
+            .unwrap();
+
+        let cached = store
+            .get_cached_replay("inc-1", "2026-01-01T12:00:00")
+            .unwrap();
+
+        assert!(cached.is_some());
+        assert_eq!(cached.unwrap()["test"], "data");
+    }
+
+    #[test]
+    fn test_get_cached_replay_miss() {
+        let store = VcStore::open_memory().unwrap();
+        let cached = store
+            .get_cached_replay("nonexistent", "2026-01-01T00:00:00")
+            .unwrap();
+        assert!(cached.is_none());
+    }
+
+    #[test]
+    fn test_list_replay_snapshots() {
+        let store = VcStore::open_memory().unwrap();
+        store
+            .cache_replay_snapshot("inc-2", "2026-01-01T10:00:00", "{}")
+            .unwrap();
+        store
+            .cache_replay_snapshot("inc-2", "2026-01-01T11:00:00", "{}")
+            .unwrap();
+
+        let snapshots = store.list_replay_snapshots("inc-2").unwrap();
+        assert_eq!(snapshots.len(), 2);
+    }
+
+    #[test]
+    fn test_list_replay_snapshots_empty() {
+        let store = VcStore::open_memory().unwrap();
+        let snapshots = store.list_replay_snapshots("nonexistent").unwrap();
+        assert!(snapshots.is_empty());
+    }
+
+    #[test]
+    fn test_get_or_build_replay_caches() {
+        let store = VcStore::open_memory().unwrap();
+        store
+            .create_incident("inc-cache-1", "Cache test", "warning", None)
+            .unwrap();
+
+        // First call should build and cache
+        let snap1 = store
+            .get_or_build_replay("inc-cache-1", "2099-01-01T00:00:00")
+            .unwrap();
+        assert!(snap1.get("incident").is_some());
+
+        // Second call should return cached version
+        let snap2 = store
+            .get_or_build_replay("inc-cache-1", "2099-01-01T00:00:00")
+            .unwrap();
+        assert_eq!(snap1["snapshot_at"], snap2["snapshot_at"]);
+
+        // Verify it's actually cached
+        let cached = store
+            .get_cached_replay("inc-cache-1", "2099-01-01T00:00:00")
+            .unwrap();
+        assert!(cached.is_some());
+    }
+
+    #[test]
+    fn test_export_incident_replay() {
+        let store = VcStore::open_memory().unwrap();
+        store
+            .create_incident("inc-export-1", "Export test", "critical", Some("Test desc"))
+            .unwrap();
+
+        let export = store.export_incident_replay("inc-export-1").unwrap();
+        assert_eq!(export["export_version"], "1.0");
+        assert!(export.get("incident").is_some());
+        assert!(export.get("timeline").is_some());
+        assert!(export.get("notes").is_some());
+        assert!(export.get("snapshots").is_some());
+    }
+
+    #[test]
+    fn test_export_incident_not_found() {
+        let store = VcStore::open_memory().unwrap();
+        let result = store.export_incident_replay("nonexistent");
+        assert!(result.is_err());
+    }
+
+    // =========================================================================
+    // Data export/backup tests
+    // =========================================================================
+
+    #[test]
+    fn test_list_tables() {
+        let store = VcStore::open_memory().unwrap();
+        let tables = store.list_tables().unwrap();
+        assert!(!tables.is_empty());
+        assert!(tables.contains(&"machines".to_string()));
+        assert!(tables.contains(&"alert_history".to_string()));
+    }
+
+    #[test]
+    fn test_export_table_jsonl_empty() {
+        let store = VcStore::open_memory().unwrap();
+        let lines = store.export_table_jsonl("machines", None, None).unwrap();
+        assert!(lines.is_empty());
+    }
+
+    #[test]
+    fn test_export_table_jsonl_with_data() {
+        let store = VcStore::open_memory().unwrap();
+        store
+            .insert_json(
+                "machines",
+                &serde_json::json!({
+                    "machine_id": "m-1",
+                    "hostname": "test-host",
+                    "status": "online",
+                }),
+            )
+            .unwrap();
+
+        let lines = store.export_table_jsonl("machines", None, None).unwrap();
+        assert_eq!(lines.len(), 1);
+        let parsed: serde_json::Value = serde_json::from_str(&lines[0]).unwrap();
+        assert_eq!(parsed["hostname"], "test-host");
+    }
+
+    #[test]
+    fn test_table_row_count() {
+        let store = VcStore::open_memory().unwrap();
+        let count = store.table_row_count("machines").unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn test_build_export_manifest() {
+        let store = VcStore::open_memory().unwrap();
+        let manifest = store
+            .build_export_manifest(&["machines".to_string()], None, None)
+            .unwrap();
+
+        assert_eq!(manifest["export_version"], "1.0");
+        assert!(manifest.get("exported_at").is_some());
+        let tables = manifest["tables"].as_array().unwrap();
+        assert_eq!(tables.len(), 1);
+        assert_eq!(tables[0]["table"], "machines");
+    }
+
+    #[test]
+    fn test_build_export_manifest_with_filter() {
+        let store = VcStore::open_memory().unwrap();
+        let manifest = store
+            .build_export_manifest(
+                &["machines".to_string()],
+                Some("2026-01-01"),
+                Some("2026-12-31"),
+            )
+            .unwrap();
+
+        assert_eq!(manifest["filter"]["since"], "2026-01-01");
+        assert_eq!(manifest["filter"]["until"], "2026-12-31");
+    }
+
+    #[test]
+    fn test_import_table_jsonl() {
+        let store = VcStore::open_memory().unwrap();
+        let lines = vec![
+            r#"{"machine_id": "m-imp-1", "hostname": "import-host", "status": "online"}"#.to_string(),
+        ];
+
+        let imported = store.import_table_jsonl("machines", &lines).unwrap();
+        assert_eq!(imported, 1);
+
+        let count = store.table_row_count("machines").unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn test_import_table_jsonl_empty() {
+        let store = VcStore::open_memory().unwrap();
+        let imported = store.import_table_jsonl("machines", &[]).unwrap();
+        assert_eq!(imported, 0);
+    }
+
+    #[test]
+    fn test_import_table_jsonl_skips_blank_lines() {
+        let store = VcStore::open_memory().unwrap();
+        let lines = vec![
+            r#"{"machine_id": "m-1", "hostname": "h1", "status": "online"}"#.to_string(),
+            "".to_string(),
+            "  ".to_string(),
+        ];
+
+        let imported = store.import_table_jsonl("machines", &lines).unwrap();
+        assert_eq!(imported, 1);
+    }
+
+    #[test]
+    fn test_export_import_roundtrip() {
+        let store = VcStore::open_memory().unwrap();
+
+        // Insert some data
+        store
+            .create_incident("inc-rt-1", "Roundtrip test", "warning", Some("test"))
+            .unwrap();
+
+        // Export
+        let lines = store
+            .export_table_jsonl("incidents", None, None)
+            .unwrap();
+        assert_eq!(lines.len(), 1);
+
+        // Create a fresh store and import
+        let store2 = VcStore::open_memory().unwrap();
+        let imported = store2.import_table_jsonl("incidents", &lines).unwrap();
+        assert_eq!(imported, 1);
+
+        // Verify data
+        let incidents = store2.list_incidents(None, 10).unwrap();
+        assert_eq!(incidents.len(), 1);
+    }
+
+    // =========================================================================
+    // Alert routing event tests
+    // =========================================================================
+
+    #[test]
+    fn test_insert_routing_event() {
+        let store = VcStore::open_memory().unwrap();
+        store
+            .insert_routing_event("a-1", Some("r-1"), "slack", "sent", None)
+            .unwrap();
+
+        let events = store.list_routing_events(Some("a-1"), 10).unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0]["action"].as_str(), Some("sent"));
+    }
+
+    #[test]
+    fn test_list_routing_events_all() {
+        let store = VcStore::open_memory().unwrap();
+        store
+            .insert_routing_event("a-1", None, "log", "sent", None)
+            .unwrap();
+        store
+            .insert_routing_event("a-2", None, "slack", "escalated", None)
+            .unwrap();
+
+        let events = store.list_routing_events(None, 10).unwrap();
+        assert_eq!(events.len(), 2);
+    }
+
+    #[test]
+    fn test_routing_event_summary() {
+        let store = VcStore::open_memory().unwrap();
+        store
+            .insert_routing_event("a-1", None, "log", "sent", None)
+            .unwrap();
+        store
+            .insert_routing_event("a-2", None, "slack", "sent", None)
+            .unwrap();
+        store
+            .insert_routing_event("a-3", None, "log", "suppressed", None)
+            .unwrap();
+
+        let summary = store.routing_event_summary().unwrap();
+        assert_eq!(summary.len(), 2); // "sent" and "suppressed"
     }
 }

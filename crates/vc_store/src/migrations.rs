@@ -83,6 +83,56 @@ const MIGRATIONS: &[Migration] = &[
         name: "autopilot_decisions",
         sql: include_str!("migrations/014_autopilot_decisions.sql"),
     },
+    Migration {
+        version: 15,
+        name: "incident_notes",
+        sql: include_str!("migrations/015_incident_notes.sql"),
+    },
+    Migration {
+        version: 16,
+        name: "fleet_commands",
+        sql: include_str!("migrations/016_fleet_commands.sql"),
+    },
+    Migration {
+        version: 17,
+        name: "mined_sessions",
+        sql: include_str!("migrations/017_mined_sessions.sql"),
+    },
+    Migration {
+        version: 18,
+        name: "playbook_autogen",
+        sql: include_str!("migrations/018_playbook_autogen.sql"),
+    },
+    Migration {
+        version: 19,
+        name: "incident_replay",
+        sql: include_str!("migrations/019_incident_replay.sql"),
+    },
+    Migration {
+        version: 20,
+        name: "alert_routing",
+        sql: include_str!("migrations/020_alert_routing.sql"),
+    },
+    Migration {
+        version: 21,
+        name: "adaptive_polling",
+        sql: include_str!("migrations/021_adaptive_polling.sql"),
+    },
+    Migration {
+        version: 22,
+        name: "node_ingest",
+        sql: include_str!("migrations/022_node_ingest.sql"),
+    },
+    Migration {
+        version: 23,
+        name: "redaction_events",
+        sql: include_str!("migrations/023_redaction_events.sql"),
+    },
+    Migration {
+        version: 24,
+        name: "digest_reports",
+        sql: include_str!("migrations/024_digest_reports.sql"),
+    },
 ];
 
 /// Run all pending migrations
