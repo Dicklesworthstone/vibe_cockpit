@@ -22,6 +22,10 @@
 /web/dist/
 /web/.next/
 
+# Local scratch DBs
+storage.sqlite3
+storage.sqlite3-*
+
 # OS files
 .DS_Store
 Thumbs.db
