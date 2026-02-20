@@ -5,6 +5,9 @@
 //! - JSON API endpoints
 //! - Static file serving for dashboard
 //! - WebSocket support for real-time updates
+//! - Token-based authentication with RBAC
+
+pub mod auth;
 
 use axum::{
     Router,
@@ -240,6 +243,8 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/api/guardian/playbooks", get(guardian_playbooks_handler))
         .route("/api/guardian/runs", get(guardian_runs_handler))
         .route("/api/guardian/pending", get(guardian_pending_handler))
+        // Prometheus metrics
+        .route("/metrics", get(metrics_handler))
         // WebSocket
         .route("/ws", get(ws_handler))
         // Middleware
@@ -502,6 +507,172 @@ async fn guardian_pending_handler(
         "limit": limit,
         "offset": offset
     })))
+}
+
+// =============================================================================
+// Prometheus Metrics Endpoint
+// =============================================================================
+
+/// Serve Prometheus-format metrics
+async fn metrics_handler(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let mut lines = Vec::new();
+
+    // -- Collector freshness --
+    let collectors = state
+        .store
+        .query_json(
+            "SELECT machine_id, collector_name, \
+             EXTRACT(EPOCH FROM (current_timestamp - checked_at)) AS freshness_secs \
+             FROM collector_health \
+             WHERE checked_at = (SELECT MAX(ch2.checked_at) FROM collector_health ch2 \
+                WHERE ch2.machine_id = collector_health.machine_id \
+                AND ch2.collector_name = collector_health.collector_name)"
+        )
+        .unwrap_or_default();
+
+    if !collectors.is_empty() {
+        lines.push("# HELP vc_collector_freshness_seconds Seconds since last collector check".to_string());
+        lines.push("# TYPE vc_collector_freshness_seconds gauge".to_string());
+        for c in &collectors {
+            let machine = c["machine_id"].as_str().unwrap_or("unknown");
+            let collector = c["collector_name"].as_str().unwrap_or("unknown");
+            let secs = c["freshness_secs"].as_f64().unwrap_or(0.0);
+            lines.push(format!(
+                "vc_collector_freshness_seconds{{machine=\"{machine}\",collector=\"{collector}\"}} {secs:.1}"
+            ));
+        }
+    }
+
+    // -- Collector success total --
+    let success_counts = state
+        .store
+        .query_json(
+            "SELECT machine_id, collector_name, \
+             COUNT(*) FILTER (WHERE status = 'healthy') AS success_count \
+             FROM collector_health GROUP BY machine_id, collector_name"
+        )
+        .unwrap_or_default();
+
+    if !success_counts.is_empty() {
+        lines.push("# HELP vc_collector_success_total Total successful collector runs".to_string());
+        lines.push("# TYPE vc_collector_success_total counter".to_string());
+        for c in &success_counts {
+            let machine = c["machine_id"].as_str().unwrap_or("unknown");
+            let collector = c["collector_name"].as_str().unwrap_or("unknown");
+            let count = c["success_count"].as_i64().unwrap_or(0);
+            lines.push(format!(
+                "vc_collector_success_total{{machine=\"{machine}\",collector=\"{collector}\"}} {count}"
+            ));
+        }
+    }
+
+    // -- Open alerts by severity --
+    let alert_counts = state
+        .store
+        .query_json(
+            "SELECT severity, COUNT(*) AS cnt FROM alerts \
+             WHERE acked_at IS NULL GROUP BY severity"
+        )
+        .unwrap_or_default();
+
+    lines.push("# HELP vc_alerts_open_total Number of open (unacknowledged) alerts".to_string());
+    lines.push("# TYPE vc_alerts_open_total gauge".to_string());
+    if alert_counts.is_empty() {
+        lines.push("vc_alerts_open_total{severity=\"info\"} 0".to_string());
+        lines.push("vc_alerts_open_total{severity=\"warning\"} 0".to_string());
+        lines.push("vc_alerts_open_total{severity=\"critical\"} 0".to_string());
+    } else {
+        for a in &alert_counts {
+            let severity = a["severity"].as_str().unwrap_or("unknown");
+            let count = a["cnt"].as_i64().unwrap_or(0);
+            lines.push(format!(
+                "vc_alerts_open_total{{severity=\"{severity}\"}} {count}"
+            ));
+        }
+    }
+
+    // -- Health scores per machine --
+    let health_scores = state
+        .store
+        .query_json(
+            "SELECT machine_id, overall_score FROM health_scores \
+             WHERE computed_at = (SELECT MAX(hs2.computed_at) FROM health_scores hs2 \
+                WHERE hs2.machine_id = health_scores.machine_id)"
+        )
+        .unwrap_or_default();
+
+    if !health_scores.is_empty() {
+        lines.push("# HELP vc_health_score Machine health score (0-100)".to_string());
+        lines.push("# TYPE vc_health_score gauge".to_string());
+        for h in &health_scores {
+            let machine = h["machine_id"].as_str().unwrap_or("unknown");
+            let score = h["overall_score"].as_f64().unwrap_or(0.0);
+            lines.push(format!(
+                "vc_health_score{{machine=\"{machine}\"}} {score:.1}"
+            ));
+        }
+    }
+
+    // -- Machine count --
+    let machine_count: i64 = state
+        .store
+        .query_scalar("SELECT COUNT(*) FROM machines")
+        .unwrap_or(0);
+    lines.push("# HELP vc_machines_total Total registered machines".to_string());
+    lines.push("# TYPE vc_machines_total gauge".to_string());
+    lines.push(format!("vc_machines_total {machine_count}"));
+
+    // -- Uptime --
+    let uptime_secs = state.start_time.elapsed().as_secs_f64();
+    lines.push("# HELP vc_uptime_seconds Server uptime in seconds".to_string());
+    lines.push("# TYPE vc_uptime_seconds counter".to_string());
+    lines.push(format!("vc_uptime_seconds {uptime_secs:.1}"));
+
+    // Return as text/plain (Prometheus text format)
+    let body = lines.join("\n") + "\n";
+    (
+        [(axum::http::header::CONTENT_TYPE, "text/plain; version=0.0.4; charset=utf-8")],
+        body,
+    )
+}
+
+/// Generate Prometheus metrics text from a VcStore (for testing/reuse)
+pub fn generate_metrics_text(store: &VcStore) -> String {
+    let mut lines = Vec::new();
+
+    // Alert counts
+    let alert_counts = store
+        .query_json(
+            "SELECT severity, COUNT(*) AS cnt FROM alerts \
+             WHERE acked_at IS NULL GROUP BY severity"
+        )
+        .unwrap_or_default();
+
+    lines.push("# HELP vc_alerts_open_total Number of open (unacknowledged) alerts".to_string());
+    lines.push("# TYPE vc_alerts_open_total gauge".to_string());
+    if alert_counts.is_empty() {
+        lines.push("vc_alerts_open_total{severity=\"info\"} 0".to_string());
+        lines.push("vc_alerts_open_total{severity=\"warning\"} 0".to_string());
+        lines.push("vc_alerts_open_total{severity=\"critical\"} 0".to_string());
+    } else {
+        for a in &alert_counts {
+            let severity = a["severity"].as_str().unwrap_or("unknown");
+            let count = a["cnt"].as_i64().unwrap_or(0);
+            lines.push(format!(
+                "vc_alerts_open_total{{severity=\"{severity}\"}} {count}"
+            ));
+        }
+    }
+
+    // Machine count
+    let machine_count: i64 = store
+        .query_scalar("SELECT COUNT(*) FROM machines")
+        .unwrap_or(0);
+    lines.push("# HELP vc_machines_total Total registered machines".to_string());
+    lines.push("# TYPE vc_machines_total gauge".to_string());
+    lines.push(format!("vc_machines_total {machine_count}"));
+
+    lines.join("\n") + "\n"
 }
 
 // =============================================================================
@@ -1891,5 +2062,79 @@ mod tests {
 
         let response = app.oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    // =============================================================================
+    // Prometheus metrics tests
+    // =============================================================================
+
+    #[tokio::test]
+    async fn test_metrics_endpoint() {
+        let state = Arc::new(AppState::new_memory().unwrap());
+        let app = create_router(state);
+
+        let request = Request::builder()
+            .uri("/metrics")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let text = String::from_utf8(body.to_vec()).unwrap();
+
+        // Should contain Prometheus format headers
+        assert!(text.contains("# HELP"));
+        assert!(text.contains("# TYPE"));
+        assert!(text.contains("vc_alerts_open_total"));
+        assert!(text.contains("vc_machines_total"));
+        assert!(text.contains("vc_uptime_seconds"));
+    }
+
+    #[tokio::test]
+    async fn test_metrics_content_type() {
+        let state = Arc::new(AppState::new_memory().unwrap());
+        let app = create_router(state);
+
+        let request = Request::builder()
+            .uri("/metrics")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        let content_type = response.headers().get("content-type").unwrap().to_str().unwrap();
+        assert!(content_type.contains("text/plain"));
+    }
+
+    #[tokio::test]
+    async fn test_metrics_empty_db_defaults() {
+        let state = Arc::new(AppState::new_memory().unwrap());
+        let app = create_router(state);
+
+        let request = Request::builder()
+            .uri("/metrics")
+            .body(Body::empty())
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let text = String::from_utf8(body.to_vec()).unwrap();
+
+        // Empty DB should show zero alerts
+        assert!(text.contains("vc_alerts_open_total{severity=\"info\"} 0"));
+        assert!(text.contains("vc_alerts_open_total{severity=\"warning\"} 0"));
+        assert!(text.contains("vc_alerts_open_total{severity=\"critical\"} 0"));
+        assert!(text.contains("vc_machines_total 0"));
+    }
+
+    #[test]
+    fn test_generate_metrics_text() {
+        let store = VcStore::open_memory().unwrap();
+        let text = generate_metrics_text(&store);
+
+        assert!(text.contains("# HELP vc_alerts_open_total"));
+        assert!(text.contains("# TYPE vc_alerts_open_total gauge"));
+        assert!(text.contains("vc_machines_total 0"));
     }
 }

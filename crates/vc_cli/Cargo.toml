@@ -21,6 +21,7 @@ vc_knowledge.workspace = true
 vc_alert.workspace = true
 vc_tui.workspace = true
 vc_web.workspace = true
+vc_mcp.workspace = true
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -28,6 +29,7 @@ tokio.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 chrono.workspace = true
+uuid.workspace = true
 anyhow.workspace = true
 
 [dev-dependencies]
