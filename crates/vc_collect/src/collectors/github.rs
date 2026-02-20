@@ -7,6 +7,7 @@
 //! - Correlated with ru repo_id for cross-referencing
 
 use async_trait::async_trait;
+use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Instant;
@@ -188,8 +189,39 @@ impl GhCollector {
         result
     }
 
+    fn parse_github_timestamp(ts: Option<&str>) -> Option<DateTime<Utc>> {
+        ts.and_then(|value| {
+            DateTime::parse_from_rfc3339(value)
+                .ok()
+                .map(|parsed| parsed.with_timezone(&Utc))
+        })
+    }
+
+    fn last_activity_at(updated_at: Option<&str>, created_at: Option<&str>) -> Option<DateTime<Utc>> {
+        Self::parse_github_timestamp(updated_at).or_else(|| Self::parse_github_timestamp(created_at))
+    }
+
+    fn is_stale(
+        updated_at: Option<&str>,
+        created_at: Option<&str>,
+        now: &DateTime<Utc>,
+        stale_after: ChronoDuration,
+    ) -> bool {
+        Self::last_activity_at(updated_at, created_at).is_some_and(|last_activity| {
+            now.timestamp().saturating_sub(last_activity.timestamp()) >= stale_after.num_seconds()
+        })
+    }
+
     /// Create triage summary
     fn create_triage_summary(issues: &[GhIssue], prs: &[GhPullRequest]) -> TriageSummary {
+        Self::create_triage_summary_at(issues, prs, Utc::now())
+    }
+
+    fn create_triage_summary_at(
+        issues: &[GhIssue],
+        prs: &[GhPullRequest],
+        now: DateTime<Utc>,
+    ) -> TriageSummary {
         let open_issues = issues.iter().filter(|i| i.state == "OPEN").count() as u32;
         let open_prs = prs.iter().filter(|p| p.state == "OPEN").count() as u32;
         let draft_prs = prs.iter().filter(|p| p.is_draft).count() as u32;
@@ -209,9 +241,31 @@ impl GhCollector {
             .filter(|p| p.review_decision.as_deref() == Some("CHANGES_REQUESTED"))
             .count() as u32;
 
-        // Simplified stale detection (would need proper date parsing in production)
-        let stale_issues_30d = 0; // TODO: implement date comparison
-        let stale_prs_7d = 0; // TODO: implement date comparison
+        let stale_issues_30d = issues
+            .iter()
+            .filter(|issue| issue.state == "OPEN")
+            .filter(|issue| {
+                Self::is_stale(
+                    issue.updated_at.as_deref(),
+                    issue.created_at.as_deref(),
+                    &now,
+                    ChronoDuration::days(30),
+                )
+            })
+            .count() as u32;
+
+        let stale_prs_7d = prs
+            .iter()
+            .filter(|pr| pr.state == "OPEN")
+            .filter(|pr| {
+                Self::is_stale(
+                    pr.updated_at.as_deref(),
+                    pr.created_at.as_deref(),
+                    &now,
+                    ChronoDuration::days(7),
+                )
+            })
+            .count() as u32;
 
         TriageSummary {
             open_issues,
@@ -368,6 +422,7 @@ impl Collector for GhCollector {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::TimeZone;
 
     #[test]
     fn test_gh_collector_name() {
@@ -464,6 +519,11 @@ mod tests {
 
     #[test]
     fn test_triage_summary() {
+        let now = Utc
+            .with_ymd_and_hms(2026, 2, 20, 12, 0, 0)
+            .single()
+            .expect("valid timestamp");
+
         let issues = vec![
             GhIssue {
                 number: 1,
@@ -516,12 +576,134 @@ mod tests {
             },
         ];
 
-        let triage = GhCollector::create_triage_summary(&issues, &prs);
+        let triage = GhCollector::create_triage_summary_at(&issues, &prs, now);
         assert_eq!(triage.open_issues, 1);
         assert_eq!(triage.open_prs, 2);
         assert_eq!(triage.draft_prs, 1);
         assert_eq!(triage.approved, 1);
         assert_eq!(triage.needs_review, 1);
+        assert_eq!(triage.stale_issues_30d, 0);
+        assert_eq!(triage.stale_prs_7d, 0);
+    }
+
+    #[test]
+    fn test_triage_summary_stale_detection() {
+        let now = Utc
+            .with_ymd_and_hms(2026, 2, 20, 12, 0, 0)
+            .single()
+            .expect("valid timestamp");
+
+        let issues = vec![
+            GhIssue {
+                number: 1,
+                title: "Stale issue with updated timestamp".to_string(),
+                state: "OPEN".to_string(),
+                labels: vec![],
+                assignees: vec![],
+                created_at: Some("2025-11-20T00:00:00Z".to_string()),
+                updated_at: Some("2026-01-01T00:00:00Z".to_string()),
+                author: None,
+            },
+            GhIssue {
+                number: 2,
+                title: "Fallback stale issue with created timestamp".to_string(),
+                state: "OPEN".to_string(),
+                labels: vec![],
+                assignees: vec![],
+                created_at: Some("2025-12-10T00:00:00Z".to_string()),
+                updated_at: Some("not-a-date".to_string()),
+                author: None,
+            },
+            GhIssue {
+                number: 3,
+                title: "Recent issue".to_string(),
+                state: "OPEN".to_string(),
+                labels: vec![],
+                assignees: vec![],
+                created_at: Some("2026-02-15T00:00:00Z".to_string()),
+                updated_at: Some("2026-02-19T00:00:00Z".to_string()),
+                author: None,
+            },
+            GhIssue {
+                number: 4,
+                title: "Missing/invalid timestamp issue".to_string(),
+                state: "OPEN".to_string(),
+                labels: vec![],
+                assignees: vec![],
+                created_at: None,
+                updated_at: Some("still-not-a-date".to_string()),
+                author: None,
+            },
+            GhIssue {
+                number: 5,
+                title: "Closed stale issue should not count".to_string(),
+                state: "CLOSED".to_string(),
+                labels: vec![],
+                assignees: vec![],
+                created_at: Some("2025-01-01T00:00:00Z".to_string()),
+                updated_at: Some("2025-01-01T00:00:00Z".to_string()),
+                author: None,
+            },
+        ];
+
+        let prs = vec![
+            GhPullRequest {
+                number: 10,
+                title: "Stale PR with updated timestamp".to_string(),
+                state: "OPEN".to_string(),
+                labels: vec![],
+                assignees: vec![],
+                created_at: Some("2026-01-10T00:00:00Z".to_string()),
+                updated_at: Some("2026-02-01T00:00:00Z".to_string()),
+                author: None,
+                is_draft: false,
+                mergeable: None,
+                review_decision: Some("REVIEW_REQUIRED".to_string()),
+            },
+            GhPullRequest {
+                number: 11,
+                title: "Fallback stale PR with created timestamp".to_string(),
+                state: "OPEN".to_string(),
+                labels: vec![],
+                assignees: vec![],
+                created_at: Some("2026-02-10T00:00:00Z".to_string()),
+                updated_at: Some("bad-date".to_string()),
+                author: None,
+                is_draft: false,
+                mergeable: None,
+                review_decision: None,
+            },
+            GhPullRequest {
+                number: 12,
+                title: "Fresh PR".to_string(),
+                state: "OPEN".to_string(),
+                labels: vec![],
+                assignees: vec![],
+                created_at: Some("2026-02-18T00:00:00Z".to_string()),
+                updated_at: Some("2026-02-19T00:00:00Z".to_string()),
+                author: None,
+                is_draft: false,
+                mergeable: None,
+                review_decision: Some("APPROVED".to_string()),
+            },
+            GhPullRequest {
+                number: 13,
+                title: "Closed stale PR should not count".to_string(),
+                state: "CLOSED".to_string(),
+                labels: vec![],
+                assignees: vec![],
+                created_at: Some("2025-01-01T00:00:00Z".to_string()),
+                updated_at: Some("2025-01-01T00:00:00Z".to_string()),
+                author: None,
+                is_draft: false,
+                mergeable: None,
+                review_decision: None,
+            },
+        ];
+
+        let triage = GhCollector::create_triage_summary_at(&issues, &prs, now);
+        assert_eq!(triage.stale_issues_30d, 2);
+        assert_eq!(triage.stale_prs_7d, 2);
     }
 
     #[test]
