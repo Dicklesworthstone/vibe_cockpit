@@ -17,6 +17,7 @@ vc_query.workspace = true
 vc_collect.workspace = true
 vc_oracle.workspace = true
 vc_guardian.workspace = true
+vc_knowledge.workspace = true
 vc_alert.workspace = true
 vc_tui.workspace = true
 vc_web.workspace = true

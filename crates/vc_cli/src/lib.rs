@@ -15,6 +15,7 @@ use std::time::Duration;
 use thiserror::Error;
 use vc_collect::executor::Executor;
 use vc_config::VcConfig;
+use vc_knowledge::{EntryType, FeedbackType, KnowledgeEntry, KnowledgeFeedback, KnowledgeStore, SearchOptions};
 use vc_store::{AuditEventFilter, AuditEventType, VcStore};
 
 pub mod robot;
@@ -43,6 +44,9 @@ pub enum CliError {
 
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
+
+    #[error("Knowledge error: {0}")]
+    KnowledgeError(#[from] vc_knowledge::KnowledgeError),
 }
 
 /// Output format for robot mode
@@ -210,6 +214,12 @@ pub enum Commands {
         #[command(subcommand)]
         command: HealthCommands,
     },
+
+    /// Knowledge base management (solutions, patterns, prompts, debug logs)
+    Knowledge {
+        #[command(subcommand)]
+        command: KnowledgeCommands,
+    },
 }
 
 /// Retention policy subcommands
@@ -297,6 +307,105 @@ pub enum HealthCommands {
         /// Show score for a specific machine
         #[arg(long)]
         machine: Option<String>,
+    },
+}
+
+/// Knowledge base subcommands
+#[derive(Subcommand, Debug)]
+pub enum KnowledgeCommands {
+    /// Add a new knowledge entry
+    Add {
+        /// Entry type: solution, pattern, prompt, debug_log
+        #[arg(long)]
+        entry_type: String,
+
+        /// Title for the entry
+        #[arg(long)]
+        title: String,
+
+        /// Content (use - for stdin)
+        #[arg(long)]
+        content: String,
+
+        /// Summary (auto-truncated from content if omitted)
+        #[arg(long)]
+        summary: Option<String>,
+
+        /// Source session ID
+        #[arg(long)]
+        session: Option<String>,
+
+        /// Source file path
+        #[arg(long)]
+        file: Option<String>,
+
+        /// Source line range (e.g. "10-25")
+        #[arg(long)]
+        lines: Option<String>,
+
+        /// Tags (comma-separated)
+        #[arg(long)]
+        tags: Option<String>,
+    },
+
+    /// Search knowledge entries
+    Search {
+        /// Search query
+        query: String,
+
+        /// Filter by entry type: solution, pattern, prompt, debug_log
+        #[arg(long)]
+        entry_type: Option<String>,
+
+        /// Filter by tags (comma-separated)
+        #[arg(long)]
+        tags: Option<String>,
+
+        /// Maximum results to return
+        #[arg(long, default_value = "20")]
+        limit: usize,
+    },
+
+    /// Show a specific knowledge entry
+    Show {
+        /// Entry ID
+        id: i64,
+    },
+
+    /// List recent knowledge entries
+    List {
+        /// Maximum entries to return
+        #[arg(long, default_value = "20")]
+        limit: usize,
+
+        /// Filter by entry type
+        #[arg(long)]
+        entry_type: Option<String>,
+    },
+
+    /// Show top-rated entries
+    Top {
+        /// Maximum entries to return
+        #[arg(long, default_value = "10")]
+        limit: usize,
+    },
+
+    /// Add feedback to a knowledge entry
+    Feedback {
+        /// Entry ID
+        id: i64,
+
+        /// Feedback type: helpful, not_helpful, outdated
+        #[arg(long)]
+        feedback_type: String,
+
+        /// Optional comment
+        #[arg(long)]
+        comment: Option<String>,
+
+        /// Session ID for tracking
+        #[arg(long)]
+        session: Option<String>,
     },
 }
 
@@ -1388,6 +1497,154 @@ impl Cli {
                         } else {
                             print_output(&summary, self.format);
                         }
+                    }
+                }
+            }
+            Commands::Knowledge { command } => {
+                let store = Arc::new(open_store(self.config.as_ref())?);
+                let kb = KnowledgeStore::new(store);
+
+                match command {
+                    KnowledgeCommands::Add {
+                        entry_type,
+                        title,
+                        content,
+                        summary,
+                        session,
+                        file,
+                        lines,
+                        tags,
+                    } => {
+                        let et: EntryType = entry_type.parse().map_err(|e: vc_knowledge::KnowledgeError| {
+                            CliError::CommandFailed(e.to_string())
+                        })?;
+
+                        let tags_vec = tags
+                            .map(|t| {
+                                t.split(',')
+                                    .filter_map(|s| {
+                                        let trimmed = s.trim();
+                                        if trimmed.is_empty() {
+                                            None
+                                        } else {
+                                            Some(trimmed.to_string())
+                                        }
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
+                            .unwrap_or_default();
+
+                        let mut entry = KnowledgeEntry::new(et, &title, &content)
+                            .with_tags(tags_vec);
+
+                        if let Some(summary) = summary {
+                            entry = entry.with_summary(summary);
+                        }
+
+                        if let Some(session) = session {
+                            entry = entry.with_session(session);
+                        }
+
+                        if let Some(file) = file {
+                            entry = entry.with_source(file, lines);
+                        }
+
+                        let id = kb.insert(&entry)?;
+                        let result = serde_json::json!({
+                            "id": id,
+                            "title": title,
+                            "entry_type": et.as_str(),
+                            "message": "Knowledge entry created successfully",
+                        });
+                        print_output(&result, self.format);
+                    }
+                    KnowledgeCommands::Search {
+                        query,
+                        entry_type,
+                        tags,
+                        limit,
+                    } => {
+                        let mut opts = SearchOptions::new().with_limit(limit);
+
+                        if let Some(et_str) = entry_type {
+                            let et: EntryType = et_str.parse().map_err(|e: vc_knowledge::KnowledgeError| {
+                                CliError::CommandFailed(e.to_string())
+                            })?;
+                            opts = opts.with_type(et);
+                        }
+
+                        if let Some(tags_str) = tags {
+                            let tags_vec: Vec<String> = tags_str
+                                .split(',')
+                                .filter_map(|s| {
+                                    let trimmed = s.trim();
+                                    if trimmed.is_empty() {
+                                        None
+                                    } else {
+                                        Some(trimmed.to_string())
+                                    }
+                                })
+                                .collect();
+                            opts = opts.with_tags(tags_vec);
+                        }
+
+                        let results = kb.search(&query, &opts)?;
+                        print_output(&results, self.format);
+                    }
+                    KnowledgeCommands::Show { id } => {
+                        let entry = kb.get(id)?;
+                        kb.record_view(id).ok(); // best-effort view count
+                        print_output(&entry, self.format);
+                    }
+                    KnowledgeCommands::List { limit, entry_type } => {
+                        if let Some(et_str) = entry_type {
+                            let et: EntryType = et_str.parse().map_err(|e: vc_knowledge::KnowledgeError| {
+                                CliError::CommandFailed(e.to_string())
+                            })?;
+                            let opts = SearchOptions::new().with_type(et).with_limit(limit);
+                            let results = kb.search("", &opts)?;
+                            print_output(&results, self.format);
+                        } else {
+                            let entries = kb.recent(limit)?;
+                            print_output(&entries, self.format);
+                        }
+                    }
+                    KnowledgeCommands::Top { limit } => {
+                        let entries = kb.top_rated(limit)?;
+                        if entries.is_empty() {
+                            println!("No rated knowledge entries yet");
+                        } else {
+                            print_output(&entries, self.format);
+                        }
+                    }
+                    KnowledgeCommands::Feedback {
+                        id,
+                        feedback_type,
+                        comment,
+                        session,
+                    } => {
+                        let ft: FeedbackType = feedback_type.parse().map_err(|e: String| {
+                            CliError::CommandFailed(format!("Invalid feedback type: {e}"))
+                        })?;
+
+                        let mut feedback = KnowledgeFeedback::new(id, ft);
+
+                        if let Some(comment) = comment {
+                            feedback = feedback.with_comment(comment);
+                        }
+
+                        if let Some(session) = session {
+                            feedback = feedback.with_session(session);
+                        }
+
+                        let feedback_id = kb.add_feedback(&feedback)?;
+                        let result = serde_json::json!({
+                            "feedback_id": feedback_id,
+                            "entry_id": id,
+                            "feedback_type": ft.as_str(),
+                            "message": "Feedback recorded successfully",
+                        });
+                        print_output(&result, self.format);
                     }
                 }
             }
