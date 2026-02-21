@@ -612,6 +612,7 @@ fn render_footer(f: &mut Frame, area: Rect, data: &MachinesData, theme: &Theme) 
 /// Render a progress bar
 fn render_bar(pct: f64, width: usize, theme: &Theme) -> Span<'static> {
     let filled = ((pct / 100.0) * width as f64).round() as usize;
+    let filled = filled.min(width);
     let empty = width.saturating_sub(filled);
 
     let color = if pct >= 90.0 {

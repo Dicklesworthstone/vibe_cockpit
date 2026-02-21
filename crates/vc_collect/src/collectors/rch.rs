@@ -207,21 +207,26 @@ impl Collector for RchCollector {
             ctx.executor.read_file(&jsonl_path, ctx.timeout).await?
         };
 
-        // Convert to string
-        let content = String::from_utf8_lossy(&content_bytes);
-
         // Parse JSONL lines
         let mut compilation_rows = Vec::new();
         let mut bytes_read = 0u64;
+        let mut current_pos = 0;
 
-        for line in content.lines() {
-            let line = line.trim();
+        while current_pos < content_bytes.len() {
+            let next_newline = content_bytes[current_pos..].iter().position(|&b| b == b'\n');
+            let (line_bytes, next_pos) = match next_newline {
+                Some(pos) => (&content_bytes[current_pos..current_pos + pos], current_pos + pos + 1),
+                None => (&content_bytes[current_pos..], content_bytes.len()),
+            };
+            
+            bytes_read = next_pos as u64;
+            current_pos = next_pos;
+            
+            let line_str = String::from_utf8_lossy(line_bytes);
+            let line = line_str.trim();
             if line.is_empty() {
-                bytes_read += 1; // newline
                 continue;
             }
-
-            bytes_read += line.len() as u64 + 1; // +1 for newline
 
             match serde_json::from_str::<RchCompilation>(line) {
                 Ok(compilation) => {

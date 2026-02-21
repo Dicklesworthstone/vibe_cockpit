@@ -254,8 +254,9 @@ fn render_threads_pane(f: &mut Frame, area: Rect, data: &MailData, theme: &Theme
             };
 
             // Truncate subject
-            let subject_display = if thread.subject.len() > 25 {
-                format!("{}...", &thread.subject[..22])
+            let subject_display = if thread.subject.chars().count() > 25 {
+                let trunc: String = thread.subject.chars().take(22).collect();
+                format!("{}...", trunc)
             } else {
                 thread.subject.clone()
             };
@@ -339,14 +340,16 @@ fn render_messages_pane(f: &mut Frame, area: Rect, data: &MailData, theme: &Them
             };
 
             // Build message line
-            let from_display = if msg.from.len() > 12 {
-                format!("{}...", &msg.from[..9])
+            let from_display = if msg.from.chars().count() > 12 {
+                let trunc: String = msg.from.chars().take(9).collect();
+                format!("{}...", trunc)
             } else {
                 msg.from.clone()
             };
 
-            let preview = if msg.body_preview.len() > 30 {
-                format!("{}...", &msg.body_preview[..27])
+            let preview = if msg.body_preview.chars().count() > 30 {
+                let trunc: String = msg.body_preview.chars().take(27).collect();
+                format!("{}...", trunc)
             } else {
                 msg.body_preview.clone()
             };
@@ -402,10 +405,15 @@ fn render_activity_heatmap(f: &mut Frame, area: Rect, data: &MailData, theme: &T
                 4 => theme.critical,
                 _ => theme.muted,
             };
+            let short_name = if name.chars().count() > 8 {
+                name.chars().take(8).collect::<String>()
+            } else {
+                name.clone()
+            };
             vec![
                 Span::styled(heatmap_chars[level].to_string(), Style::default().fg(color)),
                 Span::styled(
-                    format!("{} ", if name.len() > 8 { &name[..8] } else { name }),
+                    format!("{} ", short_name),
                     Style::default().fg(theme.muted),
                 ),
             ]

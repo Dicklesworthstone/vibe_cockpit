@@ -204,7 +204,14 @@ impl RateLimitForecaster {
         // Calculate velocity variance (how stable is the velocity?)
         let velocities: Vec<f64> = samples
             .windows(2)
-            .map(|w| w[1].used_percent - w[0].used_percent)
+            .filter_map(|w| {
+                let minutes = i64_to_f64((w[1].collected_at - w[0].collected_at).num_seconds()) / 60.0;
+                if minutes > 0.0 {
+                    Some((w[1].used_percent - w[0].used_percent) / minutes)
+                } else {
+                    None
+                }
+            })
             .collect();
 
         let variance = if velocities.is_empty() {
@@ -260,7 +267,7 @@ impl RateLimitForecaster {
         if let Some(reset_time) = resets_at {
             let now = Utc::now();
             if reset_time > now {
-                let time_to_reset = (reset_time - now).num_seconds().cast_unsigned();
+                let time_to_reset = u64::try_from((reset_time - now).num_seconds()).unwrap_or(0);
                 if time_to_reset < time_to_limit.as_secs() {
                     // Reset happens before limit - no swap needed
                     return None;

@@ -333,13 +333,19 @@ impl<'a> QueryBuilder<'a> {
             .map(|r| {
                 let factor_id = r["factor_id"].as_str().unwrap_or("unknown").to_string();
                 let severity_str = r["severity"].as_str().unwrap_or("healthy");
+                
+                let details_json_str = r["details_json"].as_str().unwrap_or("{}");
+                let parsed_details: serde_json::Value = serde_json::from_str(details_json_str).unwrap_or_else(|_| serde_json::json!({}));
+                let name = parsed_details["name"].as_str().unwrap_or(&factor_id.replace('_', " ")).to_string();
+                let details = parsed_details["details"].as_str().unwrap_or("").to_string();
+
                 HealthFactor {
-                    name: factor_id.replace('_', " "),
+                    name,
                     factor_id,
                     score: r["score"].as_f64().unwrap_or(1.0),
                     weight: r["weight"].as_f64().unwrap_or(1.0),
                     severity: severity_str.parse().unwrap_or(Severity::Healthy),
-                    details: r["details_json"].as_str().unwrap_or("").to_string(),
+                    details,
                 }
             })
             .collect();

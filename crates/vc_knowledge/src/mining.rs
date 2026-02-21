@@ -337,10 +337,12 @@ impl SolutionMiner {
 
     fn generate_title(pair: &ProblemSolutionPair) -> String {
         let max_len = 80;
-        if pair.problem.len() <= max_len {
+        let char_count = pair.problem.chars().count();
+        if char_count <= max_len {
             pair.problem.clone()
         } else {
-            format!("{}..", &pair.problem[..max_len - 2])
+            let truncated: String = pair.problem.chars().take(max_len - 2).collect();
+            format!("{}..", truncated)
         }
     }
 

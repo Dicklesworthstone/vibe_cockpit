@@ -335,7 +335,7 @@ impl PatternRecognizer {
 
     /// Find most common args for a command across sequences
     fn most_common_args(&self, sequences: &[Vec<CapturedAction>], cmd: &str) -> Vec<String> {
-        let mut arg_counts: std::collections::HashMap<String, usize> =
+        let mut arg_counts: std::collections::HashMap<Vec<String>, usize> =
             std::collections::HashMap::new();
 
         for sequence in sequences {
@@ -345,8 +345,7 @@ impl PatternRecognizer {
                 } = action
                 {
                     if c == cmd {
-                        let key = args.join(" ");
-                        *arg_counts.entry(key).or_insert(0) += 1;
+                        *arg_counts.entry(args.clone()).or_insert(0) += 1;
                     }
                 }
             }
@@ -355,12 +354,7 @@ impl PatternRecognizer {
         arg_counts
             .into_iter()
             .max_by_key(|(_, count)| *count)
-            .map(|(args_str, _)| {
-                args_str
-                    .split_whitespace()
-                    .map(String::from)
-                    .collect::<Vec<_>>()
-            })
+            .map(|(args, _)| args)
             .unwrap_or_default()
     }
 }
