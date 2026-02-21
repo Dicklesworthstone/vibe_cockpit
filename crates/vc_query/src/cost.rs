@@ -564,45 +564,24 @@ impl<'a> CostQueryBuilder<'a> {
     ///
     /// Returns [`QueryError`] if insertion into snapshot storage fails.
     pub fn insert_attribution(&self, attribution: &CostAttribution) -> Result<(), QueryError> {
-        let confidence_json = serde_json::to_string(&attribution.confidence_factors)
-            .unwrap_or_else(|_| "{}".to_string());
-        let raw_json = serde_json::to_string(&attribution).unwrap_or_else(|_| "{}".to_string());
+        let row = serde_json::json!({
+            "repo_id": attribution.repo_id,
+            "repo_path": attribution.repo_path,
+            "machine_id": attribution.machine_id,
+            "agent_type": attribution.agent_type,
+            "provider": attribution.provider,
+            "estimated_cost_usd": attribution.estimated_cost_usd,
+            "tokens_input": attribution.tokens_input,
+            "tokens_output": attribution.tokens_output,
+            "tokens_total": attribution.tokens_total,
+            "sessions_count": attribution.sessions_count,
+            "requests_count": attribution.requests_count,
+            "confidence": attribution.confidence,
+            "confidence_factors_json": serde_json::to_string(&attribution.confidence_factors).unwrap_or_else(|_| "{}".to_string()),
+            "raw_json": serde_json::to_string(&attribution).unwrap_or_else(|_| "{}".to_string()),
+        });
 
-        let sql = format!(
-            "INSERT INTO cost_attribution_snapshot \
-             (repo_id, repo_path, machine_id, agent_type, provider, \
-              estimated_cost_usd, tokens_input, tokens_output, tokens_total, \
-              sessions_count, requests_count, confidence, confidence_factors_json, raw_json) \
-             VALUES ({}, {}, {}, {}, '{}', {}, {}, {}, {}, {}, {}, {}, '{}', '{}')",
-            attribution.repo_id.as_ref().map_or_else(
-                || "NULL".to_string(),
-                |s| format!("'{}'", s.replace('\'', "''"))
-            ),
-            attribution.repo_path.as_ref().map_or_else(
-                || "NULL".to_string(),
-                |s| format!("'{}'", s.replace('\'', "''"))
-            ),
-            attribution.machine_id.as_ref().map_or_else(
-                || "NULL".to_string(),
-                |s| format!("'{}'", s.replace('\'', "''"))
-            ),
-            attribution.agent_type.as_ref().map_or_else(
-                || "NULL".to_string(),
-                |s| format!("'{}'", s.replace('\'', "''"))
-            ),
-            attribution.provider.replace('\'', "''"),
-            attribution.estimated_cost_usd,
-            attribution.tokens_input,
-            attribution.tokens_output,
-            attribution.tokens_total,
-            attribution.sessions_count,
-            attribution.requests_count,
-            attribution.confidence,
-            confidence_json.replace('\'', "''"),
-            raw_json.replace('\'', "''"),
-        );
-
-        self.store.execute_batch(&sql)?;
+        self.store.insert_json("cost_attribution_snapshot", &row)?;
         Ok(())
     }
 }

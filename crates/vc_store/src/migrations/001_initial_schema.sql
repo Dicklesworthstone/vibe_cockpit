@@ -81,6 +81,17 @@ CREATE TABLE IF NOT EXISTS sys_top_processes (
     raw_json TEXT
 );
 
+-- Filesystems snapshot
+CREATE TABLE IF NOT EXISTS sys_filesystems (
+    machine_id TEXT,
+    collected_at TIMESTAMP,
+    mount TEXT,
+    total_bytes BIGINT,
+    used_bytes BIGINT,
+    usage_pct REAL,
+    PRIMARY KEY (machine_id, collected_at, mount)
+);
+
 -- Repository status snapshots (from ru)
 CREATE TABLE IF NOT EXISTS repo_status_snapshots (
     machine_id TEXT,

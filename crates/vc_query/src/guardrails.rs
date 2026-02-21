@@ -318,7 +318,9 @@ impl QueryValidator {
     /// Returns [`ValidationError`] when a forbidden statement is detected or the query is not
     /// `SELECT`/`WITH`.
     pub fn validate_readonly(&self, sql: &str) -> Result<(), ValidationError> {
-        let normalized = sql.trim().to_uppercase();
+        // Replace all whitespace characters with a single space to avoid bypasses
+        let normalized: String = sql.chars().map(|c| if c.is_whitespace() { ' ' } else { c }).collect();
+        let normalized = normalized.trim().to_uppercase();
         // Pad with spaces to simplify boundary checks (catches keywords at start/end)
         let padded = format!(" {normalized} ");
 
