@@ -90,6 +90,7 @@ pub enum Gene {
 
 impl Gene {
     /// Create a new float gene
+    #[must_use]
     pub fn float(value: f64, min: f64, max: f64) -> Self {
         Gene::Float {
             value: value.clamp(min, max),
@@ -99,6 +100,7 @@ impl Gene {
     }
 
     /// Create a new int gene
+    #[must_use]
     pub fn int(value: i64, min: i64, max: i64) -> Self {
         Gene::Int {
             value: value.clamp(min, max),
@@ -108,11 +110,13 @@ impl Gene {
     }
 
     /// Create a new bool gene
+    #[must_use]
     pub fn bool(value: bool) -> Self {
         Gene::Bool { value }
     }
 
     /// Create a new choice gene
+    #[must_use]
     pub fn choice(value: usize, options: Vec<String>) -> Self {
         Gene::Choice {
             value: value.min(options.len().saturating_sub(1)),
@@ -121,6 +125,7 @@ impl Gene {
     }
 
     /// Get the value as a JSON value
+    #[must_use]
     pub fn to_json_value(&self) -> serde_json::Value {
         match self {
             Gene::Float { value, .. } => serde_json::json!(value),
@@ -166,6 +171,7 @@ impl Gene {
     }
 
     /// Perform crossover with another gene
+    #[must_use]
     pub fn crossover(&self, other: &Gene, rng: &mut impl Rng) -> Gene {
         if rng.random_bool(0.5) {
             self.clone()
@@ -226,11 +232,13 @@ pub struct GenomeTemplate {
 
 impl GenomeTemplate {
     /// Create a new empty genome template
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Add a float gene
+    #[must_use]
     pub fn add_float(mut self, name: impl Into<String>, min: f64, max: f64, default: f64) -> Self {
         let name = name.into();
         self.gene_order.push(name.clone());
@@ -239,6 +247,7 @@ impl GenomeTemplate {
     }
 
     /// Add an integer gene
+    #[must_use]
     pub fn add_int(mut self, name: impl Into<String>, min: i64, max: i64, default: i64) -> Self {
         let name = name.into();
         self.gene_order.push(name.clone());
@@ -247,6 +256,7 @@ impl GenomeTemplate {
     }
 
     /// Add a boolean gene
+    #[must_use]
     pub fn add_bool(mut self, name: impl Into<String>, default: bool) -> Self {
         let name = name.into();
         self.gene_order.push(name.clone());
@@ -255,12 +265,13 @@ impl GenomeTemplate {
     }
 
     /// Add a choice gene
+    #[must_use]
     pub fn add_choice(mut self, name: impl Into<String>, options: &[&str], default: usize) -> Self {
         let name = name.into();
         self.gene_order.push(name.clone());
         self.genes.insert(
             name,
-            Gene::choice(default, options.iter().map(|s| s.to_string()).collect()),
+            Gene::choice(default, options.iter().map(ToString::to_string).collect()),
         );
         self
     }
@@ -301,6 +312,7 @@ pub struct Genome {
 
 impl Genome {
     /// Get a gene by name
+    #[must_use]
     pub fn get(&self, name: &str) -> Option<&Gene> {
         self.genes.get(name)
     }
@@ -311,6 +323,7 @@ impl Genome {
     }
 
     /// Convert genome to JSON configuration
+    #[must_use]
     pub fn to_config(&self) -> serde_json::Value {
         let mut config = serde_json::Map::new();
         for name in &self.gene_order {
@@ -329,6 +342,7 @@ impl Genome {
     }
 
     /// Perform crossover with another genome
+    #[must_use]
     pub fn crossover(&self, other: &Genome, rng: &mut impl Rng) -> Genome {
         let mut genes = HashMap::new();
 
@@ -364,8 +378,9 @@ pub struct Individual {
 
 impl Individual {
     /// Create a new individual
+    #[must_use]
     pub fn new(genome: Genome, generation: usize) -> Self {
-        let id = format!("ind-{}-{}", generation, rand::random::<u32>() % 10000);
+        let id = format!("ind-{generation}-{}", rand::random::<u32>() % 10_000);
         Self {
             genome,
             fitness: None,
@@ -375,6 +390,7 @@ impl Individual {
     }
 
     /// Set fitness score
+    #[must_use]
     pub fn with_fitness(mut self, fitness: f64) -> Self {
         self.fitness = Some(fitness);
         self
@@ -393,6 +409,7 @@ pub struct FitnessMetrics {
 
 impl FitnessMetrics {
     /// Convert metrics to fitness score using weights
+    #[must_use]
     pub fn to_fitness(&self, weights: &FitnessWeights) -> f64 {
         let normalized_tokens = 1.0 - (self.avg_tokens_per_task / 10000.0).min(1.0);
         let normalized_time = 1.0 - (self.avg_response_time_ms / 60000.0).min(1.0);
@@ -520,6 +537,7 @@ pub struct EvolutionManager {
 
 impl EvolutionManager {
     /// Create a new evolution manager
+    #[must_use]
     pub fn new(template: GenomeTemplate, config: EvolutionConfig) -> Self {
         Self {
             template,
@@ -535,6 +553,7 @@ impl EvolutionManager {
     }
 
     /// Create with fixed seed for reproducibility
+    #[must_use]
     pub fn with_seed(template: GenomeTemplate, config: EvolutionConfig, seed: u64) -> Self {
         Self {
             template,
@@ -594,7 +613,7 @@ impl EvolutionManager {
     /// Perform tournament selection
     ///
     /// # Panics
-    /// Panics if population is empty or tournament_size is 0.
+    /// Panics if population is empty or `tournament_size` is 0.
     /// Caller must ensure population is non-empty before calling.
     fn tournament_select(&mut self) -> Individual {
         assert!(
@@ -612,7 +631,7 @@ impl EvolutionManager {
             let idx = self.rng.random_range(0..self.population.len());
             let candidate = &self.population[idx];
 
-            if best.map_or(true, |b| {
+            if best.is_none_or(|b| {
                 candidate.fitness.unwrap_or(f64::NEG_INFINITY)
                     > b.fitness.unwrap_or(f64::NEG_INFINITY)
             }) {
@@ -639,7 +658,7 @@ impl EvolutionManager {
         let fitnesses: Vec<f64> = self.population.iter().filter_map(|i| i.fitness).collect();
 
         let best_fitness = fitnesses.first().copied().unwrap_or(0.0);
-        let avg_fitness = fitnesses.iter().sum::<f64>() / fitnesses.len().max(1) as f64;
+        let avg_fitness = fitnesses.iter().sum::<f64>() / usize_to_f64(fitnesses.len().max(1));
         let worst_fitness = fitnesses.last().copied().unwrap_or(0.0);
         let (_, std_dev) = crate::dna::mean_stddev(&fitnesses);
 
@@ -702,16 +721,19 @@ impl EvolutionManager {
     }
 
     /// Check if evolution has converged
+    #[must_use]
     pub fn has_converged(&self) -> bool {
         self.stagnation_counter >= self.config.convergence_patience
     }
 
     /// Check if maximum generations reached
+    #[must_use]
     pub fn is_complete(&self) -> bool {
         self.generation >= self.config.max_generations
     }
 
     /// Get the best individual
+    #[must_use]
     pub fn best(&self) -> Option<&Individual> {
         self.population.iter().max_by(|a, b| {
             a.fitness
@@ -760,22 +782,30 @@ impl EvolutionManager {
     }
 
     /// Get current population
+    #[must_use]
     pub fn population(&self) -> &[Individual] {
         &self.population
     }
 
     /// Get current generation
+    #[must_use]
     pub fn current_generation(&self) -> usize {
         self.generation
     }
 
     /// Get evolution history
+    #[must_use]
     pub fn history(&self) -> &[GenerationStats] {
         &self.history
     }
 }
 
+fn usize_to_f64(value: usize) -> f64 {
+    f64::from(u32::try_from(value).unwrap_or(u32::MAX))
+}
+
 #[cfg(test)]
+#[allow(clippy::cast_precision_loss, clippy::float_cmp)]
 mod tests {
     use super::*;
 
@@ -863,7 +893,7 @@ mod tests {
 
         match gene {
             Gene::Float { value, .. } => {
-                assert!(value >= 0.0 && value <= 2.0);
+                assert!((0.0..=2.0).contains(&value));
             }
             _ => panic!("Expected float gene"),
         }
@@ -1028,8 +1058,7 @@ mod tests {
         let first_best = result
             .generation_history
             .first()
-            .map(|s| s.best_fitness)
-            .unwrap_or(0.0);
+            .map_or(0.0, |s| s.best_fitness);
         let final_best = result.best_individual.fitness.unwrap_or(0.0);
 
         assert!(final_best >= first_best - 0.01); // Allow small tolerance

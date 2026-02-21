@@ -1,4 +1,4 @@
-//! Agent DNA - Behavioral fingerprints for AI coding agents
+//! `Agent DNA` - Behavioral fingerprints for AI coding agents
 //!
 //! Agent DNA captures performance patterns and preferences to enable:
 //! - Comparison between different agents and configurations
@@ -66,6 +66,7 @@ pub struct TimeRange {
 
 impl TimeRange {
     /// Create a range for the last N days
+    #[must_use]
     pub fn last_days(days: i64) -> Self {
         let end = Utc::now();
         let start = end - Duration::days(days);
@@ -73,6 +74,7 @@ impl TimeRange {
     }
 
     /// Create a range for the last N hours
+    #[must_use]
     pub fn last_hours(hours: i64) -> Self {
         let end = Utc::now();
         let start = end - Duration::hours(hours);
@@ -80,6 +82,7 @@ impl TimeRange {
     }
 
     /// Duration of the time range
+    #[must_use]
     pub fn duration(&self) -> Duration {
         self.end - self.start
     }
@@ -94,7 +97,7 @@ impl Default for TimeRange {
 /// Agent DNA - behavioral fingerprint
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentDna {
-    /// Unique identifier: "{program}:{model}:{config_hash}"
+    /// Unique identifier: `"{program}:{model}:{config_hash}"`
     pub dna_id: String,
 
     /// Agent program (claude-code, codex, gemini)
@@ -164,11 +167,12 @@ pub struct AgentDna {
 
 impl AgentDna {
     /// Create a new DNA with minimal data
+    #[must_use]
     pub fn new(program: impl Into<String>, model: impl Into<String>) -> Self {
         let program = program.into();
         let model = model.into();
         Self {
-            dna_id: format!("{}:{}:default", program, model),
+            dna_id: format!("{program}:{model}:default"),
             agent_program: program,
             agent_model: model,
             configuration_hash: None,
@@ -196,6 +200,7 @@ impl AgentDna {
     }
 
     /// Set configuration hash and update DNA ID
+    #[must_use]
     pub fn with_config_hash(mut self, hash: impl Into<String>) -> Self {
         let hash = hash.into();
         self.dna_id = format!("{}:{}:{}", self.agent_program, self.agent_model, hash);
@@ -204,6 +209,7 @@ impl AgentDna {
     }
 
     /// Convert DNA metrics to a normalized vector for embedding
+    #[must_use]
     pub fn to_feature_vector(&self) -> Vec<f64> {
         vec![
             self.avg_tokens_per_turn / 10000.0,           // Normalize to ~0-1
@@ -213,7 +219,7 @@ impl AgentDna {
             self.recovery_rate,
             self.avg_tools_per_task / 20.0,
             self.avg_response_time_ms.min(60000.0) / 60000.0,
-            self.p95_response_time_ms.min(120000.0) / 120000.0,
+            self.p95_response_time_ms.min(120_000.0) / 120_000.0,
             self.avg_task_completion_time_mins.min(120.0) / 120.0,
             self.task_success_rate,
             self.avg_session_duration_mins.min(480.0) / 480.0,
@@ -283,6 +289,7 @@ pub struct DnaHistory {
 
 impl DnaHistory {
     /// Create a new history entry from DNA
+    #[must_use]
     pub fn from_dna(dna: &AgentDna, change_summary: Option<String>) -> Self {
         Self {
             id: None,
@@ -306,6 +313,7 @@ pub struct Difference {
 
 impl Difference {
     /// Create a new difference
+    #[must_use]
     pub fn new(metric: impl Into<String>, a: f64, b: f64) -> Self {
         let delta = b - a;
         let delta_pct = if a.abs() > f64::EPSILON {
@@ -323,6 +331,7 @@ impl Difference {
     }
 
     /// Check if the difference is significant (>10% change or >0.05 absolute)
+    #[must_use]
     pub fn is_significant(&self) -> bool {
         self.delta.abs() > 0.05 || self.delta_pct.abs() > 10.0
     }
@@ -345,6 +354,7 @@ pub struct DnaComparison {
 
 impl DnaComparison {
     /// Create a comparison between two DNAs
+    #[must_use]
     pub fn compare(a: &AgentDna, b: &AgentDna) -> Self {
         let similarity = cosine_similarity(&a.dna_embedding, &b.dna_embedding);
 
@@ -383,7 +393,7 @@ impl DnaComparison {
             ),
         ]
         .into_iter()
-        .filter(|d| d.is_significant())
+        .filter(Difference::is_significant)
         .collect();
 
         let assessment = if similarity > 0.95 {
@@ -434,6 +444,7 @@ pub struct Anomaly {
 
 impl Anomaly {
     /// Create an anomaly from a metric deviation
+    #[must_use]
     pub fn new(metric: impl Into<String>, current: f64, expected: f64, stddev: f64) -> Self {
         let metric = metric.into();
         let deviation_sigmas = if stddev > f64::EPSILON {
@@ -474,6 +485,7 @@ impl Anomaly {
     }
 
     /// Check if this anomaly is significant (>2σ)
+    #[must_use]
     pub fn is_significant(&self) -> bool {
         self.deviation_sigmas.abs() > 2.0
     }
@@ -510,6 +522,7 @@ pub struct DnaComputer {
 
 impl DnaComputer {
     /// Create a new DNA computer with default configuration
+    #[must_use]
     pub fn new() -> Self {
         Self {
             config: DnaComputeConfig::default(),
@@ -517,14 +530,20 @@ impl DnaComputer {
     }
 
     /// Create with custom configuration
+    #[must_use]
     pub fn with_config(config: DnaComputeConfig) -> Self {
         Self { config }
     }
 
     /// Compute DNA from raw metrics
     ///
-    /// This method takes pre-computed statistics and creates an AgentDna.
+    /// This method takes pre-computed statistics and creates an `AgentDna`.
     /// For actual data collection from store, use `compute_from_store`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DnaError::InsufficientData`] when the provided sample count is
+    /// below the configured minimum threshold.
     #[instrument(skip(self), fields(program = %program, model = %model))]
     pub fn compute_dna(
         &self,
@@ -581,6 +600,7 @@ impl DnaComputer {
     }
 
     /// Compare two DNA profiles
+    #[must_use]
     pub fn compare(&self, a: &AgentDna, b: &AgentDna) -> DnaComparison {
         DnaComparison::compare(a, b)
     }
@@ -594,26 +614,43 @@ impl DnaComputer {
 
         let mut anomalies = Vec::new();
 
-        // Check each key metric against historical baseline
-        // Use function pointers instead of closures for uniform types
-        let metrics: [(&str, fn(&AgentDna) -> f64); 6] = [
-            ("error_rate", |d| d.error_rate),
-            ("recovery_rate", |d| d.recovery_rate),
-            ("avg_tokens_per_turn", |d| d.avg_tokens_per_turn),
-            ("task_success_rate", |d| d.task_success_rate),
-            ("avg_response_time_ms", |d| d.avg_response_time_ms),
-            ("session_abandonment_rate", |d| d.session_abandonment_rate),
+        // Check each key metric against historical baseline.
+        let metrics = [
+            MetricDef {
+                name: "error_rate",
+                getter: metric_error_rate,
+            },
+            MetricDef {
+                name: "recovery_rate",
+                getter: metric_recovery_rate,
+            },
+            MetricDef {
+                name: "avg_tokens_per_turn",
+                getter: metric_avg_tokens_per_turn,
+            },
+            MetricDef {
+                name: "task_success_rate",
+                getter: metric_task_success_rate,
+            },
+            MetricDef {
+                name: "avg_response_time_ms",
+                getter: metric_avg_response_time_ms,
+            },
+            MetricDef {
+                name: "session_abandonment_rate",
+                getter: metric_session_abandonment_rate,
+            },
         ];
 
-        for (name, getter) in metrics {
-            let current_val = getter(current);
-            let historical: Vec<f64> = history.iter().map(getter).collect();
+        for metric in metrics {
+            let current_val = (metric.getter)(current);
+            let historical: Vec<f64> = history.iter().map(metric.getter).collect();
             let (mean, stddev) = mean_stddev(&historical);
 
             if stddev > f64::EPSILON {
                 let deviation = (current_val - mean).abs() / stddev;
                 if deviation > self.config.anomaly_threshold {
-                    anomalies.push(Anomaly::new(name, current_val, mean, stddev));
+                    anomalies.push(Anomaly::new(metric.name, current_val, mean, stddev));
                 }
             }
         }
@@ -630,6 +667,7 @@ impl DnaComputer {
     }
 
     /// Find similar agents by embedding similarity
+    #[must_use]
     pub fn find_similar<'a>(
         &self,
         target: &AgentDna,
@@ -684,6 +722,7 @@ pub struct DnaStats {
 }
 
 /// Compute cosine similarity between two vectors
+#[must_use]
 pub fn cosine_similarity(a: &[f64], b: &[f64]) -> f64 {
     if a.is_empty() || b.is_empty() || a.len() != b.len() {
         return 0.0;
@@ -705,12 +744,13 @@ pub fn cosine_similarity(a: &[f64], b: &[f64]) -> f64 {
 }
 
 /// Compute mean and standard deviation
+#[must_use]
 pub fn mean_stddev(values: &[f64]) -> (f64, f64) {
     if values.is_empty() {
         return (0.0, 0.0);
     }
 
-    let n = values.len() as f64;
+    let n = usize_to_f64(values.len());
     let mean = values.iter().sum::<f64>() / n;
 
     if values.len() < 2 {
@@ -721,7 +761,41 @@ pub fn mean_stddev(values: &[f64]) -> (f64, f64) {
     (mean, variance.sqrt())
 }
 
+fn usize_to_f64(value: usize) -> f64 {
+    f64::from(u32::try_from(value).unwrap_or(u32::MAX))
+}
+
+struct MetricDef {
+    name: &'static str,
+    getter: fn(&AgentDna) -> f64,
+}
+
+fn metric_error_rate(dna: &AgentDna) -> f64 {
+    dna.error_rate
+}
+
+fn metric_recovery_rate(dna: &AgentDna) -> f64 {
+    dna.recovery_rate
+}
+
+fn metric_avg_tokens_per_turn(dna: &AgentDna) -> f64 {
+    dna.avg_tokens_per_turn
+}
+
+fn metric_task_success_rate(dna: &AgentDna) -> f64 {
+    dna.task_success_rate
+}
+
+fn metric_avg_response_time_ms(dna: &AgentDna) -> f64 {
+    dna.avg_response_time_ms
+}
+
+fn metric_session_abandonment_rate(dna: &AgentDna) -> f64 {
+    dna.session_abandonment_rate
+}
+
 #[cfg(test)]
+#[allow(clippy::cast_lossless, clippy::cast_precision_loss, clippy::float_cmp)]
 mod tests {
     use super::*;
 
@@ -972,7 +1046,7 @@ mod tests {
             .map(|i| {
                 let mut h = AgentDna::new("test", "model");
                 // Add small variation: 0.04, 0.05, 0.06, 0.05, 0.04, ...
-                h.error_rate = 0.05 + (i as f64 % 3.0 - 1.0) * 0.01;
+                h.error_rate = 0.05 + (f64::from(i) % 3.0 - 1.0) * 0.01;
                 h
             })
             .collect();

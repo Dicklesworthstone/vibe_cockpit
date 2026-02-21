@@ -1,4 +1,4 @@
-//! vc_web - Web server and API for Vibe Cockpit
+//! `vc_web` - Web server and API for Vibe Cockpit.
 //!
 //! This crate provides:
 //! - axum-based HTTP server
@@ -75,6 +75,7 @@ pub struct AppState {
 
 impl AppState {
     /// Create new app state with the given store
+    #[must_use]
     pub fn new(store: VcStore) -> Self {
         Self {
             store,
@@ -83,6 +84,10 @@ impl AppState {
     }
 
     /// Create app state with in-memory store for testing
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the in-memory store cannot be opened.
     pub fn new_memory() -> Result<Self, vc_store::StoreError> {
         Ok(Self::new(VcStore::open_memory()?))
     }
@@ -94,6 +99,7 @@ pub struct WebServer {
 }
 
 impl WebServer {
+    #[must_use]
     pub fn new(store: VcStore, config: WebConfig) -> Self {
         Self {
             state: Arc::new(AppState::new(store)),
@@ -109,6 +115,11 @@ impl WebServer {
         router
     }
 
+    /// Run the web server until shutdown.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if binding the TCP listener fails or if serving fails.
     pub async fn run(&self) -> Result<(), WebError> {
         let addr = format!("{}:{}", self.config.bind_address, self.config.port);
         let listener = TcpListener::bind(&addr)
@@ -137,7 +148,7 @@ pub struct HealthResponse {
     pub uptime_secs: u64,
 }
 
-/// Maximum allowed limit for pagination to prevent DoS
+/// Maximum allowed limit for pagination to prevent `DoS`.
 const MAX_PAGINATION_LIMIT: usize = 1000;
 /// Maximum allowed offset for pagination
 const MAX_PAGINATION_OFFSET: usize = 1_000_000;
@@ -152,12 +163,14 @@ pub struct PaginationParams {
 }
 
 impl PaginationParams {
-    /// Get bounded limit (clamped to MAX_PAGINATION_LIMIT)
+    /// Get bounded limit (clamped to `MAX_PAGINATION_LIMIT`).
+    #[must_use]
     pub fn bounded_limit(&self) -> usize {
-        self.limit.min(MAX_PAGINATION_LIMIT).max(1)
+        self.limit.clamp(1, MAX_PAGINATION_LIMIT)
     }
 
-    /// Get bounded offset (clamped to MAX_PAGINATION_OFFSET)
+    /// Get bounded offset (clamped to `MAX_PAGINATION_OFFSET`).
+    #[must_use]
     pub fn bounded_offset(&self) -> usize {
         self.offset.min(MAX_PAGINATION_OFFSET)
     }
@@ -187,9 +200,10 @@ fn build_cors_layer(config: &WebConfig) -> Option<CorsLayer> {
 
     let mut origins = Vec::new();
     for origin in &config.cors_origins {
-        match HeaderValue::from_str(origin) {
-            Ok(value) => origins.push(value),
-            Err(_) => warn!(origin = %origin, "Invalid CORS origin; skipping"),
+        if let Ok(value) = HeaderValue::from_str(origin) {
+            origins.push(value);
+        } else {
+            warn!(origin = %origin, "Invalid CORS origin; skipping");
         }
     }
 
@@ -271,7 +285,7 @@ async fn health_handler(State(state): State<Arc<AppState>>) -> Json<HealthRespon
     })
 }
 
-/// Fleet overview endpoint - returns FleetOverview from vc_query
+/// Fleet overview endpoint - returns `FleetOverview` from `vc_query`.
 async fn overview_handler(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<FleetOverview>, WebError> {
@@ -336,7 +350,7 @@ async fn machine_by_id_handler(
     if let Some(machine) = results.into_iter().next() {
         Ok(Json(machine))
     } else {
-        Err(WebError::NotFound(format!("Machine not found: {}", id)))
+        Err(WebError::NotFound(format!("Machine not found: {id}")))
     }
 }
 
@@ -400,10 +414,7 @@ async fn alert_rules_handler(
 ) -> Result<Json<serde_json::Value>, WebError> {
     let limit = params.bounded_limit();
     let offset = params.bounded_offset();
-    let sql = format!(
-        "SELECT * FROM alert_rules ORDER BY rule_id LIMIT {} OFFSET {}",
-        limit, offset
-    );
+    let sql = format!("SELECT * FROM alert_rules ORDER BY rule_id LIMIT {limit} OFFSET {offset}");
     let rules = state.store.query_json(&sql)?;
 
     Ok(Json(serde_json::json!({
@@ -441,8 +452,7 @@ async fn sessions_handler(
     let limit = params.bounded_limit();
     let offset = params.bounded_offset();
     let sql = format!(
-        "SELECT * FROM agent_sessions ORDER BY collected_at DESC LIMIT {} OFFSET {}",
-        limit, offset
+        "SELECT * FROM agent_sessions ORDER BY collected_at DESC LIMIT {limit} OFFSET {offset}"
     );
     let sessions = state.store.query_json(&sql)?;
 
@@ -477,8 +487,7 @@ async fn guardian_runs_handler(
     let limit = params.bounded_limit();
     let offset = params.bounded_offset();
     let sql = format!(
-        "SELECT * FROM guardian_runs ORDER BY started_at DESC LIMIT {} OFFSET {}",
-        limit, offset
+        "SELECT * FROM guardian_runs ORDER BY started_at DESC LIMIT {limit} OFFSET {offset}"
     );
     let runs = state.store.query_json(&sql)?;
 
@@ -497,8 +506,7 @@ async fn guardian_pending_handler(
     let limit = params.bounded_limit();
     let offset = params.bounded_offset();
     let sql = format!(
-        "SELECT * FROM guardian_runs WHERE status = 'pending_approval' ORDER BY started_at DESC LIMIT {} OFFSET {}",
-        limit, offset
+        "SELECT * FROM guardian_runs WHERE status = 'pending_approval' ORDER BY started_at DESC LIMIT {limit} OFFSET {offset}"
     );
     let pending = state.store.query_json(&sql)?;
 
@@ -514,6 +522,7 @@ async fn guardian_pending_handler(
 // =============================================================================
 
 /// Serve Prometheus-format metrics
+#[allow(clippy::too_many_lines)]
 async fn metrics_handler(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let mut lines = Vec::new();
 
@@ -526,12 +535,14 @@ async fn metrics_handler(State(state): State<Arc<AppState>>) -> impl IntoRespons
              FROM collector_health \
              WHERE checked_at = (SELECT MAX(ch2.checked_at) FROM collector_health ch2 \
                 WHERE ch2.machine_id = collector_health.machine_id \
-                AND ch2.collector_name = collector_health.collector_name)"
+                AND ch2.collector_name = collector_health.collector_name)",
         )
         .unwrap_or_default();
 
     if !collectors.is_empty() {
-        lines.push("# HELP vc_collector_freshness_seconds Seconds since last collector check".to_string());
+        lines.push(
+            "# HELP vc_collector_freshness_seconds Seconds since last collector check".to_string(),
+        );
         lines.push("# TYPE vc_collector_freshness_seconds gauge".to_string());
         for c in &collectors {
             let machine = c["machine_id"].as_str().unwrap_or("unknown");
@@ -549,7 +560,7 @@ async fn metrics_handler(State(state): State<Arc<AppState>>) -> impl IntoRespons
         .query_json(
             "SELECT machine_id, collector_name, \
              COUNT(*) FILTER (WHERE status = 'healthy') AS success_count \
-             FROM collector_health GROUP BY machine_id, collector_name"
+             FROM collector_health GROUP BY machine_id, collector_name",
         )
         .unwrap_or_default();
 
@@ -571,7 +582,7 @@ async fn metrics_handler(State(state): State<Arc<AppState>>) -> impl IntoRespons
         .store
         .query_json(
             "SELECT severity, COUNT(*) AS cnt FROM alerts \
-             WHERE acked_at IS NULL GROUP BY severity"
+             WHERE acked_at IS NULL GROUP BY severity",
         )
         .unwrap_or_default();
 
@@ -597,7 +608,7 @@ async fn metrics_handler(State(state): State<Arc<AppState>>) -> impl IntoRespons
         .query_json(
             "SELECT machine_id, overall_score FROM health_scores \
              WHERE computed_at = (SELECT MAX(hs2.computed_at) FROM health_scores hs2 \
-                WHERE hs2.machine_id = health_scores.machine_id)"
+                WHERE hs2.machine_id = health_scores.machine_id)",
         )
         .unwrap_or_default();
 
@@ -631,12 +642,16 @@ async fn metrics_handler(State(state): State<Arc<AppState>>) -> impl IntoRespons
     // Return as text/plain (Prometheus text format)
     let body = lines.join("\n") + "\n";
     (
-        [(axum::http::header::CONTENT_TYPE, "text/plain; version=0.0.4; charset=utf-8")],
+        [(
+            axum::http::header::CONTENT_TYPE,
+            "text/plain; version=0.0.4; charset=utf-8",
+        )],
         body,
     )
 }
 
-/// Generate Prometheus metrics text from a VcStore (for testing/reuse)
+/// Generate Prometheus metrics text from a `VcStore` (for testing/reuse).
+#[must_use]
 pub fn generate_metrics_text(store: &VcStore) -> String {
     let mut lines = Vec::new();
 
@@ -644,7 +659,7 @@ pub fn generate_metrics_text(store: &VcStore) -> String {
     let alert_counts = store
         .query_json(
             "SELECT severity, COUNT(*) AS cnt FROM alerts \
-             WHERE acked_at IS NULL GROUP BY severity"
+             WHERE acked_at IS NULL GROUP BY severity",
         )
         .unwrap_or_default();
 
@@ -2103,7 +2118,12 @@ mod tests {
             .unwrap();
 
         let response = app.oneshot(request).await.unwrap();
-        let content_type = response.headers().get("content-type").unwrap().to_str().unwrap();
+        let content_type = response
+            .headers()
+            .get("content-type")
+            .unwrap()
+            .to_str()
+            .unwrap();
         assert!(content_type.contains("text/plain"));
     }
 

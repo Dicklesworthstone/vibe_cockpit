@@ -29,15 +29,15 @@ pub struct AccountKey {
 /// Configuration for the rate limit forecaster
 #[derive(Debug, Clone)]
 pub struct ForecastConfig {
-    /// Time threshold (seconds) below which to recommend SwapNow
+    /// Time threshold (seconds) below which to recommend `SwapNow`
     pub swap_now_threshold_secs: u64,
-    /// Time threshold (seconds) below which to recommend PrepareSwap
+    /// Time threshold (seconds) below which to recommend `PrepareSwap`
     pub prepare_swap_threshold_secs: u64,
-    /// Time threshold (seconds) below which to recommend SlowDown (if velocity high)
+    /// Time threshold (seconds) below which to recommend `SlowDown` (if velocity high)
     pub slow_down_threshold_secs: u64,
-    /// Velocity threshold above which to recommend SlowDown
+    /// Velocity threshold above which to recommend `SlowDown`
     pub high_velocity_threshold: f64,
-    /// SlowDown target as fraction of current velocity
+    /// `SlowDown` target as fraction of current velocity
     pub slow_down_factor: f64,
 }
 
@@ -60,6 +60,7 @@ pub struct RateLimitForecaster {
 
 impl RateLimitForecaster {
     /// Create a new forecaster with default config
+    #[must_use]
     pub fn new() -> Self {
         Self {
             config: ForecastConfig::default(),
@@ -67,6 +68,7 @@ impl RateLimitForecaster {
     }
 
     /// Create a forecaster with custom config
+    #[must_use]
     pub fn with_config(config: ForecastConfig) -> Self {
         Self { config }
     }
@@ -74,9 +76,10 @@ impl RateLimitForecaster {
     /// Generate forecasts from usage samples
     ///
     /// Takes a list of usage samples and returns forecasts for each account.
+    #[must_use]
     pub fn forecast(&self, samples: Vec<UsageSample>) -> Vec<RateLimitForecast> {
         // Group samples by account
-        let grouped = self.group_by_account(samples);
+        let grouped = Self::group_by_account(samples);
 
         // Generate forecasts for each account
         let mut forecasts: Vec<_> = grouped
@@ -91,7 +94,7 @@ impl RateLimitForecaster {
     }
 
     /// Group samples by provider+account
-    fn group_by_account(&self, samples: Vec<UsageSample>) -> HashMap<AccountKey, Vec<UsageSample>> {
+    fn group_by_account(samples: Vec<UsageSample>) -> HashMap<AccountKey, Vec<UsageSample>> {
         let mut grouped: HashMap<AccountKey, Vec<UsageSample>> = HashMap::new();
 
         for sample in samples {
@@ -125,19 +128,19 @@ impl RateLimitForecaster {
         let current_usage = current.used_percent;
 
         // Calculate velocity (% per minute)
-        let velocity = self.calculate_velocity(samples);
+        let velocity = Self::calculate_velocity(samples);
 
         // Calculate time to limit
-        let time_to_limit = self.calculate_time_to_limit(current_usage, velocity);
+        let time_to_limit = Self::calculate_time_to_limit(current_usage, velocity);
 
         // Calculate confidence
-        let confidence = self.calculate_confidence(samples, velocity);
+        let confidence = Self::calculate_confidence(samples, velocity);
 
         // Determine recommended action
         let action = self.determine_action(time_to_limit, velocity);
 
         // Calculate optimal swap time
-        let optimal_swap_time = self.calculate_optimal_swap_time(time_to_limit, current.resets_at);
+        let optimal_swap_time = Self::calculate_optimal_swap_time(time_to_limit, current.resets_at);
 
         Ok(RateLimitForecast {
             provider: key.provider.clone(),
@@ -155,7 +158,7 @@ impl RateLimitForecaster {
     /// Calculate velocity (rate of usage increase) from samples
     ///
     /// Returns velocity in percent per minute.
-    fn calculate_velocity(&self, samples: &[UsageSample]) -> f64 {
+    fn calculate_velocity(samples: &[UsageSample]) -> f64 {
         if samples.len() < 2 {
             return 0.0;
         }
@@ -164,7 +167,7 @@ impl RateLimitForecaster {
         let first = samples.first().unwrap();
         let last = samples.last().unwrap();
 
-        let time_diff = (last.collected_at - first.collected_at).num_seconds() as f64;
+        let time_diff = i64_to_f64((last.collected_at - first.collected_at).num_seconds());
         if time_diff < 60.0 {
             // Less than a minute of data - use simple difference
             return last.used_percent - first.used_percent;
@@ -177,7 +180,7 @@ impl RateLimitForecaster {
     }
 
     /// Calculate time until 100% usage at current velocity
-    fn calculate_time_to_limit(&self, current_usage: f64, velocity: f64) -> Duration {
+    fn calculate_time_to_limit(current_usage: f64, velocity: f64) -> Duration {
         if velocity <= 0.0 {
             // Not increasing, effectively infinite time
             return Duration::from_secs(u64::MAX / 2);
@@ -194,9 +197,9 @@ impl RateLimitForecaster {
     }
 
     /// Calculate prediction confidence based on data quality
-    fn calculate_confidence(&self, samples: &[UsageSample], _velocity: f64) -> f64 {
+    fn calculate_confidence(samples: &[UsageSample], _velocity: f64) -> f64 {
         // Sample count factor
-        let sample_factor = (samples.len() as f64 / 10.0).min(1.0);
+        let sample_factor = (usize_to_f64(samples.len()) / 10.0).min(1.0);
 
         // Calculate velocity variance (how stable is the velocity?)
         let velocities: Vec<f64> = samples
@@ -214,7 +217,7 @@ impl RateLimitForecaster {
 
         // Recency factor - more recent data is more reliable
         if let Some(last) = samples.last() {
-            let age_minutes = (Utc::now() - last.collected_at).num_minutes() as f64;
+            let age_minutes = i64_to_f64((Utc::now() - last.collected_at).num_minutes());
             let recency_factor = 1.0 / (1.0 + age_minutes / 10.0);
 
             (sample_factor * consistency_factor * recency_factor).clamp(0.1, 0.99)
@@ -235,7 +238,7 @@ impl RateLimitForecaster {
             }
         } else if secs <= self.config.prepare_swap_threshold_secs {
             RateLimitAction::PrepareSwap {
-                in_minutes: (secs / 60) as u32,
+                in_minutes: u32::try_from(secs / 60).unwrap_or(u32::MAX),
             }
         } else if secs <= self.config.slow_down_threshold_secs
             && velocity > self.config.high_velocity_threshold
@@ -250,7 +253,6 @@ impl RateLimitForecaster {
 
     /// Calculate optimal time to swap accounts
     fn calculate_optimal_swap_time(
-        &self,
         time_to_limit: Duration,
         resets_at: Option<DateTime<Utc>>,
     ) -> Option<DateTime<Utc>> {
@@ -258,7 +260,7 @@ impl RateLimitForecaster {
         if let Some(reset_time) = resets_at {
             let now = Utc::now();
             if reset_time > now {
-                let time_to_reset = (reset_time - now).num_seconds() as u64;
+                let time_to_reset = (reset_time - now).num_seconds().cast_unsigned();
                 if time_to_reset < time_to_limit.as_secs() {
                     // Reset happens before limit - no swap needed
                     return None;
@@ -275,8 +277,8 @@ impl RateLimitForecaster {
         // Swap at 80% of the way to limit
         let swap_buffer_secs = secs_to_limit / 5; // 20% buffer
         let optimal_secs = secs_to_limit - swap_buffer_secs;
-
-        Some(Utc::now() + chrono::Duration::seconds(optimal_secs as i64))
+        let optimal_secs = i64::try_from(optimal_secs).ok()?;
+        Some(Utc::now() + chrono::Duration::seconds(optimal_secs))
     }
 }
 
@@ -287,19 +289,21 @@ impl Default for RateLimitForecaster {
 }
 
 /// Calculate variance of a set of values
+#[must_use]
 fn calculate_variance(values: &[f64]) -> f64 {
     if values.is_empty() {
         return 0.0;
     }
 
-    let mean = values.iter().sum::<f64>() / values.len() as f64;
+    let mean = values.iter().sum::<f64>() / usize_to_f64(values.len());
     let sq_diff_sum: f64 = values.iter().map(|v| (v - mean).powi(2)).sum();
-    sq_diff_sum / values.len() as f64
+    sq_diff_sum / usize_to_f64(values.len())
 }
 
 /// Find alternative accounts with available headroom
 ///
-/// Returns list of (account_id, headroom_percent) sorted by headroom descending.
+/// Returns list of (`account_id`, `headroom_percent`) sorted by headroom descending.
+#[must_use]
 pub fn rank_alternative_accounts(
     samples: &[UsageSample],
     current_provider: &str,
@@ -335,7 +339,20 @@ pub fn rank_alternative_accounts(
     alternatives
 }
 
+fn usize_to_f64(value: usize) -> f64 {
+    f64::from(u32::try_from(value).unwrap_or(u32::MAX))
+}
+
+fn i64_to_f64(value: i64) -> f64 {
+    f64::from(i32::try_from(value).unwrap_or(if value.is_negative() {
+        i32::MIN
+    } else {
+        i32::MAX
+    }))
+}
+
 #[cfg(test)]
+#[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
 
@@ -367,78 +384,69 @@ mod tests {
 
     #[test]
     fn test_calculate_velocity_increasing() {
-        let forecaster = RateLimitForecaster::new();
         // 10% increase over 10 minutes = 1% per minute
         let samples = make_samples(&[(0, 50.0), (5, 55.0), (10, 60.0)]);
-        let velocity = forecaster.calculate_velocity(&samples);
+        let velocity = RateLimitForecaster::calculate_velocity(&samples);
         assert!((velocity - 1.0).abs() < 0.1);
     }
 
     #[test]
     fn test_calculate_velocity_decreasing() {
-        let forecaster = RateLimitForecaster::new();
         // 20% decrease over 10 minutes = -2% per minute
         let samples = make_samples(&[(0, 80.0), (5, 70.0), (10, 60.0)]);
-        let velocity = forecaster.calculate_velocity(&samples);
+        let velocity = RateLimitForecaster::calculate_velocity(&samples);
         assert!(velocity < 0.0);
     }
 
     #[test]
     fn test_calculate_velocity_constant() {
-        let forecaster = RateLimitForecaster::new();
         let samples = make_samples(&[(0, 50.0), (5, 50.0), (10, 50.0)]);
-        let velocity = forecaster.calculate_velocity(&samples);
+        let velocity = RateLimitForecaster::calculate_velocity(&samples);
         assert!(velocity.abs() < 0.01);
     }
 
     #[test]
     fn test_calculate_velocity_empty() {
-        let forecaster = RateLimitForecaster::new();
-        let velocity = forecaster.calculate_velocity(&[]);
+        let velocity = RateLimitForecaster::calculate_velocity(&[]);
         assert_eq!(velocity, 0.0);
     }
 
     #[test]
     fn test_calculate_velocity_single_sample() {
-        let forecaster = RateLimitForecaster::new();
         let samples = make_samples(&[(0, 50.0)]);
-        let velocity = forecaster.calculate_velocity(&samples);
+        let velocity = RateLimitForecaster::calculate_velocity(&samples);
         assert_eq!(velocity, 0.0);
     }
 
     #[test]
     fn test_calculate_time_to_limit_positive_velocity() {
-        let forecaster = RateLimitForecaster::new();
         // At 80%, velocity 2% per minute -> 10 minutes to 100%
-        let time = forecaster.calculate_time_to_limit(80.0, 2.0);
+        let time = RateLimitForecaster::calculate_time_to_limit(80.0, 2.0);
         assert!((time.as_secs_f64() - 600.0).abs() < 10.0);
     }
 
     #[test]
     fn test_calculate_time_to_limit_zero_velocity() {
-        let forecaster = RateLimitForecaster::new();
-        let time = forecaster.calculate_time_to_limit(50.0, 0.0);
+        let time = RateLimitForecaster::calculate_time_to_limit(50.0, 0.0);
         assert!(time.as_secs() > 1_000_000_000);
     }
 
     #[test]
     fn test_calculate_time_to_limit_negative_velocity() {
-        let forecaster = RateLimitForecaster::new();
-        let time = forecaster.calculate_time_to_limit(50.0, -1.0);
+        let time = RateLimitForecaster::calculate_time_to_limit(50.0, -1.0);
         assert!(time.as_secs() > 1_000_000_000);
     }
 
     #[test]
     fn test_calculate_time_to_limit_already_at_limit() {
-        let forecaster = RateLimitForecaster::new();
-        let time = forecaster.calculate_time_to_limit(100.0, 1.0);
+        let time = RateLimitForecaster::calculate_time_to_limit(100.0, 1.0);
         assert_eq!(time.as_secs(), 0);
     }
 
     #[test]
     fn test_determine_action_continue() {
         let forecaster = RateLimitForecaster::new();
-        let action = forecaster.determine_action(Duration::from_secs(7200), 0.5);
+        let action = forecaster.determine_action(Duration::from_hours(2), 0.5);
         assert!(matches!(action, RateLimitAction::Continue));
     }
 
@@ -446,7 +454,7 @@ mod tests {
     fn test_determine_action_slow_down() {
         let forecaster = RateLimitForecaster::new();
         // 20 minutes to limit, high velocity
-        let action = forecaster.determine_action(Duration::from_secs(1200), 2.0);
+        let action = forecaster.determine_action(Duration::from_mins(20), 2.0);
         match action {
             RateLimitAction::SlowDown { target_velocity } => {
                 assert!((target_velocity - 1.4).abs() < 0.01); // 2.0 * 0.7
@@ -459,7 +467,7 @@ mod tests {
     fn test_determine_action_prepare_swap() {
         let forecaster = RateLimitForecaster::new();
         // 8 minutes to limit
-        let action = forecaster.determine_action(Duration::from_secs(480), 0.5);
+        let action = forecaster.determine_action(Duration::from_mins(8), 0.5);
         match action {
             RateLimitAction::PrepareSwap { in_minutes } => {
                 assert_eq!(in_minutes, 8);
@@ -472,7 +480,7 @@ mod tests {
     fn test_determine_action_swap_now() {
         let forecaster = RateLimitForecaster::new();
         // 3 minutes to limit
-        let action = forecaster.determine_action(Duration::from_secs(180), 0.5);
+        let action = forecaster.determine_action(Duration::from_mins(3), 0.5);
         match action {
             RateLimitAction::SwapNow { .. } => {}
             _ => panic!("Expected SwapNow"),
@@ -604,7 +612,6 @@ mod tests {
 
     #[test]
     fn test_calculate_confidence_increases_with_samples() {
-        let forecaster = RateLimitForecaster::new();
         // Use recent samples (relative to now) to avoid recency factor issues
         let now = Utc::now();
         let samples_few = vec![
@@ -668,36 +675,33 @@ mod tests {
             },
         ];
 
-        let conf_few = forecaster.calculate_confidence(&samples_few, 1.0);
-        let conf_many = forecaster.calculate_confidence(&samples_many, 1.0);
+        let conf_few = RateLimitForecaster::calculate_confidence(&samples_few, 1.0);
+        let conf_many = RateLimitForecaster::calculate_confidence(&samples_many, 1.0);
 
         // More samples should give higher confidence (same recency for both)
         assert!(
             conf_many > conf_few,
-            "conf_many={} should be > conf_few={}",
-            conf_many,
-            conf_few
+            "conf_many={conf_many} should be > conf_few={conf_few}"
         );
     }
 
     #[test]
     fn test_optimal_swap_time_with_upcoming_reset() {
-        let forecaster = RateLimitForecaster::new();
         // Reset happens in 30 minutes, but we'd hit limit in 60 minutes
         // -> No swap needed since reset happens first
         let reset_time = Utc::now() + chrono::Duration::minutes(30);
-        let time_to_limit = Duration::from_secs(3600); // 60 minutes
+        let time_to_limit = Duration::from_hours(1); // 60 minutes
 
-        let optimal = forecaster.calculate_optimal_swap_time(time_to_limit, Some(reset_time));
+        let optimal =
+            RateLimitForecaster::calculate_optimal_swap_time(time_to_limit, Some(reset_time));
         assert!(optimal.is_none());
     }
 
     #[test]
     fn test_optimal_swap_time_without_reset() {
-        let forecaster = RateLimitForecaster::new();
-        let time_to_limit = Duration::from_secs(600); // 10 minutes
+        let time_to_limit = Duration::from_mins(10); // 10 minutes
 
-        let optimal = forecaster.calculate_optimal_swap_time(time_to_limit, None);
+        let optimal = RateLimitForecaster::calculate_optimal_swap_time(time_to_limit, None);
         assert!(optimal.is_some());
 
         // Should be around 8 minutes from now (80% of 10 minutes)

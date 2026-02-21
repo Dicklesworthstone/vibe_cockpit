@@ -1,4 +1,4 @@
-//! Authentication and authorization middleware for vc_web
+//! Authentication and authorization middleware for `vc_web`.
 //!
 //! Supports multiple API tokens with role-based scopes:
 //! - `read`: Read-only access to all API endpoints
@@ -6,9 +6,7 @@
 //! - `admin`: Full access including token management and configuration
 
 use axum::{
-    extract::Request,
     http::{HeaderMap, StatusCode},
-    middleware::Next,
     response::{IntoResponse, Json, Response},
 };
 use serde::{Deserialize, Serialize};
@@ -31,6 +29,7 @@ pub enum Role {
 }
 
 impl Role {
+    #[must_use]
     pub fn as_str(&self) -> &str {
         match self {
             Role::Read => "read",
@@ -40,11 +39,13 @@ impl Role {
     }
 
     /// Check if this role has at least the required level
+    #[must_use]
     pub fn has_permission(&self, required: Role) -> bool {
         *self >= required
     }
 
     /// Parse from string
+    #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "read" => Some(Role::Read),
@@ -109,7 +110,8 @@ impl Default for AuthConfig {
 }
 
 impl AuthConfig {
-    /// Validate a token string and return the matching ApiToken
+    /// Validate a token string and return the matching `ApiToken`.
+    #[must_use]
     pub fn validate_token(&self, token_str: &str) -> Option<&ApiToken> {
         self.tokens
             .iter()
@@ -117,12 +119,13 @@ impl AuthConfig {
     }
 
     /// Check if a request IP should bypass auth
+    #[must_use]
     pub fn is_local_bypass(&self, ip: &str) -> bool {
-        self.local_bypass
-            && (ip == "127.0.0.1" || ip == "::1" || ip == "localhost")
+        self.local_bypass && (ip == "127.0.0.1" || ip == "::1" || ip == "localhost")
     }
 
     /// Check if a token is allowed from the given IP
+    #[must_use]
     pub fn check_ip_allowlist(&self, token: &ApiToken, ip: &str) -> bool {
         token.allowed_ips.is_empty() || token.allowed_ips.iter().any(|a| a == ip)
     }
@@ -142,6 +145,7 @@ pub struct AuthResult {
 }
 
 impl AuthResult {
+    #[must_use]
     pub fn allowed(name: &str, role: Role) -> Self {
         Self {
             authenticated: true,
@@ -151,6 +155,7 @@ impl AuthResult {
         }
     }
 
+    #[must_use]
     pub fn local_bypass() -> Self {
         Self {
             authenticated: true,
@@ -160,6 +165,7 @@ impl AuthResult {
         }
     }
 
+    #[must_use]
     pub fn denied(reason: &str) -> Self {
         Self {
             authenticated: false,
@@ -175,20 +181,18 @@ impl AuthResult {
 // ============================================================================
 
 /// Extract bearer token from Authorization header
+#[must_use]
 pub fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
     headers
         .get("authorization")
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "))
-        .map(|t| t.to_string())
+        .map(str::to_string)
 }
 
 /// Authenticate a request against the auth config
-pub fn authenticate(
-    config: &AuthConfig,
-    headers: &HeaderMap,
-    client_ip: &str,
-) -> AuthResult {
+#[must_use]
+pub fn authenticate(config: &AuthConfig, headers: &HeaderMap, client_ip: &str) -> AuthResult {
     // If auth is disabled, allow everything
     if !config.enabled {
         return AuthResult::local_bypass();
@@ -217,6 +221,7 @@ pub fn authenticate(
 }
 
 /// Check if an auth result has sufficient role
+#[must_use]
 pub fn authorize(result: &AuthResult, required: Role) -> bool {
     match result.role {
         Some(role) => result.authenticated && role.has_permission(required),
@@ -235,6 +240,7 @@ pub struct AuthState {
 }
 
 /// Create a 401 Unauthorized response
+#[must_use]
 pub fn unauthorized_response(reason: &str) -> Response {
     let body = serde_json::json!({
         "error": "unauthorized",
@@ -245,6 +251,7 @@ pub fn unauthorized_response(reason: &str) -> Response {
 }
 
 /// Create a 403 Forbidden response
+#[must_use]
 pub fn forbidden_response(reason: &str) -> Response {
     let body = serde_json::json!({
         "error": "forbidden",
@@ -494,7 +501,10 @@ mod tests {
     fn test_auth_invalid_token() {
         let config = test_config();
         let mut headers = HeaderMap::new();
-        headers.insert("authorization", HeaderValue::from_static("Bearer bad-token"));
+        headers.insert(
+            "authorization",
+            HeaderValue::from_static("Bearer bad-token"),
+        );
         let result = authenticate(&config, &headers, "10.0.0.1");
         assert!(!result.authenticated);
         assert_eq!(result.reason, "invalid_token");

@@ -1,4 +1,4 @@
-//! vc_oracle - Prediction engine for Vibe Cockpit
+//! `vc_oracle` - Prediction engine for Vibe Cockpit
 //!
 //! This crate provides:
 //! - Rate limit forecasting
@@ -77,37 +77,52 @@ pub struct Oracle {
     // Will hold store reference and configuration
 }
 
+fn usize_to_f64(value: usize) -> f64 {
+    f64::from(u32::try_from(value).unwrap_or(u32::MAX))
+}
+
 impl Oracle {
     /// Create a new Oracle instance
+    #[must_use]
     pub fn new() -> Self {
         Self {}
     }
 
     /// Forecast rate limits for all accounts
+    ///
+    /// # Errors
+    ///
+    /// Returns [`OracleError`] when forecasting fails.
+    #[allow(clippy::unused_async)]
     pub async fn forecast_rate_limits(&self) -> Result<Vec<RateLimitForecast>, OracleError> {
         // Placeholder implementation
         Ok(vec![])
     }
 
     /// Calculate velocity (rate of usage increase) from samples
+    #[must_use]
     pub fn calculate_velocity(samples: &[(DateTime<Utc>, f64)]) -> f64 {
         if samples.len() < 2 {
             return 0.0;
         }
 
         // Linear regression
-        let n = samples.len() as f64;
-        let sum_x: f64 = samples.iter().enumerate().map(|(i, _)| i as f64).sum();
-        let sum_y: f64 = samples.iter().map(|(_, y)| y).sum();
-        let sum_xy: f64 = samples
+        let n = usize_to_f64(samples.len());
+        let sum_x: f64 = samples
             .iter()
             .enumerate()
-            .map(|(i, (_, y))| i as f64 * y)
+            .map(|(i, _)| usize_to_f64(i))
+            .sum();
+        let sum_y: f64 = samples.iter().map(|(_, y)| y).sum();
+        let sum_x_y: f64 = samples
+            .iter()
+            .enumerate()
+            .map(|(i, (_, y))| usize_to_f64(i) * y)
             .sum();
         let sum_xx: f64 = samples
             .iter()
             .enumerate()
-            .map(|(i, _)| (i * i) as f64)
+            .map(|(i, _)| usize_to_f64(i.saturating_mul(i)))
             .sum();
 
         let denominator = n * sum_xx - sum_x * sum_x;
@@ -115,12 +130,13 @@ impl Oracle {
             return 0.0;
         }
 
-        (n * sum_xy - sum_x * sum_y) / denominator
+        (n * sum_x_y - sum_x * sum_y) / denominator
     }
 
     /// Calculate prediction confidence based on data quality
+    #[must_use]
     pub fn calculate_confidence(sample_count: usize, velocity_variance: f64) -> f64 {
-        let sample_factor = (sample_count as f64 / 10.0).min(1.0);
+        let sample_factor = (usize_to_f64(sample_count) / 10.0).min(1.0);
         let consistency_factor = 1.0 / (1.0 + velocity_variance);
         (sample_factor * consistency_factor).clamp(0.1, 0.99)
     }
@@ -133,6 +149,14 @@ impl Default for Oracle {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::cast_lossless,
+    clippy::cast_precision_loss,
+    clippy::drop_non_drop,
+    clippy::duration_suboptimal_units,
+    clippy::float_cmp,
+    clippy::uninlined_format_args
+)]
 mod tests {
     use super::*;
     use proptest::prelude::*;
@@ -156,7 +180,7 @@ mod tests {
     #[test]
     fn oracle_error_debug_format() {
         let err = OracleError::InsufficientData;
-        let debug = format!("{:?}", err);
+        let debug = format!("{err:?}");
         assert!(debug.contains("InsufficientData"));
     }
 
@@ -342,7 +366,7 @@ mod tests {
             alternative_accounts: vec![],
         };
 
-        let debug = format!("{:?}", forecast);
+        let debug = format!("{forecast:?}");
         assert!(debug.contains("debug-test"));
         assert!(debug.contains("RateLimitForecast"));
     }

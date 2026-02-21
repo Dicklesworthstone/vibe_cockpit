@@ -79,9 +79,10 @@ impl From<ExperimentError> for OracleError {
 }
 
 /// Experiment status
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ExperimentStatus {
+    #[default]
     Draft,
     Running,
     Paused,
@@ -89,6 +90,7 @@ pub enum ExperimentStatus {
 }
 
 impl ExperimentStatus {
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
             ExperimentStatus::Draft => "draft",
@@ -96,12 +98,6 @@ impl ExperimentStatus {
             ExperimentStatus::Paused => "paused",
             ExperimentStatus::Completed => "completed",
         }
-    }
-}
-
-impl Default for ExperimentStatus {
-    fn default() -> Self {
-        ExperimentStatus::Draft
     }
 }
 
@@ -115,8 +111,7 @@ impl std::str::FromStr for ExperimentStatus {
             "paused" => Ok(ExperimentStatus::Paused),
             "completed" => Ok(ExperimentStatus::Completed),
             _ => Err(ExperimentError::InvalidState(format!(
-                "Unknown status: {}",
-                s
+                "Unknown status: {s}"
             ))),
         }
     }
@@ -139,6 +134,7 @@ pub enum Metric {
 
 impl Metric {
     /// Get the name of the metric
+    #[must_use]
     pub fn name(&self) -> String {
         match self {
             Metric::TaskCompletionRate => "task_completion_rate".to_string(),
@@ -154,17 +150,18 @@ impl Metric {
     }
 
     /// Check if a higher value is better for this metric
+    #[must_use]
     pub fn higher_is_better(&self) -> bool {
         match self {
-            Metric::TaskCompletionRate => true,
-            Metric::AverageTokensPerTask => false, // Lower is better (efficiency)
-            Metric::ErrorRate => false,            // Lower is better
-            Metric::AverageResponseTime => false,  // Lower is better
-            Metric::CostPerTask => false,          // Lower is better
-            Metric::RecoveryRate => true,
-            Metric::ToolSuccessRate => true,
-            Metric::SessionDuration => false, // Depends, but shorter sessions often better
-            Metric::Custom { .. } => true,    // Assume higher is better by default
+            Metric::AverageTokensPerTask
+            | Metric::ErrorRate
+            | Metric::AverageResponseTime
+            | Metric::CostPerTask
+            | Metric::SessionDuration => false,
+            Metric::TaskCompletionRate
+            | Metric::RecoveryRate
+            | Metric::ToolSuccessRate
+            | Metric::Custom { .. } => true,
         }
     }
 }
@@ -232,6 +229,7 @@ pub struct VariantConfig {
 
 impl VariantConfig {
     /// Create a control variant
+    #[must_use]
     pub fn control(name: impl Into<String>, config: serde_json::Value) -> Self {
         Self {
             name: name.into(),
@@ -242,6 +240,7 @@ impl VariantConfig {
     }
 
     /// Create a treatment variant
+    #[must_use]
     pub fn treatment(name: impl Into<String>, config: serde_json::Value) -> Self {
         Self {
             name: name.into(),
@@ -252,6 +251,7 @@ impl VariantConfig {
     }
 
     /// Set traffic weight
+    #[must_use]
     pub fn with_weight(mut self, weight: f64) -> Self {
         self.traffic_weight = weight;
         self
@@ -282,11 +282,12 @@ pub struct Experiment {
 
 impl Experiment {
     /// Create from configuration
+    #[must_use]
     pub fn from_config(config: ExperimentConfig) -> Self {
         let experiment_id = format!(
             "exp-{}-{}",
             config.name.replace(' ', "_").to_lowercase(),
-            Utc::now().timestamp_millis() % 100000
+            Utc::now().timestamp_millis() % 100_000
         );
 
         Self {
@@ -311,23 +312,26 @@ impl Experiment {
     }
 
     /// Check if the experiment has reached minimum runtime
+    #[must_use]
     pub fn has_min_runtime(&self) -> bool {
         match (self.started_at, self.min_runtime_hours) {
-            (Some(start), Some(hours)) => Utc::now() - start >= Duration::hours(hours as i64),
+            (Some(start), Some(hours)) => Utc::now() - start >= Duration::hours(i64::from(hours)),
             (_, None) => true, // No minimum
             (None, _) => false,
         }
     }
 
     /// Check if the experiment has reached maximum runtime
+    #[must_use]
     pub fn has_max_runtime(&self) -> bool {
         match (self.started_at, self.max_runtime_hours) {
-            (Some(start), Some(hours)) => Utc::now() - start >= Duration::hours(hours as i64),
+            (Some(start), Some(hours)) => Utc::now() - start >= Duration::hours(i64::from(hours)),
             _ => false,
         }
     }
 
     /// Check if target sample size is reached
+    #[must_use]
     pub fn has_target_samples(&self) -> bool {
         self.actual_sample_size >= self.target_sample_size
     }
@@ -347,6 +351,7 @@ pub struct Variant {
 
 impl Variant {
     /// Create from config with experiment ID
+    #[must_use]
     pub fn from_config(experiment_id: &str, config: &VariantConfig) -> Self {
         let variant_id = format!(
             "{}-{}",
@@ -431,14 +436,20 @@ pub struct ExperimentResults {
 /// Experiment manager for lifecycle operations
 #[derive(Debug)]
 pub struct ExperimentManager {
-    /// In-memory storage for demonstration (would use VcStore in production)
+    /// In-memory storage for demonstration (would use `VcStore` in production)
     experiments: HashMap<String, Experiment>,
     variants: HashMap<String, Vec<Variant>>,
     assignments: HashMap<String, Vec<Assignment>>,
 }
 
+#[allow(
+    clippy::missing_errors_doc,
+    clippy::missing_panics_doc,
+    clippy::needless_pass_by_value
+)]
 impl ExperimentManager {
     /// Create a new experiment manager
+    #[must_use]
     pub fn new() -> Self {
         Self {
             experiments: HashMap::new(),
@@ -451,7 +462,7 @@ impl ExperimentManager {
     #[instrument(skip(self, config), fields(name = %config.name))]
     pub fn create(&mut self, config: ExperimentConfig) -> Result<Experiment, ExperimentError> {
         // Validate configuration
-        self.validate_config(&config)?;
+        Self::validate_config(&config)?;
 
         // Create experiment
         let experiment = Experiment::from_config(config.clone());
@@ -478,7 +489,7 @@ impl ExperimentManager {
     }
 
     /// Validate experiment configuration
-    fn validate_config(&self, config: &ExperimentConfig) -> Result<(), ExperimentError> {
+    fn validate_config(config: &ExperimentConfig) -> Result<(), ExperimentError> {
         if config.name.is_empty() {
             return Err(ExperimentError::InvalidConfig(
                 "Name is required".to_string(),
@@ -568,11 +579,13 @@ impl ExperimentManager {
     }
 
     /// Get an experiment
+    #[must_use]
     pub fn get(&self, experiment_id: &str) -> Option<&Experiment> {
         self.experiments.get(experiment_id)
     }
 
     /// Get variants for an experiment
+    #[must_use]
     pub fn get_variants(&self, experiment_id: &str) -> Option<&Vec<Variant>> {
         self.variants.get(experiment_id)
     }
@@ -615,7 +628,7 @@ impl ExperimentManager {
         // Select variant (immutable borrow for selection)
         let variant_id = {
             let variants = self.variants.get(experiment_id).unwrap();
-            self.select_variant(variants)?.variant_id.clone()
+            Self::select_variant(variants)?.variant_id.clone()
         };
 
         // Create assignment
@@ -662,7 +675,7 @@ impl ExperimentManager {
     }
 
     /// Select a variant using weighted random selection
-    fn select_variant<'a>(&self, variants: &'a [Variant]) -> Result<&'a Variant, ExperimentError> {
+    fn select_variant(variants: &[Variant]) -> Result<&Variant, ExperimentError> {
         let total_weight: f64 = variants.iter().map(|v| v.traffic_weight).sum();
 
         if total_weight <= 0.0 {
@@ -687,10 +700,11 @@ impl ExperimentManager {
     }
 
     /// List all experiments
+    #[must_use]
     pub fn list(&self, status: Option<ExperimentStatus>) -> Vec<&Experiment> {
         self.experiments
             .values()
-            .filter(|e| status.map_or(true, |s| e.status == s))
+            .filter(|e| status.is_none_or(|s| e.status == s))
             .collect()
     }
 }
@@ -708,6 +722,7 @@ pub struct MetricCollector {
 
 impl MetricCollector {
     /// Create a new metric collector
+    #[must_use]
     pub fn new() -> Self {
         Self {
             observations: HashMap::new(),
@@ -725,44 +740,45 @@ impl MetricCollector {
     ) {
         // Find experiments this session is assigned to
         for (experiment_id, assignments) in &manager.assignments {
-            if let Some(assignment) = assignments.iter().find(|a| a.session_id == session_id) {
-                if let Some(experiment) = manager.get(experiment_id) {
-                    // Check if this metric is relevant
-                    let is_relevant = experiment.primary_metric.name() == metric.name()
-                        || experiment
-                            .secondary_metrics
-                            .iter()
-                            .any(|m| m.name() == metric.name());
+            if let Some(assignment) = assignments.iter().find(|a| a.session_id == session_id)
+                && let Some(experiment) = manager.get(experiment_id)
+            {
+                // Check if this metric is relevant
+                let is_relevant = experiment.primary_metric.name() == metric.name()
+                    || experiment
+                        .secondary_metrics
+                        .iter()
+                        .any(|m| m.name() == metric.name());
 
-                    if is_relevant {
-                        let observation = Observation {
-                            id: None,
-                            experiment_id: experiment_id.clone(),
-                            variant_id: assignment.variant_id.clone(),
-                            session_id: session_id.to_string(),
-                            metric_name: metric.name(),
-                            metric_value: value,
-                            observed_at: Utc::now(),
-                        };
+                if is_relevant {
+                    let observation = Observation {
+                        id: None,
+                        experiment_id: experiment_id.clone(),
+                        variant_id: assignment.variant_id.clone(),
+                        session_id: session_id.to_string(),
+                        metric_name: metric.name(),
+                        metric_value: value,
+                        observed_at: Utc::now(),
+                    };
 
-                        self.observations
-                            .entry(experiment_id.clone())
-                            .or_default()
-                            .push(observation);
+                    self.observations
+                        .entry(experiment_id.clone())
+                        .or_default()
+                        .push(observation);
 
-                        debug!(
-                            experiment_id = %experiment_id,
-                            metric = %metric.name(),
-                            value = value,
-                            "Recorded observation"
-                        );
-                    }
+                    debug!(
+                        experiment_id = %experiment_id,
+                        metric = %metric.name(),
+                        value = value,
+                        "Recorded observation"
+                    );
                 }
             }
         }
     }
 
     /// Get observations for an experiment and metric
+    #[must_use]
     pub fn get_observations(
         &self,
         experiment_id: &str,
@@ -774,8 +790,7 @@ impl MetricCollector {
             .map(|obs| {
                 obs.iter()
                     .filter(|o| {
-                        o.metric_name == metric_name
-                            && variant_id.map_or(true, |v| o.variant_id == v)
+                        o.metric_name == metric_name && variant_id.is_none_or(|v| o.variant_id == v)
                     })
                     .collect()
             })
@@ -794,6 +809,11 @@ pub struct ExperimentAnalyzer;
 
 impl ExperimentAnalyzer {
     /// Analyze experiment results
+    #[allow(
+        clippy::missing_errors_doc,
+        clippy::missing_panics_doc,
+        clippy::too_many_lines
+    )]
     #[instrument(skip(manager, collector), fields(experiment_id = %experiment_id))]
     pub fn analyze(
         manager: &ExperimentManager,
@@ -831,8 +851,8 @@ impl ExperimentAnalyzer {
                 crate::dna::mean_stddev(&values)
             };
 
-            let min = values.iter().cloned().fold(f64::INFINITY, f64::min);
-            let max = values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+            let min = values.iter().copied().fold(f64::INFINITY, f64::min);
+            let max = values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
 
             let ci = confidence_interval_95(&values);
 
@@ -896,7 +916,7 @@ impl ExperimentAnalyzer {
                     let lift_abs = lift.abs();
                     if best_treatment
                         .as_ref()
-                        .map_or(true, |(_, _, l)| lift_abs > *l)
+                        .is_none_or(|(_, _, l)| lift_abs > *l)
                     {
                         best_treatment = Some((stats.variant_id.clone(), 1.0 - p_value, lift_abs));
                     }
@@ -961,7 +981,7 @@ fn confidence_interval_95(values: &[f64]) -> (f64, f64) {
     }
 
     let (mean, std_dev) = crate::dna::mean_stddev(values);
-    let n = values.len() as f64;
+    let n = usize_to_f64(values.len());
 
     // Use t-distribution critical value for 95% CI
     // For large samples, ~1.96. For smaller, use approximation.
@@ -978,8 +998,8 @@ fn two_sample_t_test(a: &VariantStats, b: &VariantStats) -> (f64, f64) {
         return (0.0, 1.0); // Cannot compute
     }
 
-    let n1 = a.sample_size as f64;
-    let n2 = b.sample_size as f64;
+    let n1 = usize_to_f64(a.sample_size);
+    let n2 = usize_to_f64(b.sample_size);
 
     let mean_diff = b.mean - a.mean;
     let var1 = a.std_dev * a.std_dev;
@@ -1021,12 +1041,12 @@ fn t_distribution_p_value(t: f64, df: f64) -> f64 {
 /// Standard normal CDF approximation
 fn normal_cdf(x: f64) -> f64 {
     // Abramowitz and Stegun approximation
-    let a1 = 0.254829592;
-    let a2 = -0.284496736;
-    let a3 = 1.421413741;
-    let a4 = -1.453152027;
-    let a5 = 1.061405429;
-    let p = 0.3275911;
+    let a1 = 0.254_829_592;
+    let a2 = -0.284_496_736;
+    let a3 = 1.421_413_741;
+    let a4 = -1.453_152_027;
+    let a5 = 1.061_405_429;
+    let p = 0.327_591_1;
 
     let sign = if x < 0.0 { -1.0 } else { 1.0 };
     let x = x.abs();
@@ -1037,7 +1057,12 @@ fn normal_cdf(x: f64) -> f64 {
     0.5 * (1.0 + sign * y)
 }
 
+fn usize_to_f64(value: usize) -> f64 {
+    f64::from(u32::try_from(value).unwrap_or(u32::MAX))
+}
+
 #[cfg(test)]
+#[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
 
@@ -1290,7 +1315,7 @@ mod tests {
 
         // Assign and record for multiple sessions
         for i in 0..50 {
-            let session_id = format!("session-{}", i);
+            let session_id = format!("session-{i}");
             let variant = manager.assign(&id, &session_id).unwrap();
 
             // Control gets ~0.5, treatment gets ~0.7

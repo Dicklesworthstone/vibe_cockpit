@@ -1,7 +1,7 @@
-//! vc_mcp - MCP server for Vibe Cockpit
+//! `vc_mcp` - MCP server for Vibe Cockpit
 //!
 //! Implements the Model Context Protocol (MCP) as a JSON-RPC 2.0 server
-//! over stdio. Exposes vibe_cockpit data and actions as MCP tools and
+//! over stdio. Exposes `vibe_cockpit` data and actions as MCP tools and
 //! resources for external AI agent access.
 //!
 //! ## Tools
@@ -147,7 +147,7 @@ pub struct ServerCapabilities {
 // MCP Server
 // ============================================================================
 
-/// MCP server implementation backed by VcStore
+/// MCP server implementation backed by `VcStore`
 pub struct McpServer {
     store: Arc<VcStore>,
     tools: Vec<McpTool>,
@@ -155,7 +155,8 @@ pub struct McpServer {
 }
 
 impl McpServer {
-    /// Create a new MCP server with a VcStore backend
+    /// Create a new MCP server with a `VcStore` backend.
+    #[must_use]
     pub fn new(store: Arc<VcStore>) -> Self {
         Self {
             store,
@@ -165,6 +166,7 @@ impl McpServer {
     }
 
     /// Define available tools
+    #[allow(clippy::too_many_lines)]
     fn define_tools() -> Vec<McpTool> {
         vec![
             McpTool {
@@ -324,33 +326,35 @@ impl McpServer {
     }
 
     /// List available tools
+    #[must_use]
     pub fn list_tools(&self) -> &[McpTool] {
         &self.tools
     }
 
     /// List available resources
+    #[must_use]
     pub fn list_resources(&self) -> &[McpResource] {
         &self.resources
     }
 
     /// Execute a tool call
-    pub fn call_tool(
-        &self,
-        name: &str,
-        args: serde_json::Value,
-    ) -> Result<ToolResult, McpError> {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`McpError::ToolNotFound`] when `name` is unknown.
+    pub fn call_tool(&self, name: &str, args: &serde_json::Value) -> Result<ToolResult, McpError> {
         debug!(tool = name, "Executing MCP tool");
 
         let result = match name {
-            "vc_fleet_status" => self.tool_fleet_status(&args),
-            "vc_query_machines" => self.tool_query_machines(&args),
-            "vc_query_alerts" => self.tool_query_alerts(&args),
-            "vc_query_sessions" => self.tool_query_sessions(&args),
-            "vc_query_incidents" => self.tool_query_incidents(&args),
-            "vc_query_nl" => self.tool_query_nl(&args),
-            "vc_collector_status" => self.tool_collector_status(&args),
-            "vc_playbook_drafts" => self.tool_playbook_drafts(&args),
-            "vc_audit_log" => self.tool_audit_log(&args),
+            "vc_fleet_status" => self.tool_fleet_status(args),
+            "vc_query_machines" => self.tool_query_machines(args),
+            "vc_query_alerts" => self.tool_query_alerts(args),
+            "vc_query_sessions" => self.tool_query_sessions(args),
+            "vc_query_incidents" => self.tool_query_incidents(args),
+            "vc_query_nl" => self.tool_query_nl(args),
+            "vc_collector_status" => self.tool_collector_status(args),
+            "vc_playbook_drafts" => self.tool_playbook_drafts(args),
+            "vc_audit_log" => self.tool_audit_log(args),
             _ => return Err(McpError::ToolNotFound(name.to_string())),
         };
 
@@ -358,8 +362,7 @@ impl McpServer {
             Ok(value) => Ok(ToolResult {
                 content: vec![ToolContent {
                     content_type: "text".to_string(),
-                    text: serde_json::to_string_pretty(&value)
-                        .unwrap_or_else(|_| "{}".to_string()),
+                    text: serde_json::to_string_pretty(&value).unwrap_or_else(|_| "{}".to_string()),
                 }],
                 is_error: None,
             }),
@@ -374,6 +377,10 @@ impl McpServer {
     }
 
     /// Read a resource
+    ///
+    /// # Errors
+    ///
+    /// Returns [`McpError::InvalidRequest`] when `uri` is unknown.
     pub fn read_resource(&self, uri: &str) -> Result<serde_json::Value, McpError> {
         debug!(uri, "Reading MCP resource");
 
@@ -388,6 +395,7 @@ impl McpServer {
     // Tool implementations
     // ========================================================================
 
+    #[allow(clippy::unnecessary_wraps)]
     fn tool_fleet_status(&self, args: &serde_json::Value) -> Result<serde_json::Value, McpError> {
         let machine_filter = args.get("machine").and_then(|v| v.as_str());
 
@@ -418,13 +426,11 @@ impl McpServer {
         }))
     }
 
-    fn tool_query_machines(
-        &self,
-        args: &serde_json::Value,
-    ) -> Result<serde_json::Value, McpError> {
+    #[allow(clippy::unnecessary_wraps)]
+    fn tool_query_machines(&self, args: &serde_json::Value) -> Result<serde_json::Value, McpError> {
         let limit = args
             .get("limit")
-            .and_then(|v| v.as_u64())
+            .and_then(serde_json::Value::as_u64)
             .unwrap_or(50);
         let status = args.get("status").and_then(|v| v.as_str());
 
@@ -441,13 +447,11 @@ impl McpServer {
         Ok(serde_json::json!({ "machines": machines, "count": machines.len() }))
     }
 
-    fn tool_query_alerts(
-        &self,
-        args: &serde_json::Value,
-    ) -> Result<serde_json::Value, McpError> {
+    #[allow(clippy::unnecessary_wraps)]
+    fn tool_query_alerts(&self, args: &serde_json::Value) -> Result<serde_json::Value, McpError> {
         let limit = args
             .get("limit")
-            .and_then(|v| v.as_u64())
+            .and_then(serde_json::Value::as_u64)
             .unwrap_or(50);
         let severity = args.get("severity").and_then(|v| v.as_str());
 
@@ -464,13 +468,11 @@ impl McpServer {
         Ok(serde_json::json!({ "alerts": alerts, "count": alerts.len() }))
     }
 
-    fn tool_query_sessions(
-        &self,
-        args: &serde_json::Value,
-    ) -> Result<serde_json::Value, McpError> {
+    #[allow(clippy::unnecessary_wraps)]
+    fn tool_query_sessions(&self, args: &serde_json::Value) -> Result<serde_json::Value, McpError> {
         let limit = args
             .get("limit")
-            .and_then(|v| v.as_u64())
+            .and_then(serde_json::Value::as_u64)
             .unwrap_or(50);
         let machine = args.get("machine").and_then(|v| v.as_str());
 
@@ -487,13 +489,14 @@ impl McpServer {
         Ok(serde_json::json!({ "sessions": sessions, "count": sessions.len() }))
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn tool_query_incidents(
         &self,
         args: &serde_json::Value,
     ) -> Result<serde_json::Value, McpError> {
         let limit = args
             .get("limit")
-            .and_then(|v| v.as_u64())
+            .and_then(serde_json::Value::as_u64)
             .unwrap_or(50);
         let status = args.get("status").and_then(|v| v.as_str());
 
@@ -529,45 +532,45 @@ impl McpServer {
         }))
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn tool_collector_status(
         &self,
         args: &serde_json::Value,
     ) -> Result<serde_json::Value, McpError> {
         let limit = args
             .get("limit")
-            .and_then(|v| v.as_u64())
+            .and_then(serde_json::Value::as_u64)
             .unwrap_or(50);
 
-        let sql = format!(
-            "SELECT * FROM collector_health ORDER BY checked_at DESC LIMIT {limit}"
-        );
+        let sql = format!("SELECT * FROM collector_health ORDER BY checked_at DESC LIMIT {limit}");
 
         let collectors = self.store.query_json(&sql).unwrap_or_default();
         Ok(serde_json::json!({ "collectors": collectors, "count": collectors.len() }))
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn tool_playbook_drafts(
         &self,
         args: &serde_json::Value,
     ) -> Result<serde_json::Value, McpError> {
-        let status = args
-            .get("status")
-            .and_then(|v| v.as_str());
+        let status = args.get("status").and_then(|v| v.as_str());
 
-        let drafts = self.store.list_playbook_drafts(status, 100).unwrap_or_default();
+        let drafts = self
+            .store
+            .list_playbook_drafts(status, 100)
+            .unwrap_or_default();
         let count = drafts.len();
         Ok(serde_json::json!({ "drafts": drafts, "count": count }))
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     fn tool_audit_log(&self, args: &serde_json::Value) -> Result<serde_json::Value, McpError> {
         let limit = args
             .get("limit")
-            .and_then(|v| v.as_u64())
+            .and_then(serde_json::Value::as_u64)
             .unwrap_or(50);
 
-        let sql = format!(
-            "SELECT * FROM audit_events ORDER BY timestamp DESC LIMIT {limit}"
-        );
+        let sql = format!("SELECT * FROM audit_events ORDER BY timestamp DESC LIMIT {limit}");
 
         let events = self.store.query_json(&sql).unwrap_or_default();
         Ok(serde_json::json!({ "events": events, "count": events.len() }))
@@ -578,6 +581,7 @@ impl McpServer {
     // ========================================================================
 
     /// Handle a JSON-RPC request and return a response
+    #[must_use]
     pub fn handle_request(&self, request: &JsonRpcRequest) -> JsonRpcResponse {
         let result = match request.method.as_str() {
             "initialize" => Ok(serde_json::json!({
@@ -606,7 +610,7 @@ impl McpServer {
                 let tools: Vec<serde_json::Value> = self
                     .tools
                     .iter()
-                    .map(|t| serde_json::to_value(t).unwrap())
+                    .filter_map(|t| serde_json::to_value(t).ok())
                     .collect();
                 Ok(serde_json::json!({ "tools": tools }))
             }
@@ -617,14 +621,11 @@ impl McpServer {
                     .get("name")
                     .and_then(|v| v.as_str())
                     .unwrap_or("");
-                let args = request
-                    .params
-                    .get("arguments")
-                    .cloned()
-                    .unwrap_or(serde_json::json!({}));
+                let empty_args = serde_json::json!({});
+                let args = request.params.get("arguments").unwrap_or(&empty_args);
 
                 match self.call_tool(name, args) {
-                    Ok(result) => Ok(serde_json::to_value(result).unwrap()),
+                    Ok(result) => serde_json::to_value(result).map_err(McpError::from),
                     Err(e) => Ok(serde_json::json!({
                         "content": [{
                             "type": "text",
@@ -639,7 +640,7 @@ impl McpServer {
                 let resources: Vec<serde_json::Value> = self
                     .resources
                     .iter()
-                    .map(|r| serde_json::to_value(r).unwrap())
+                    .filter_map(|r| serde_json::to_value(r).ok())
                     .collect();
                 Ok(serde_json::json!({ "resources": resources }))
             }
@@ -690,7 +691,12 @@ impl McpServer {
         }
     }
 
-    /// Run the MCP server on stdio (blocking)
+    /// Run the MCP server on stdio (blocking).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when reading input, parsing/serializing JSON, or
+    /// writing output fails.
     pub fn run_stdio(&self) -> Result<(), McpError> {
         use std::io::{BufRead, Write};
 
@@ -757,7 +763,11 @@ mod tests {
     #[test]
     fn test_expected_tool_names() {
         let server = test_server();
-        let names: Vec<&str> = server.list_tools().iter().map(|t| t.name.as_str()).collect();
+        let names: Vec<&str> = server
+            .list_tools()
+            .iter()
+            .map(|t| t.name.as_str())
+            .collect();
 
         assert!(names.contains(&"vc_fleet_status"));
         assert!(names.contains(&"vc_query_machines"));
@@ -819,7 +829,7 @@ mod tests {
     #[test]
     fn test_call_fleet_status() {
         let server = test_server();
-        let result = server.call_tool("vc_fleet_status", serde_json::json!({}));
+        let result = server.call_tool("vc_fleet_status", &serde_json::json!({}));
         assert!(result.is_ok());
         let r = result.unwrap();
         assert!(!r.content.is_empty());
@@ -829,17 +839,14 @@ mod tests {
     #[test]
     fn test_call_fleet_status_with_machine() {
         let server = test_server();
-        let result = server.call_tool(
-            "vc_fleet_status",
-            serde_json::json!({"machine": "orko"}),
-        );
+        let result = server.call_tool("vc_fleet_status", &serde_json::json!({"machine": "orko"}));
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_call_query_machines() {
         let server = test_server();
-        let result = server.call_tool("vc_query_machines", serde_json::json!({}));
+        let result = server.call_tool("vc_query_machines", &serde_json::json!({}));
         assert!(result.is_ok());
         let text = &result.unwrap().content[0].text;
         let parsed: serde_json::Value = serde_json::from_str(text).unwrap();
@@ -851,7 +858,7 @@ mod tests {
         let server = test_server();
         let result = server.call_tool(
             "vc_query_machines",
-            serde_json::json!({"status": "online", "limit": 10}),
+            &serde_json::json!({"status": "online", "limit": 10}),
         );
         assert!(result.is_ok());
     }
@@ -859,7 +866,7 @@ mod tests {
     #[test]
     fn test_call_query_alerts() {
         let server = test_server();
-        let result = server.call_tool("vc_query_alerts", serde_json::json!({}));
+        let result = server.call_tool("vc_query_alerts", &serde_json::json!({}));
         assert!(result.is_ok());
         let text = &result.unwrap().content[0].text;
         let parsed: serde_json::Value = serde_json::from_str(text).unwrap();
@@ -871,7 +878,7 @@ mod tests {
         let server = test_server();
         let result = server.call_tool(
             "vc_query_alerts",
-            serde_json::json!({"severity": "critical"}),
+            &serde_json::json!({"severity": "critical"}),
         );
         assert!(result.is_ok());
     }
@@ -879,7 +886,7 @@ mod tests {
     #[test]
     fn test_call_query_sessions() {
         let server = test_server();
-        let result = server.call_tool("vc_query_sessions", serde_json::json!({}));
+        let result = server.call_tool("vc_query_sessions", &serde_json::json!({}));
         assert!(result.is_ok());
     }
 
@@ -888,7 +895,7 @@ mod tests {
         let server = test_server();
         let result = server.call_tool(
             "vc_query_sessions",
-            serde_json::json!({"machine": "orko", "limit": 5}),
+            &serde_json::json!({"machine": "orko", "limit": 5}),
         );
         assert!(result.is_ok());
     }
@@ -896,17 +903,14 @@ mod tests {
     #[test]
     fn test_call_query_incidents() {
         let server = test_server();
-        let result = server.call_tool("vc_query_incidents", serde_json::json!({}));
+        let result = server.call_tool("vc_query_incidents", &serde_json::json!({}));
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_call_query_incidents_with_status() {
         let server = test_server();
-        let result = server.call_tool(
-            "vc_query_incidents",
-            serde_json::json!({"status": "open"}),
-        );
+        let result = server.call_tool("vc_query_incidents", &serde_json::json!({"status": "open"}));
         assert!(result.is_ok());
     }
 
@@ -915,7 +919,7 @@ mod tests {
         let server = test_server();
         let result = server.call_tool(
             "vc_query_nl",
-            serde_json::json!({"question": "how many machines are online?"}),
+            &serde_json::json!({"question": "how many machines are online?"}),
         );
         assert!(result.is_ok());
         let text = &result.unwrap().content[0].text;
@@ -927,7 +931,7 @@ mod tests {
     #[test]
     fn test_call_query_nl_missing_question() {
         let server = test_server();
-        let result = server.call_tool("vc_query_nl", serde_json::json!({}));
+        let result = server.call_tool("vc_query_nl", &serde_json::json!({}));
         // Returns ToolResult with is_error=true, not Err
         assert!(result.is_ok());
         let r = result.unwrap();
@@ -938,14 +942,14 @@ mod tests {
     #[test]
     fn test_call_collector_status() {
         let server = test_server();
-        let result = server.call_tool("vc_collector_status", serde_json::json!({}));
+        let result = server.call_tool("vc_collector_status", &serde_json::json!({}));
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_call_playbook_drafts() {
         let server = test_server();
-        let result = server.call_tool("vc_playbook_drafts", serde_json::json!({}));
+        let result = server.call_tool("vc_playbook_drafts", &serde_json::json!({}));
         assert!(result.is_ok());
         let text = &result.unwrap().content[0].text;
         let parsed: serde_json::Value = serde_json::from_str(text).unwrap();
@@ -957,7 +961,7 @@ mod tests {
         let server = test_server();
         let result = server.call_tool(
             "vc_playbook_drafts",
-            serde_json::json!({"status": "pending_review"}),
+            &serde_json::json!({"status": "pending_review"}),
         );
         assert!(result.is_ok());
     }
@@ -965,24 +969,21 @@ mod tests {
     #[test]
     fn test_call_audit_log() {
         let server = test_server();
-        let result = server.call_tool("vc_audit_log", serde_json::json!({}));
+        let result = server.call_tool("vc_audit_log", &serde_json::json!({}));
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_call_audit_log_with_limit() {
         let server = test_server();
-        let result = server.call_tool(
-            "vc_audit_log",
-            serde_json::json!({"limit": 10}),
-        );
+        let result = server.call_tool("vc_audit_log", &serde_json::json!({"limit": 10}));
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_call_tool_not_found() {
         let server = test_server();
-        let result = server.call_tool("nonexistent", serde_json::json!({}));
+        let result = server.call_tool("nonexistent", &serde_json::json!({}));
         assert!(result.is_err());
         match result.unwrap_err() {
             McpError::ToolNotFound(name) => assert_eq!(name, "nonexistent"),
