@@ -446,7 +446,7 @@ mod tests {
     #[test]
     fn test_determine_action_continue() {
         let forecaster = RateLimitForecaster::new();
-        let action = forecaster.determine_action(Duration::from_hours(2), 0.5);
+        let action = forecaster.determine_action(Duration::from_secs(2 * 3600), 0.5);
         assert!(matches!(action, RateLimitAction::Continue));
     }
 
@@ -454,7 +454,7 @@ mod tests {
     fn test_determine_action_slow_down() {
         let forecaster = RateLimitForecaster::new();
         // 20 minutes to limit, high velocity
-        let action = forecaster.determine_action(Duration::from_mins(20), 2.0);
+        let action = forecaster.determine_action(Duration::from_secs(20 * 60), 2.0);
         match action {
             RateLimitAction::SlowDown { target_velocity } => {
                 assert!((target_velocity - 1.4).abs() < 0.01); // 2.0 * 0.7
@@ -467,7 +467,7 @@ mod tests {
     fn test_determine_action_prepare_swap() {
         let forecaster = RateLimitForecaster::new();
         // 8 minutes to limit
-        let action = forecaster.determine_action(Duration::from_mins(8), 0.5);
+        let action = forecaster.determine_action(Duration::from_secs(8 * 60), 0.5);
         match action {
             RateLimitAction::PrepareSwap { in_minutes } => {
                 assert_eq!(in_minutes, 8);
@@ -480,7 +480,7 @@ mod tests {
     fn test_determine_action_swap_now() {
         let forecaster = RateLimitForecaster::new();
         // 3 minutes to limit
-        let action = forecaster.determine_action(Duration::from_mins(3), 0.5);
+        let action = forecaster.determine_action(Duration::from_secs(3 * 60), 0.5);
         match action {
             RateLimitAction::SwapNow { .. } => {}
             _ => panic!("Expected SwapNow"),
@@ -690,7 +690,7 @@ mod tests {
         // Reset happens in 30 minutes, but we'd hit limit in 60 minutes
         // -> No swap needed since reset happens first
         let reset_time = Utc::now() + chrono::Duration::minutes(30);
-        let time_to_limit = Duration::from_hours(1); // 60 minutes
+        let time_to_limit = Duration::from_secs(3600); // 60 minutes
 
         let optimal =
             RateLimitForecaster::calculate_optimal_swap_time(time_to_limit, Some(reset_time));
@@ -699,7 +699,7 @@ mod tests {
 
     #[test]
     fn test_optimal_swap_time_without_reset() {
-        let time_to_limit = Duration::from_mins(10); // 10 minutes
+        let time_to_limit = Duration::from_secs(10 * 60); // 10 minutes
 
         let optimal = RateLimitForecaster::calculate_optimal_swap_time(time_to_limit, None);
         assert!(optimal.is_some());

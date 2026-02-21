@@ -257,9 +257,11 @@ pub fn evaluate_workload_balance(
         .filter(|(_, cpu, _)| *cpu < cpu_underutil_threshold)
         .collect();
 
+    let mut underutilized_iter = underutilized.iter().cycle();
+
     // Suggest scaling down overloaded machines
     for (machine_id, cpu, agent_count) in &overloaded {
-        if let Some((target_id, _, _)) = underutilized.first() {
+        if let Some((target_id, _, _)) = underutilized_iter.next() {
             actions.push(BalanceAction {
                 machine_id: machine_id.clone(),
                 action: BalanceActionType::Migrate {
