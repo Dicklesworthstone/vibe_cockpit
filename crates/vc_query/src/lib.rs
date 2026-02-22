@@ -7,6 +7,7 @@
 //! - Aggregation utilities
 //! - Query guardrails and safe templates
 
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use vc_store::VcStore;
@@ -398,45 +399,40 @@ impl<'a> QueryBuilder<'a> {
         });
 
         // Insert health_factors rows
+        let mut factor_rows = Vec::new();
         for factor in factors {
             let details_json = serde_json::to_string(&serde_json::json!({
                 "name": factor.name,
                 "details": factor.details,
             }))?;
 
-            let factor_sql = format!(
-                "INSERT OR REPLACE INTO health_factors \
-                 (machine_id, collected_at, factor_id, severity, score, weight, details_json) \
-                 VALUES ('{}', CAST(current_timestamp AS TIMESTAMP), '{}', '{}', {}, {}, '{}')",
-                vc_store::escape_sql_literal(machine_id),
-                vc_store::escape_sql_literal(&factor.factor_id),
-                factor.severity.as_str(),
-                factor.score,
-                factor.weight,
-                vc_store::escape_sql_literal(&details_json),
-            );
-            self.store.execute_simple(&factor_sql)?;
+            factor_rows.push(serde_json::json!({
+                "machine_id": machine_id,
+                "collected_at": Utc::now().to_rfc3339(),
+                "factor_id": factor.factor_id,
+                "severity": factor.severity.as_str(),
+                "score": factor.score,
+                "weight": factor.weight,
+                "details_json": details_json,
+            }));
         }
+        
+        self.store.upsert_json("health_factors", &factor_rows, &["machine_id", "collected_at", "factor_id"])?;
 
         // Insert health_summary row
         let details_str = serde_json::to_string(&details)?;
-        let summary_sql = format!(
-            "INSERT OR REPLACE INTO health_summary \
-             (machine_id, collected_at, overall_score, worst_factor_id, \
-              factor_count, critical_count, warning_count, details_json) \
-             VALUES ('{}', CAST(current_timestamp AS TIMESTAMP), {}, {}, {}, {}, {}, '{}')",
-            vc_store::escape_sql_literal(machine_id),
-            overall_score,
-            worst.as_ref().map_or("NULL".to_string(), |w| format!(
-                "'{}'",
-                vc_store::escape_sql_literal(w)
-            )),
-            factors.len(),
-            critical_count,
-            warning_count,
-            vc_store::escape_sql_literal(&details_str),
-        );
-        self.store.execute_simple(&summary_sql)?;
+        let summary_row = serde_json::json!({
+            "machine_id": machine_id,
+            "collected_at": Utc::now().to_rfc3339(),
+            "overall_score": overall_score,
+            "worst_factor_id": worst,
+            "factor_count": factors.len(),
+            "critical_count": critical_count,
+            "warning_count": warning_count,
+            "details_json": details_str,
+        });
+        
+        self.store.upsert_json("health_summary", &[summary_row], &["machine_id", "collected_at"])?;
 
         Ok(HealthScore {
             machine_id: machine_id.to_string(),

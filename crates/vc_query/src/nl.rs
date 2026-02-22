@@ -398,7 +398,7 @@ pub fn generate_sql(intent: QueryIntent, entities: &QueryEntities) -> String {
         QueryIntent::FleetOverview => {
             "SELECT \
              (SELECT COUNT(*) FROM machines) AS total_machines, \
-             (SELECT COUNT(*) FROM machines WHERE status = 'online') AS online_machines, \
+             (SELECT COUNT(*) FROM machines WHERE enabled = true) AS online_machines, \
              (SELECT COUNT(*) FROM alert_history WHERE acknowledged = false) AS active_alerts, \
              (SELECT COUNT(*) FROM incidents WHERE status = 'open') AS open_incidents"
                 .to_string()
@@ -414,7 +414,7 @@ pub fn generate_sql(intent: QueryIntent, entities: &QueryEntities) -> String {
             }
         }
         QueryIntent::MachineList => {
-            format!("SELECT machine_id, hostname, status, ssh_host, tags FROM machines ORDER BY hostname LIMIT {limit}")
+            format!("SELECT machine_id, hostname, enabled, ssh_host, tags FROM machines ORDER BY hostname LIMIT {limit}")
         }
         QueryIntent::AlertList => {
             let mut conditions = Vec::new();
@@ -501,7 +501,7 @@ pub fn generate_sql(intent: QueryIntent, entities: &QueryEntities) -> String {
                  CAST(started_at AS TEXT) AS started_at, \
                  CAST(ended_at AS TEXT) AS ended_at, \
                  token_count \
-                 FROM ntm_sessions{where_clause} ORDER BY started_at DESC LIMIT {limit}"
+                 FROM agent_sessions{where_clause} ORDER BY started_at DESC LIMIT {limit}"
             )
         }
         QueryIntent::SessionCount => {
@@ -522,7 +522,7 @@ pub fn generate_sql(intent: QueryIntent, entities: &QueryEntities) -> String {
                 format!(" WHERE {}", conditions.join(" AND "))
             };
 
-            format!("SELECT COUNT(*) AS session_count FROM ntm_sessions{where_clause}")
+            format!("SELECT COUNT(*) AS session_count FROM agent_sessions{where_clause}")
         }
         QueryIntent::TokenUsage => {
             let mut conditions = Vec::new();
@@ -546,7 +546,7 @@ pub fn generate_sql(intent: QueryIntent, entities: &QueryEntities) -> String {
                 "SELECT machine_id, model, \
                  SUM(token_count) AS total_tokens, \
                  COUNT(*) AS session_count \
-                 FROM ntm_sessions{where_clause} \
+                 FROM agent_sessions{where_clause} \
                  GROUP BY machine_id, model \
                  ORDER BY total_tokens DESC LIMIT {limit}"
             )
@@ -565,9 +565,9 @@ pub fn generate_sql(intent: QueryIntent, entities: &QueryEntities) -> String {
 
             format!(
                 "SELECT machine_id, provider, \
-                 SUM(amount_usd) AS total_cost, \
+                 SUM(cost_estimate) AS total_cost, \
                  COUNT(*) AS entries \
-                 FROM caut_usage{where_clause} \
+                 FROM account_usage_snapshots{where_clause} \
                  GROUP BY machine_id, provider \
                  ORDER BY total_cost DESC LIMIT {limit}"
             )
@@ -597,10 +597,10 @@ pub fn generate_sql(intent: QueryIntent, entities: &QueryEntities) -> String {
         }
         QueryIntent::CollectorStatus => {
             format!(
-                "SELECT collector_type, machine_id, status, \
-                 CAST(last_run_at AS TEXT) AS last_run_at, \
-                 records_collected, error_message \
-                 FROM collector_health ORDER BY last_run_at DESC LIMIT {limit}"
+                "SELECT collector, machine_id, success, \
+                 CAST(collected_at AS TEXT) AS collected_at, \
+                 rows_inserted, error_class \
+                 FROM collector_health ORDER BY collected_at DESC LIMIT {limit}"
             )
         }
         QueryIntent::AuditLog => {

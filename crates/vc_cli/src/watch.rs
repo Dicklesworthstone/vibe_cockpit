@@ -243,8 +243,10 @@ impl WatchEvent {
             .message
             .as_deref()
             .map(|m| {
-                let truncated = if m.len() > 40 {
-                    format!("{}..", &m[..38])
+                let char_count = m.chars().count();
+                let truncated = if char_count > 40 {
+                    let trunc: String = m.chars().take(38).collect();
+                    format!("{}..", trunc)
                 } else {
                     m.to_string()
                 };

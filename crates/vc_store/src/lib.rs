@@ -455,11 +455,45 @@ impl VcStore {
             return Ok(0);
         }
 
+        let conn = self.conn.lock().unwrap();
+        conn.execute("BEGIN TRANSACTION", [])?;
+
         let mut count = 0;
         for row in rows {
-            self.insert_json(table, row)?;
-            count += 1;
+            if let serde_json::Value::Object(map) = row {
+                let columns: Vec<&str> = map.keys().map(String::as_str).collect();
+                let placeholders: Vec<&str> = columns.iter().map(|_| "?").collect();
+
+                let sql = format!(
+                    "INSERT INTO {} ({}) VALUES ({})",
+                    table,
+                    columns.join(", "),
+                    placeholders.join(", ")
+                );
+
+                let mut stmt = match conn.prepare(&sql) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        let _ = conn.execute("ROLLBACK", []);
+                        return Err(e.into());
+                    }
+                };
+
+                let params: Vec<Box<dyn duckdb::ToSql>> = map.values().map(json_value_to_sql).collect();
+                let param_refs: Vec<&dyn duckdb::ToSql> = params.iter().map(AsRef::as_ref).collect();
+
+                if let Err(e) = stmt.execute(param_refs.as_slice()) {
+                    let _ = conn.execute("ROLLBACK", []);
+                    return Err(e.into());
+                }
+                count += 1;
+            } else {
+                let _ = conn.execute("ROLLBACK", []);
+                return Err(StoreError::QueryError("insert_json_batch requires JSON objects".to_string()));
+            }
         }
+        
+        conn.execute("COMMIT", [])?;
         Ok(count)
     }
 
@@ -914,9 +948,10 @@ impl VcStore {
         // Common timestamp column names in order of preference
         let candidates = ["collected_at", "ts", "created_at", "timestamp", "time"];
 
+        let safe_table = escape_sql_literal(table_name);
         for col in candidates {
             let check_sql = format!(
-                "SELECT 1 FROM information_schema.columns WHERE table_name = '{table_name}' AND column_name = '{col}' LIMIT 1"
+                "SELECT 1 FROM information_schema.columns WHERE table_name = '{safe_table}' AND column_name = '{col}' LIMIT 1"
             );
             if conn.query_row(&check_sql, [], |_| Ok(())).is_ok() {
                 return Ok(col.to_string());
@@ -1666,6 +1701,8 @@ impl VcStore {
         }
 
         let conn = self.conn.lock().unwrap();
+        conn.execute("BEGIN TRANSACTION", [])?;
+
         let mut count = 0;
 
         for row in rows {
@@ -1680,7 +1717,13 @@ impl VcStore {
                     placeholders.join(", ")
                 );
 
-                let mut stmt = conn.prepare(&sql)?;
+                let mut stmt = match conn.prepare(&sql) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        let _ = conn.execute("ROLLBACK", []);
+                        return Err(e.into());
+                    }
+                };
 
                 let params: Vec<Box<dyn duckdb::ToSql>> =
                     map.values().map(json_value_to_sql).collect();
@@ -1688,11 +1731,18 @@ impl VcStore {
                 let param_refs: Vec<&dyn duckdb::ToSql> =
                     params.iter().map(AsRef::as_ref).collect();
 
-                stmt.execute(param_refs.as_slice())?;
+                if let Err(e) = stmt.execute(param_refs.as_slice()) {
+                    let _ = conn.execute("ROLLBACK", []);
+                    return Err(e.into());
+                }
                 count += 1;
+            } else {
+                let _ = conn.execute("ROLLBACK", []);
+                return Err(StoreError::QueryError("upsert_json requires JSON objects".to_string()));
             }
         }
-
+        
+        conn.execute("COMMIT", [])?;
         Ok(count)
     }
 
@@ -2189,13 +2239,14 @@ impl VcStore {
             .ok_or_else(|| StoreError::QueryError(format!("Incident not found: {incident_id}")))?;
 
         // Machines state at timestamp
+        let safe_ts = escape_sql_literal(at_ts);
         let machines_sql =
-            format!("SELECT * FROM machines WHERE last_seen <= '{at_ts}' ORDER BY hostname");
+            format!("SELECT * FROM machines WHERE last_seen_at <= '{safe_ts}' ORDER BY hostname");
         let machines = self.query_json(&machines_sql).unwrap_or_default();
 
         // Alerts active around the timestamp
         let alerts_sql = format!(
-            "SELECT * FROM alerts WHERE fired_at <= '{at_ts}' \
+            "SELECT * FROM alert_history WHERE fired_at <= '{safe_ts}' \
              ORDER BY fired_at DESC LIMIT 50"
         );
         let alerts = self.query_json(&alerts_sql).unwrap_or_default();
@@ -2203,8 +2254,8 @@ impl VcStore {
         // Audit events around the timestamp (context window: 1 hour before to 1 hour after)
         let audit_sql = format!(
             "SELECT * FROM audit_events \
-             WHERE timestamp BETWEEN (TIMESTAMP '{at_ts}' - INTERVAL 1 HOUR) \
-             AND (TIMESTAMP '{at_ts}' + INTERVAL 1 HOUR) \
+             WHERE timestamp BETWEEN (TIMESTAMP '{safe_ts}' - INTERVAL 1 HOUR) \
+             AND (TIMESTAMP '{safe_ts}' + INTERVAL 1 HOUR) \
              ORDER BY timestamp ASC LIMIT 100"
         );
         let audit_events = self.query_json(&audit_sql).unwrap_or_default();
@@ -2212,8 +2263,8 @@ impl VcStore {
         // Collector health at timestamp
         let collector_sql = format!(
             "SELECT * FROM collector_health \
-             WHERE checked_at <= '{at_ts}' \
-             ORDER BY checked_at DESC LIMIT 20"
+             WHERE collected_at <= '{safe_ts}' \
+             ORDER BY collected_at DESC LIMIT 20"
         );
         let collectors = self.query_json(&collector_sql).unwrap_or_default();
 
@@ -2240,8 +2291,8 @@ impl VcStore {
 
         // Health scores at timestamp
         let health_sql = format!(
-            "SELECT * FROM health_scores WHERE computed_at <= '{at_ts}' \
-             ORDER BY computed_at DESC LIMIT 20"
+            "SELECT * FROM health_summary WHERE collected_at <= '{safe_ts}' \
+             ORDER BY collected_at DESC LIMIT 20"
         );
         let health_scores = self.query_json(&health_sql).unwrap_or_default();
 
@@ -2335,8 +2386,9 @@ impl VcStore {
         self.query_json(&format!(
             "SELECT id, incident_id, snapshot_ts, created_at \
              FROM incident_replay_snapshots \
-             WHERE incident_id = '{incident_id}' \
-             ORDER BY snapshot_ts ASC"
+             WHERE incident_id = '{}' \
+             ORDER BY snapshot_ts ASC",
+            escape_sql_literal(incident_id)
         ))
     }
 
@@ -2467,8 +2519,9 @@ impl VcStore {
         let sql = if let Some(mid) = machine_id {
             format!(
                 "SELECT * FROM poll_schedule_decisions \
-                 WHERE machine_id = '{mid}' \
-                 ORDER BY decided_at DESC LIMIT {limit}"
+                 WHERE machine_id = '{}' \
+                 ORDER BY decided_at DESC LIMIT {limit}",
+                escape_sql_literal(mid)
             )
         } else {
             format!(
@@ -2525,8 +2578,9 @@ impl VcStore {
         let sql = if let Some(mid) = machine_id {
             format!(
                 "SELECT * FROM sys_profile_samples \
-                 WHERE machine_id = '{mid}' \
-                 ORDER BY collected_at DESC LIMIT {limit}"
+                 WHERE machine_id = '{}' \
+                 ORDER BY collected_at DESC LIMIT {limit}",
+                escape_sql_literal(mid)
             )
         } else {
             format!(
@@ -2583,7 +2637,8 @@ impl VcStore {
         report_id: &str,
     ) -> Result<Option<serde_json::Value>, StoreError> {
         let results = self.query_json(&format!(
-            "SELECT * FROM digest_reports WHERE report_id = '{report_id}' LIMIT 1"
+            "SELECT * FROM digest_reports WHERE report_id = '{}' LIMIT 1",
+            escape_sql_literal(report_id)
         ))?;
         Ok(results.into_iter().next())
     }
@@ -2651,8 +2706,9 @@ impl VcStore {
         let sql = if let Some(mid) = machine_id {
             format!(
                 "SELECT * FROM redaction_events \
-                 WHERE machine_id = '{mid}' \
-                 ORDER BY collected_at DESC LIMIT {limit}"
+                 WHERE machine_id = '{}' \
+                 ORDER BY collected_at DESC LIMIT {limit}",
+                escape_sql_literal(mid)
             )
         } else {
             format!(
@@ -2759,8 +2815,9 @@ impl VcStore {
         let sql = if let Some(mid) = machine_id {
             format!(
                 "SELECT * FROM node_ingest_log \
-                 WHERE machine_id = '{mid}' \
-                 ORDER BY ingested_at DESC LIMIT {limit}"
+                 WHERE machine_id = '{}' \
+                 ORDER BY ingested_at DESC LIMIT {limit}",
+                escape_sql_literal(mid)
             )
         } else {
             format!(
@@ -2814,14 +2871,15 @@ impl VcStore {
         // Build query with optional time filtering
         let ts_column = self.guess_timestamp_column(table);
 
-        let mut sql = format!("SELECT * FROM \"{table}\"");
+        let safe_table = escape_sql_identifier(table);
+        let mut sql = format!("SELECT * FROM \"{safe_table}\"");
         let mut conditions = Vec::new();
 
         if let (Some(col), Some(since)) = (&ts_column, since) {
-            conditions.push(format!("{col} >= '{since}'"));
+            conditions.push(format!("{col} >= '{}'", escape_sql_literal(since)));
         }
         if let (Some(col), Some(until)) = (&ts_column, until) {
-            conditions.push(format!("{col} <= '{until}'"));
+            conditions.push(format!("{col} <= '{}'", escape_sql_literal(until)));
         }
         if !conditions.is_empty() {
             let _ = write!(sql, " WHERE {}", conditions.join(" AND "));
@@ -2839,25 +2897,25 @@ impl VcStore {
     fn guess_timestamp_column(&self, table: &str) -> Option<String> {
         // Common timestamp column names in order of preference
         let candidates = [
+            "collected_at",
             "created_at",
             "timestamp",
             "fired_at",
-            "checked_at",
-            "computed_at",
             "started_at",
             "routed_at",
             "captured_at",
             "applied_at",
             "snapshot_ts",
-            "last_seen",
+            "last_seen_at",
             "ts",
         ];
 
+        let safe_table = escape_sql_literal(table);
         let conn = self.conn.lock().unwrap();
         for col in &candidates {
             let sql = format!(
                 "SELECT column_name FROM duckdb_columns() \
-                 WHERE table_name = '{table}' AND column_name = '{col}' LIMIT 1"
+                 WHERE table_name = '{safe_table}' AND column_name = '{col}' LIMIT 1"
             );
             if let Ok(name) = conn.query_row(&sql, [], |row| row.get::<_, String>(0)) {
                 return Some(name);
@@ -2872,7 +2930,8 @@ impl VcStore {
     ///
     /// Returns [`StoreError`] if query execution fails.
     pub fn table_row_count(&self, table: &str) -> Result<i64, StoreError> {
-        self.query_scalar(&format!("SELECT COUNT(*) FROM \"{table}\""))
+        let safe_table = escape_sql_identifier(table);
+        self.query_scalar(&format!("SELECT COUNT(*) FROM \"{safe_table}\""))
     }
 
     /// Build an export manifest (metadata about the export)
@@ -2982,8 +3041,9 @@ impl VcStore {
         let sql = if let Some(aid) = alert_id {
             format!(
                 "SELECT * FROM alert_routing_events \
-                 WHERE alert_id = '{aid}' \
-                 ORDER BY routed_at DESC LIMIT {limit}"
+                 WHERE alert_id = '{}' \
+                 ORDER BY routed_at DESC LIMIT {limit}",
+                escape_sql_literal(aid)
             )
         } else {
             format!(
@@ -3370,6 +3430,13 @@ fn json_value_to_sql(value: &serde_json::Value) -> Box<dyn duckdb::ToSql> {
 #[must_use]
 pub fn escape_sql_literal(value: &str) -> String {
     value.replace('\'', "''")
+}
+
+/// Escape a SQL identifier (table/column name) for use inside double quotes.
+/// Doubles any embedded `"` characters to prevent identifier injection.
+#[must_use]
+pub fn escape_sql_identifier(value: &str) -> String {
+    value.replace('"', "\"\"")
 }
 
 fn clamp_audit_limit(limit: usize) -> usize {

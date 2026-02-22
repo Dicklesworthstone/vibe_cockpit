@@ -8,7 +8,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use vc_store::VcStore;
+use vc_store::{escape_sql_literal, VcStore};
 
 use crate::QueryError;
 
@@ -200,8 +200,8 @@ impl<'a> CostQueryBuilder<'a> {
              WHERE provider = '{}' AND model = '{}' \
              AND (effective_until IS NULL OR effective_until > current_timestamp) \
              ORDER BY effective_from DESC LIMIT 1",
-            provider.replace('\'', "''"),
-            model.replace('\'', "''")
+            escape_sql_literal(provider),
+            escape_sql_literal(model)
         );
 
         let rows = self.store.query_json(&sql)?;

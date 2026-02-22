@@ -133,6 +133,16 @@ const MIGRATIONS: &[Migration] = &[
         name: "digest_reports",
         sql: include_str!("migrations/024_digest_reports.sql"),
     },
+    Migration {
+        version: 25,
+        name: "collector_tables",
+        sql: include_str!("migrations/025_collector_tables.sql"),
+    },
+    Migration {
+        version: 26,
+        name: "machine_status",
+        sql: include_str!("migrations/026_machine_status.sql"),
+    },
 ];
 
 /// Run all pending migrations

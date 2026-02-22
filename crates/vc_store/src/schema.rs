@@ -10,6 +10,7 @@ pub mod tables {
     pub const SYS_SAMPLES: &str = "sys_samples";
     pub const SYS_TOP_PROCESSES: &str = "sys_top_processes";
     pub const SYS_FILESYSTEMS: &str = "sys_filesystems";
+    pub const REPOS: &str = "repos";
     pub const REPO_STATUS_SNAPSHOTS: &str = "repo_status_snapshots";
     pub const ACCOUNT_USAGE_SNAPSHOTS: &str = "account_usage_snapshots";
     pub const ACCOUNT_PROFILE_SNAPSHOTS: &str = "account_profile_snapshots";
@@ -54,6 +55,11 @@ pub mod tables {
     pub const CLOUD_BENCH_RAW: &str = "cloud_bench_raw";
     pub const CLOUD_BENCH_OVERALL: &str = "cloud_bench_overall";
     pub const CLOUD_BENCH_HISTORY: &str = "cloud_bench_history";
+    pub const BEADS_TRIAGE_SNAPSHOTS: &str = "beads_triage_snapshots";
+    pub const BEADS_GRAPH_METRICS: &str = "beads_graph_metrics";
+    pub const PT_PROCESSES: &str = "pt_processes";
+    pub const PT_SNAPSHOTS: &str = "pt_snapshots";
+    pub const GH_REPO_ISSUE_PR_SNAPSHOT: &str = "gh_repo_issue_pr_snapshot";
 }
 
 /// Common column names

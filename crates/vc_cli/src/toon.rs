@@ -222,7 +222,10 @@ pub fn to_toon_via_json<T: Serialize>(value: &T) -> String {
 
 /// Convert a 0.0-1.0 score to a percentage integer (0-100)
 fn pct(score: f64) -> u32 {
-    (score * 100.0).round() as u32
+    if score.is_nan() {
+        return 0;
+    }
+    (score * 100.0).clamp(0.0, u32::MAX as f64).round() as u32
 }
 
 /// Abbreviate a status string
@@ -238,12 +241,14 @@ fn status_abbrev(status: &str) -> &str {
 
 /// Abbreviate a string to max length, appending ".." if truncated
 fn abbreviate(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
+    let char_count = s.chars().count();
+    if char_count <= max_len {
         s.to_string()
     } else if max_len <= 2 {
-        s[..max_len].to_string()
+        s.chars().take(max_len).collect()
     } else {
-        format!("{}..", &s[..max_len - 2])
+        let truncated: String = s.chars().take(max_len - 2).collect();
+        format!("{}..", truncated)
     }
 }
 

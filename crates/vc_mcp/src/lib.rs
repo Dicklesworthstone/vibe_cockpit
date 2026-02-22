@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use thiserror::Error;
 use tracing::debug;
-use vc_store::VcStore;
+use vc_store::{escape_sql_literal, VcStore};
 
 // ============================================================================
 // Error types
@@ -401,12 +401,13 @@ impl McpServer {
 
         let sql = if let Some(machine) = machine_filter {
             format!(
-                "SELECT machine_id, hostname, status, last_seen, health_score \
-                 FROM machines WHERE machine_id = '{machine}' \
-                 ORDER BY hostname LIMIT 50"
+                "SELECT machine_id, hostname, enabled, last_seen_at, tags \
+                 FROM machines WHERE machine_id = '{}' \
+                 ORDER BY hostname LIMIT 50",
+                escape_sql_literal(machine)
             )
         } else {
-            "SELECT machine_id, hostname, status, last_seen, health_score \
+            "SELECT machine_id, hostname, enabled, last_seen_at, tags \
              FROM machines ORDER BY hostname LIMIT 100"
                 .to_string()
         };
@@ -415,7 +416,7 @@ impl McpServer {
         let total = machines.len();
         let online = machines
             .iter()
-            .filter(|m| m.get("status").and_then(|s| s.as_str()) == Some("online"))
+            .filter(|m| m.get("enabled").and_then(|s| s.as_bool()) == Some(true))
             .count();
 
         Ok(serde_json::json!({
@@ -432,11 +433,16 @@ impl McpServer {
             .get("limit")
             .and_then(serde_json::Value::as_u64)
             .unwrap_or(50);
-        let status = args.get("status").and_then(|v| v.as_str());
+        let enabled = args.get("status").and_then(|v| v.as_str());
 
-        let sql = if let Some(status) = status {
+        let sql = if let Some(status) = enabled {
+            let enabled_filter = if status == "online" || status == "enabled" {
+                "enabled = true"
+            } else {
+                "enabled = false"
+            };
             format!(
-                "SELECT * FROM machines WHERE status = '{status}' \
+                "SELECT * FROM machines WHERE {enabled_filter} \
                  ORDER BY hostname LIMIT {limit}"
             )
         } else {
@@ -457,11 +463,12 @@ impl McpServer {
 
         let sql = if let Some(severity) = severity {
             format!(
-                "SELECT * FROM alerts WHERE severity = '{severity}' \
-                 ORDER BY fired_at DESC LIMIT {limit}"
+                "SELECT * FROM alert_history WHERE severity = '{}' \
+                 ORDER BY fired_at DESC LIMIT {limit}",
+                escape_sql_literal(severity)
             )
         } else {
-            format!("SELECT * FROM alerts ORDER BY fired_at DESC LIMIT {limit}")
+            format!("SELECT * FROM alert_history ORDER BY fired_at DESC LIMIT {limit}")
         };
 
         let alerts = self.store.query_json(&sql).unwrap_or_default();
@@ -478,8 +485,9 @@ impl McpServer {
 
         let sql = if let Some(machine) = machine {
             format!(
-                "SELECT * FROM sessions WHERE machine_id = '{machine}' \
-                 ORDER BY started_at DESC LIMIT {limit}"
+                "SELECT * FROM sessions WHERE machine_id = '{}' \
+                 ORDER BY started_at DESC LIMIT {limit}",
+                escape_sql_literal(machine)
             )
         } else {
             format!("SELECT * FROM sessions ORDER BY started_at DESC LIMIT {limit}")
@@ -502,8 +510,9 @@ impl McpServer {
 
         let sql = if let Some(status) = status {
             format!(
-                "SELECT * FROM incidents WHERE status = '{status}' \
-                 ORDER BY created_at DESC LIMIT {limit}"
+                "SELECT * FROM incidents WHERE status = '{}' \
+                 ORDER BY created_at DESC LIMIT {limit}",
+                escape_sql_literal(status)
             )
         } else {
             format!("SELECT * FROM incidents ORDER BY created_at DESC LIMIT {limit}")
@@ -542,7 +551,7 @@ impl McpServer {
             .and_then(serde_json::Value::as_u64)
             .unwrap_or(50);
 
-        let sql = format!("SELECT * FROM collector_health ORDER BY checked_at DESC LIMIT {limit}");
+        let sql = format!("SELECT * FROM collector_health ORDER BY collected_at DESC LIMIT {limit}");
 
         let collectors = self.store.query_json(&sql).unwrap_or_default();
         Ok(serde_json::json!({ "collectors": collectors, "count": collectors.len() }))

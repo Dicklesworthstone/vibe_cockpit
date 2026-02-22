@@ -219,7 +219,7 @@ impl SshRunner {
         // Use base64 encoding for safe transfer
         let encoded = base64_encode(content);
         let cmd = format!(
-            "echo '{}' | base64 -d > '{}'",
+            "echo '{}' | {{ base64 -d 2>/dev/null || base64 --decode 2>/dev/null || base64 -D; }} > '{}'",
             encoded,
             escape_path(remote_path)
         );

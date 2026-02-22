@@ -58,11 +58,14 @@ CREATE TABLE IF NOT EXISTS sys_samples (
     load15 REAL,
     mem_used_bytes BIGINT,
     mem_total_bytes BIGINT,
+    mem_available_bytes BIGINT,
     swap_used_bytes BIGINT,
+    swap_total_bytes BIGINT,
     disk_read_mbps REAL,
     disk_write_mbps REAL,
     net_rx_mbps REAL,
     net_tx_mbps REAL,
+    core_count INTEGER,
     raw_json TEXT,
     PRIMARY KEY (machine_id, collected_at)
 );
@@ -92,22 +95,29 @@ CREATE TABLE IF NOT EXISTS sys_filesystems (
     PRIMARY KEY (machine_id, collected_at, mount)
 );
 
+-- Repositories inventory
+CREATE TABLE IF NOT EXISTS repos (
+    machine_id TEXT,
+    repo_id TEXT,
+    path TEXT,
+    url TEXT,
+    name TEXT,
+    PRIMARY KEY (machine_id, repo_id)
+);
+
 -- Repository status snapshots (from ru)
 CREATE TABLE IF NOT EXISTS repo_status_snapshots (
     machine_id TEXT,
     collected_at TIMESTAMP,
-    repo_path TEXT,
-    repo_name TEXT,
+    repo_id TEXT,
     branch TEXT,
-    is_dirty BOOLEAN,
-    ahead_count INTEGER,
-    behind_count INTEGER,
-    stash_count INTEGER,
-    uncommitted_files INTEGER,
-    last_commit_ts TIMESTAMP,
-    last_commit_hash TEXT,
+    dirty BOOLEAN,
+    ahead INTEGER,
+    behind INTEGER,
+    modified_count INTEGER,
+    untracked_count INTEGER,
     raw_json TEXT,
-    PRIMARY KEY (machine_id, collected_at, repo_path)
+    PRIMARY KEY (machine_id, collected_at, repo_id)
 );
 
 -- Account usage snapshots (from caut)

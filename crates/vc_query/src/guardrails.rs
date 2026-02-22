@@ -154,7 +154,7 @@ impl QueryValidator {
         self.register_template(QueryTemplate {
             name: "machine_status".to_string(),
             description: "Get status of all machines or a specific machine".to_string(),
-            sql: "SELECT machine_id, hostname, status, last_seen, health_score \
+            sql: "SELECT machine_id, hostname, enabled, last_seen_at, tags \
                   FROM machines \
                   WHERE ({machine_id} IS NULL OR machine_id = {machine_id}) \
                   ORDER BY hostname \
@@ -181,7 +181,7 @@ impl QueryValidator {
         self.register_template(QueryTemplate {
             name: "recent_alerts".to_string(),
             description: "Get recent alerts, optionally filtered by severity".to_string(),
-            sql: "SELECT id, rule_id, fired_at, severity, title, message, acked_at \
+            sql: "SELECT id, rule_id, fired_at, severity, title, message, acknowledged_at \
                   FROM alert_history \
                   WHERE ({severity} IS NULL OR severity = {severity}) \
                   ORDER BY fired_at DESC \
@@ -236,9 +236,10 @@ impl QueryValidator {
         self.register_template(QueryTemplate {
             name: "collector_health".to_string(),
             description: "Get collector execution status".to_string(),
-            sql: "SELECT collector_name, last_success, last_failure, success_count, failure_count \
-                  FROM collector_status \
-                  ORDER BY collector_name \
+            sql: "SELECT machine_id, collector, collected_at, success, duration_ms, \
+                  rows_inserted, error_class, freshness_seconds \
+                  FROM collector_health \
+                  ORDER BY collected_at DESC \
                   LIMIT {limit}"
                 .to_string(),
             params: vec![TemplateParam {
@@ -254,8 +255,9 @@ impl QueryValidator {
         self.register_template(QueryTemplate {
             name: "system_metrics".to_string(),
             description: "Get system metrics for a machine".to_string(),
-            sql: "SELECT machine_id, collected_at, cpu_percent, mem_percent, load5, disk_free_pct \
-                  FROM system_metrics_snapshots \
+            sql: "SELECT machine_id, collected_at, cpu_total, load1, load5, load15, \
+                  mem_used_bytes, mem_total_bytes, mem_available_bytes \
+                  FROM sys_samples \
                   WHERE ({machine_id} IS NULL OR machine_id = {machine_id}) \
                   AND collected_at >= TIMESTAMP {since} \
                   ORDER BY collected_at DESC \

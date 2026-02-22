@@ -29,7 +29,7 @@ use tower_http::trace::TraceLayer;
 use tracing::warn;
 use vc_config::WebConfig;
 use vc_query::{FleetOverview, QueryBuilder};
-use vc_store::VcStore;
+use vc_store::{escape_sql_literal, VcStore};
 
 /// Web server errors
 #[derive(Error, Debug)]
@@ -343,7 +343,7 @@ async fn machine_by_id_handler(
 ) -> Result<Json<serde_json::Value>, WebError> {
     let sql = format!(
         "SELECT * FROM machines WHERE machine_id = '{}' LIMIT 1",
-        id.replace('\'', "''")
+        escape_sql_literal(&id)
     );
     let results = state.store.query_json(&sql)?;
 
@@ -373,8 +373,8 @@ async fn machine_collectors_handler(
     let limit = params.bounded_limit();
     let offset = params.bounded_offset();
     let sql = format!(
-        "SELECT * FROM collector_status WHERE machine_id = '{}' ORDER BY collector_name LIMIT {} OFFSET {}",
-        id.replace('\'', "''"),
+        "SELECT * FROM collector_health WHERE machine_id = '{}' ORDER BY collector LIMIT {} OFFSET {}",
+        escape_sql_literal(&id),
         limit,
         offset
     );
@@ -530,12 +530,12 @@ async fn metrics_handler(State(state): State<Arc<AppState>>) -> impl IntoRespons
     let collectors = state
         .store
         .query_json(
-            "SELECT machine_id, collector_name, \
-             EXTRACT(EPOCH FROM (current_timestamp - checked_at)) AS freshness_secs \
+            "SELECT machine_id, collector, \
+             EXTRACT(EPOCH FROM (current_timestamp - collected_at)) AS freshness_secs \
              FROM collector_health \
-             WHERE checked_at = (SELECT MAX(ch2.checked_at) FROM collector_health ch2 \
+             WHERE collected_at = (SELECT MAX(ch2.collected_at) FROM collector_health ch2 \
                 WHERE ch2.machine_id = collector_health.machine_id \
-                AND ch2.collector_name = collector_health.collector_name)",
+                AND ch2.collector = collector_health.collector)",
         )
         .unwrap_or_default();
 
@@ -546,7 +546,7 @@ async fn metrics_handler(State(state): State<Arc<AppState>>) -> impl IntoRespons
         lines.push("# TYPE vc_collector_freshness_seconds gauge".to_string());
         for c in &collectors {
             let machine = c["machine_id"].as_str().unwrap_or("unknown");
-            let collector = c["collector_name"].as_str().unwrap_or("unknown");
+            let collector = c["collector"].as_str().unwrap_or("unknown");
             let secs = c["freshness_secs"].as_f64().unwrap_or(0.0);
             lines.push(format!(
                 "vc_collector_freshness_seconds{{machine=\"{machine}\",collector=\"{collector}\"}} {secs:.1}"
@@ -558,9 +558,9 @@ async fn metrics_handler(State(state): State<Arc<AppState>>) -> impl IntoRespons
     let success_counts = state
         .store
         .query_json(
-            "SELECT machine_id, collector_name, \
-             COUNT(*) FILTER (WHERE status = 'healthy') AS success_count \
-             FROM collector_health GROUP BY machine_id, collector_name",
+            "SELECT machine_id, collector, \
+             COUNT(*) FILTER (WHERE success = true) AS success_count \
+             FROM collector_health GROUP BY machine_id, collector",
         )
         .unwrap_or_default();
 
@@ -569,7 +569,7 @@ async fn metrics_handler(State(state): State<Arc<AppState>>) -> impl IntoRespons
         lines.push("# TYPE vc_collector_success_total counter".to_string());
         for c in &success_counts {
             let machine = c["machine_id"].as_str().unwrap_or("unknown");
-            let collector = c["collector_name"].as_str().unwrap_or("unknown");
+            let collector = c["collector"].as_str().unwrap_or("unknown");
             let count = c["success_count"].as_i64().unwrap_or(0);
             lines.push(format!(
                 "vc_collector_success_total{{machine=\"{machine}\",collector=\"{collector}\"}} {count}"
@@ -581,8 +581,8 @@ async fn metrics_handler(State(state): State<Arc<AppState>>) -> impl IntoRespons
     let alert_counts = state
         .store
         .query_json(
-            "SELECT severity, COUNT(*) AS cnt FROM alerts \
-             WHERE acked_at IS NULL GROUP BY severity",
+            "SELECT severity, COUNT(*) AS cnt FROM alert_history \
+             WHERE resolved_at IS NULL GROUP BY severity",
         )
         .unwrap_or_default();
 
@@ -606,9 +606,9 @@ async fn metrics_handler(State(state): State<Arc<AppState>>) -> impl IntoRespons
     let health_scores = state
         .store
         .query_json(
-            "SELECT machine_id, overall_score FROM health_scores \
-             WHERE computed_at = (SELECT MAX(hs2.computed_at) FROM health_scores hs2 \
-                WHERE hs2.machine_id = health_scores.machine_id)",
+            "SELECT machine_id, overall_score FROM health_summary \
+             WHERE collected_at = (SELECT MAX(hs2.collected_at) FROM health_summary hs2 \
+                WHERE hs2.machine_id = health_summary.machine_id)",
         )
         .unwrap_or_default();
 
@@ -658,8 +658,8 @@ pub fn generate_metrics_text(store: &VcStore) -> String {
     // Alert counts
     let alert_counts = store
         .query_json(
-            "SELECT severity, COUNT(*) AS cnt FROM alerts \
-             WHERE acked_at IS NULL GROUP BY severity",
+            "SELECT severity, COUNT(*) AS cnt FROM alert_history \
+             WHERE resolved_at IS NULL GROUP BY severity",
         )
         .unwrap_or_default();
 
@@ -701,17 +701,25 @@ async fn ws_handler(State(state): State<Arc<AppState>>, ws: WebSocketUpgrade) ->
 async fn ws_session(mut socket: WebSocket, state: Arc<AppState>) {
     let mut interval = tokio::time::interval(Duration::from_secs(5));
     loop {
-        interval.tick().await;
-        let payload = serde_json::json!({
-            "type": "heartbeat",
-            "uptime_secs": state.start_time.elapsed().as_secs()
-        });
-        if socket
-            .send(Message::Text(payload.to_string().into()))
-            .await
-            .is_err()
-        {
-            break;
+        tokio::select! {
+            _ = interval.tick() => {
+                let payload = serde_json::json!({
+                    "type": "heartbeat",
+                    "uptime_secs": state.start_time.elapsed().as_secs()
+                });
+                if socket
+                    .send(Message::Text(payload.to_string().into()))
+                    .await
+                    .is_err()
+                {
+                    break;
+                }
+            }
+            msg = socket.recv() => {
+                if msg.is_none() || msg.unwrap().is_err() {
+                    break;
+                }
+            }
         }
     }
 }
@@ -1197,22 +1205,24 @@ mod tests {
         state
             .store
             .insert_json(
-                "collector_status",
+                "collector_health",
                 &serde_json::json!({
                     "machine_id": "machine-1",
-                    "collector_name": "sysmoni",
-                    "status": "ok"
+                    "collector": "sysmoni",
+                    "collected_at": "2026-01-01T00:00:00",
+                    "success": true
                 }),
             )
             .unwrap();
         state
             .store
             .insert_json(
-                "collector_status",
+                "collector_health",
                 &serde_json::json!({
                     "machine_id": "machine-1",
-                    "collector_name": "fallback",
-                    "status": "ok"
+                    "collector": "fallback",
+                    "collected_at": "2026-01-01T00:00:00",
+                    "success": true
                 }),
             )
             .unwrap();
@@ -1231,8 +1241,8 @@ mod tests {
         assert!(json.get("collectors").is_some());
         let collectors = json["collectors"].as_array().unwrap();
         assert_eq!(collectors.len(), 2);
-        assert_eq!(collectors[0]["collector_name"], "fallback");
-        assert_eq!(collectors[1]["collector_name"], "sysmoni");
+        assert_eq!(collectors[0]["collector"], "fallback");
+        assert_eq!(collectors[1]["collector"], "sysmoni");
     }
 
     #[tokio::test]

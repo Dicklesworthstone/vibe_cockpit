@@ -283,12 +283,17 @@ impl GenomeTemplate {
         for (name, template) in &self.genes {
             let gene = match template {
                 Gene::Float { min, max, .. } => {
-                    Gene::float(rng.random_range(*min..*max), *min, *max)
+                    let val = if *min >= *max { *min } else { rng.random_range(*min..*max) };
+                    Gene::float(val, *min, *max)
                 }
-                Gene::Int { min, max, .. } => Gene::int(rng.random_range(*min..*max), *min, *max),
+                Gene::Int { min, max, .. } => {
+                    let val = if *min >= *max { *min } else { rng.random_range(*min..*max) };
+                    Gene::int(val, *min, *max)
+                }
                 Gene::Bool { .. } => Gene::bool(rng.random_bool(0.5)),
                 Gene::Choice { options, .. } => {
-                    Gene::choice(rng.random_range(0..options.len()), options.clone())
+                    let val = if options.is_empty() { 0 } else { rng.random_range(0..options.len()) };
+                    Gene::choice(val, options.clone())
                 }
             };
             genes.insert(name.clone(), gene);

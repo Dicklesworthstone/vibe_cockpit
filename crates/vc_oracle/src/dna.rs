@@ -647,11 +647,12 @@ impl DnaComputer {
             let historical: Vec<f64> = history.iter().map(metric.getter).collect();
             let (mean, stddev) = mean_stddev(&historical);
 
-            if stddev > f64::EPSILON {
-                let deviation = (current_val - mean).abs() / stddev;
-                if deviation > self.config.anomaly_threshold {
-                    anomalies.push(Anomaly::new(metric.name, current_val, mean, stddev));
-                }
+            // Avoid zero stddev hiding anomalies by enforcing a minimum baseline variance
+            let effective_stddev = stddev.max(mean.abs() * 0.05).max(0.001);
+            let deviation = (current_val - mean).abs() / effective_stddev;
+
+            if deviation > self.config.anomaly_threshold {
+                anomalies.push(Anomaly::new(metric.name, current_val, mean, effective_stddev));
             }
         }
 

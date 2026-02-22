@@ -16,7 +16,7 @@ use thiserror::Error;
 use vc_collect::executor::Executor;
 use vc_config::VcConfig;
 use vc_knowledge::{EntryType, FeedbackType, KnowledgeEntry, KnowledgeFeedback, KnowledgeStore, SearchOptions};
-use vc_store::{AuditEventFilter, AuditEventType, VcStore};
+use vc_store::{escape_sql_literal, AuditEventFilter, AuditEventType, VcStore};
 
 pub mod robot;
 pub mod schema_registry;
@@ -2501,9 +2501,9 @@ impl Cli {
                     let now = Utc::now();
 
                     // Check for new alerts since last_check
-                    let ts = last_check.to_rfc3339();
+                    let ts = escape_sql_literal(&last_check.to_rfc3339());
                     let sql = format!(
-                        "SELECT id, severity, machine, message FROM alerts WHERE created_at > '{ts}' ORDER BY created_at"
+                        "SELECT id, severity, machine_id, message FROM alert_history WHERE fired_at > '{ts}' ORDER BY fired_at"
                     );
                     if let Ok(rows) = store.query_json(&sql) {
                         for row in rows {
@@ -2512,7 +2512,7 @@ impl Cli {
                                 .and_then(watch::WatchSeverity::from_str_loose)
                                 .unwrap_or(watch::WatchSeverity::Medium);
                             let event = watch::WatchEvent::alert(
-                                row.get("machine").and_then(|v| v.as_str()).unwrap_or("unknown"),
+                                row.get("machine_id").and_then(|v| v.as_str()).unwrap_or("unknown"),
                                 severity,
                                 row.get("id").and_then(|v| v.as_str()).unwrap_or(""),
                                 row.get("message").and_then(|v| v.as_str()).unwrap_or(""),

@@ -230,10 +230,10 @@ pub fn ingest_bundle(
 /// Map collector names to table names
 fn collector_to_table(collector: &str) -> String {
     match collector {
-        "sysmoni" => "sysmoni_snapshots".to_string(),
-        "ntm" => "ntm_sessions".to_string(),
-        "afsc" => "afsc_snapshots".to_string(),
-        "cloud_bench" => "cloud_benchmark_results".to_string(),
+        "sysmoni" => "sys_samples".to_string(),
+        "ntm" => "ntm_sessions_snapshot".to_string(),
+        "afsc" => "afsc_status_snapshot".to_string(),
+        "cloud_bench" => "cloud_bench_raw".to_string(),
         _ => format!("{collector}_data"),
     }
 }
@@ -443,10 +443,10 @@ mod tests {
 
     #[test]
     fn test_collector_to_table_known() {
-        assert_eq!(collector_to_table("sysmoni"), "sysmoni_snapshots");
-        assert_eq!(collector_to_table("ntm"), "ntm_sessions");
-        assert_eq!(collector_to_table("afsc"), "afsc_snapshots");
-        assert_eq!(collector_to_table("cloud_bench"), "cloud_benchmark_results");
+        assert_eq!(collector_to_table("sysmoni"), "sys_samples");
+        assert_eq!(collector_to_table("ntm"), "ntm_sessions_snapshot");
+        assert_eq!(collector_to_table("afsc"), "afsc_status_snapshot");
+        assert_eq!(collector_to_table("cloud_bench"), "cloud_bench_raw");
     }
 
     #[test]

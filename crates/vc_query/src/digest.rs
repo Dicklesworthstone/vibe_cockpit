@@ -84,7 +84,7 @@ fn build_fleet_section(store: &VcStore, summary: &mut DigestSummary) -> DigestSe
 
     // Count machines
     let machines: usize = store
-        .query_scalar::<i64>("SELECT COUNT(DISTINCT machine_id) FROM machine_registry")
+        .query_scalar::<i64>("SELECT COUNT(DISTINCT machine_id) FROM machines")
         .ok()
         .and_then(|value| usize::try_from(value).ok())
         .unwrap_or(0);
@@ -93,19 +93,19 @@ fn build_fleet_section(store: &VcStore, summary: &mut DigestSummary) -> DigestSe
 
     // Health scores
     let healthy: usize = store
-        .query_scalar::<i64>("SELECT COUNT(*) FROM health_scores WHERE overall_score >= 80")
+        .query_scalar::<i64>("SELECT COUNT(*) FROM health_summary WHERE overall_score >= 80")
         .ok()
         .and_then(|value| usize::try_from(value).ok())
         .unwrap_or(0);
     let degraded: usize = store
         .query_scalar::<i64>(
-            "SELECT COUNT(*) FROM health_scores WHERE overall_score < 80 AND overall_score >= 50",
+            "SELECT COUNT(*) FROM health_summary WHERE overall_score < 80 AND overall_score >= 50",
         )
         .ok()
         .and_then(|value| usize::try_from(value).ok())
         .unwrap_or(0);
     let critical: usize = store
-        .query_scalar::<i64>("SELECT COUNT(*) FROM health_scores WHERE overall_score < 50")
+        .query_scalar::<i64>("SELECT COUNT(*) FROM health_summary WHERE overall_score < 50")
         .ok()
         .and_then(|value| usize::try_from(value).ok())
         .unwrap_or(0);
@@ -127,7 +127,7 @@ fn build_alert_section(store: &VcStore, summary: &mut DigestSummary) -> DigestSe
     let mut items = Vec::new();
 
     let open: usize = store
-        .query_scalar::<i64>("SELECT COUNT(*) FROM alert_history WHERE status = 'open'")
+        .query_scalar::<i64>("SELECT COUNT(*) FROM alert_history WHERE resolved_at IS NULL")
         .ok()
         .and_then(|value| usize::try_from(value).ok())
         .unwrap_or(0);
@@ -158,12 +158,12 @@ fn build_collector_section(store: &VcStore, summary: &mut DigestSummary) -> Dige
     let mut items = Vec::new();
 
     let healthy: usize = store
-        .query_scalar::<i64>("SELECT COUNT(*) FROM collector_health WHERE status = 'healthy'")
+        .query_scalar::<i64>("SELECT COUNT(*) FROM collector_health WHERE success = true AND (freshness_seconds IS NULL OR freshness_seconds <= 600)")
         .ok()
         .and_then(|value| usize::try_from(value).ok())
         .unwrap_or(0);
     let stale: usize = store
-        .query_scalar::<i64>("SELECT COUNT(*) FROM collector_health WHERE status = 'stale'")
+        .query_scalar::<i64>("SELECT COUNT(*) FROM collector_health WHERE freshness_seconds > 600")
         .ok()
         .and_then(|value| usize::try_from(value).ok())
         .unwrap_or(0);
