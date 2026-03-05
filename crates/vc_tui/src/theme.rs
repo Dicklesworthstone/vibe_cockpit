@@ -60,6 +60,7 @@ impl Default for Theme {
 
 impl Theme {
     /// Get color for a health score (0.0 to 1.0)
+    #[must_use] 
     pub fn health_color(&self, score: f64) -> Color {
         if score >= 0.8 {
             self.healthy
@@ -71,6 +72,7 @@ impl Theme {
     }
 
     /// Get health indicator character for a score
+    #[must_use] 
     pub fn health_indicator(&self, score: f64) -> &'static str {
         if score >= 0.8 {
             "●"
@@ -82,6 +84,7 @@ impl Theme {
     }
 
     /// Get color for provider name
+    #[must_use] 
     pub fn provider_color(&self, provider: &str) -> Color {
         match provider.to_lowercase().as_str() {
             "claude" => self.claude,

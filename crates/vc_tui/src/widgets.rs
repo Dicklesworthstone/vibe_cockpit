@@ -13,9 +13,10 @@ use ratatui::{
 use crate::theme::Theme;
 
 /// Render a styled section header
+#[must_use] 
 pub fn section_header<'a>(title: &'a str, theme: &Theme) -> Paragraph<'a> {
     Paragraph::new(Line::from(vec![Span::styled(
-        format!(" {} ", title),
+        format!(" {title} "),
         Style::default()
             .fg(theme.accent)
             .add_modifier(Modifier::BOLD),
@@ -28,6 +29,7 @@ pub fn section_header<'a>(title: &'a str, theme: &Theme) -> Paragraph<'a> {
 }
 
 /// Render a health badge
+#[must_use] 
 pub fn health_badge(score: f64, theme: &Theme) -> Span<'static> {
     let color = theme.health_color(score);
     let indicator = theme.health_indicator(score);
@@ -35,6 +37,7 @@ pub fn health_badge(score: f64, theme: &Theme) -> Span<'static> {
 }
 
 /// Render a status indicator (online/offline)
+#[must_use] 
 pub fn status_indicator(online: bool, theme: &Theme) -> Span<'static> {
     if online {
         Span::styled("●", Style::default().fg(theme.healthy))
@@ -44,6 +47,7 @@ pub fn status_indicator(online: bool, theme: &Theme) -> Span<'static> {
 }
 
 /// Render a severity indicator
+#[must_use] 
 pub fn severity_indicator(severity: &str, theme: &Theme) -> (Span<'static>, ratatui::style::Color) {
     match severity.to_lowercase().as_str() {
         "critical" => (
@@ -90,6 +94,7 @@ pub fn error_message(f: &mut Frame, area: Rect, message: &str, theme: &Theme) {
 }
 
 /// Format bytes to human readable string
+#[must_use] 
 pub fn format_bytes(bytes: u64) -> String {
     const KB: u64 = 1024;
     const MB: u64 = KB * 1024;
@@ -105,16 +110,17 @@ pub fn format_bytes(bytes: u64) -> String {
     } else if bytes >= KB {
         format!("{:.1}KB", bytes as f64 / KB as f64)
     } else {
-        format!("{}B", bytes)
+        format!("{bytes}B")
     }
 }
 
 /// Format duration to human readable string
+#[must_use] 
 pub fn format_duration(secs: u64) -> String {
     if secs == 0 {
         "just now".to_string()
     } else if secs < 60 {
-        format!("{}s", secs)
+        format!("{secs}s")
     } else if secs < 3600 {
         format!("{}m", secs / 60)
     } else if secs < 86400 {

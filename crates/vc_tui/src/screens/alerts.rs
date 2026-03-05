@@ -41,6 +41,7 @@ pub enum AlertViewMode {
 }
 
 impl AlertViewMode {
+    #[must_use] 
     pub fn next(&self) -> Self {
         match self {
             Self::Active => Self::History,
@@ -49,6 +50,7 @@ impl AlertViewMode {
         }
     }
 
+    #[must_use] 
     pub fn label(&self) -> &'static str {
         match self {
             Self::Active => "Active",
@@ -70,6 +72,7 @@ pub enum Severity {
 }
 
 impl Severity {
+    #[must_use] 
     pub fn symbol(&self) -> &'static str {
         match self {
             Self::Critical => "🔴",
@@ -80,6 +83,7 @@ impl Severity {
         }
     }
 
+    #[must_use] 
     pub fn label(&self) -> &'static str {
         match self {
             Self::Critical => "CRITICAL",
@@ -93,6 +97,7 @@ impl Severity {
 
 /// Individual alert information
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct AlertInfo {
     /// Alert ID
     pub id: u64,
@@ -118,23 +123,6 @@ pub struct AlertInfo {
     pub context: Option<String>,
 }
 
-impl Default for AlertInfo {
-    fn default() -> Self {
-        Self {
-            id: 0,
-            rule_id: String::new(),
-            title: String::new(),
-            message: String::new(),
-            severity: Severity::default(),
-            fired_at: String::new(),
-            age: String::new(),
-            machine_id: None,
-            acknowledged: false,
-            resolved_at: None,
-            context: None,
-        }
-    }
-}
 
 /// Alert rule information
 #[derive(Debug, Clone)]
@@ -265,7 +253,7 @@ fn render_header(f: &mut Frame, area: Rect, data: &AlertsData, theme: &Theme) {
         Span::raw("  "),
         if active_count > 0 {
             Span::styled(
-                format!("[{} active]", active_count),
+                format!("[{active_count} active]"),
                 Style::default().fg(theme.warning),
             )
         } else {
@@ -273,7 +261,7 @@ fn render_header(f: &mut Frame, area: Rect, data: &AlertsData, theme: &Theme) {
         },
         if critical_count > 0 {
             Span::styled(
-                format!("  [{} critical]", critical_count),
+                format!("  [{critical_count} critical]"),
                 Style::default().fg(theme.critical),
             )
         } else {
@@ -408,7 +396,7 @@ fn render_history(f: &mut Frame, area: Rect, data: &AlertsData, theme: &Theme) {
                 ),
                 Span::styled(&alert.title, style),
                 if let Some(ref ctx) = alert.context {
-                    Span::styled(format!(" - {}", ctx), Style::default().fg(theme.muted))
+                    Span::styled(format!(" - {ctx}"), Style::default().fg(theme.muted))
                 } else {
                     Span::raw("")
                 },

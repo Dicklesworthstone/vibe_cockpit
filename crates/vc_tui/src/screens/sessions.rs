@@ -81,17 +81,19 @@ impl Default for SessionInfo {
 
 impl SessionInfo {
     /// Format duration as human-readable string
+    #[must_use] 
     pub fn duration_str(&self) -> String {
         if self.duration_mins < 60 {
             format!("{}m", self.duration_mins)
         } else {
             let hours = self.duration_mins / 60;
             let mins = self.duration_mins % 60;
-            format!("{}h{}m", hours, mins)
+            format!("{hours}h{mins}m")
         }
     }
 
     /// Format tokens as human-readable string
+    #[must_use] 
     pub fn tokens_str(&self) -> String {
         if self.tokens >= 1_000_000 {
             format!("{:.1}M", self.tokens as f64 / 1_000_000.0)
@@ -103,6 +105,7 @@ impl SessionInfo {
     }
 
     /// Format cost as string
+    #[must_use] 
     pub fn cost_str(&self) -> String {
         if self.cost >= 1.0 {
             format!("${:.2}", self.cost)
@@ -148,17 +151,17 @@ fn render_header(f: &mut Frame, area: Rect, data: &SessionsData, theme: &Theme) 
         ),
         Span::raw("  "),
         Span::styled(
-            format!("[{} sessions]", total_sessions),
+            format!("[{total_sessions} sessions]"),
             Style::default().fg(theme.muted),
         ),
         Span::raw("  "),
         Span::styled(
-            format!("[{} active]", active_count),
+            format!("[{active_count} active]"),
             Style::default().fg(theme.healthy),
         ),
         Span::raw("  "),
         Span::styled(
-            format!("[{}]", group_label),
+            format!("[{group_label}]"),
             Style::default().fg(theme.info),
         ),
         Span::raw("  "),
@@ -348,7 +351,7 @@ fn render_sessions_grouped(f: &mut Frame, area: Rect, data: &SessionsData, theme
     // Build tree items
     let mut items: Vec<ListItem> = Vec::new();
 
-    for (group_name, sessions) in groups.iter() {
+    for (group_name, sessions) in &groups {
         let is_expanded = data.expanded_groups.contains(group_name);
         let expand_marker = if is_expanded { "▼" } else { "▶" };
 
@@ -367,7 +370,7 @@ fn render_sessions_grouped(f: &mut Frame, area: Rect, data: &SessionsData, theme
             ),
             if active_count > 0 {
                 Span::styled(
-                    format!(", {} active", active_count),
+                    format!(", {active_count} active"),
                     Style::default().fg(theme.healthy),
                 )
             } else {

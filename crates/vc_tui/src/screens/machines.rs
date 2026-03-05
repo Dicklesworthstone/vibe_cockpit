@@ -48,6 +48,7 @@ pub enum MachineOnlineStatus {
 
 impl MachineOnlineStatus {
     /// Get display indicator
+    #[must_use] 
     pub fn indicator(&self) -> &'static str {
         match self {
             Self::Online => "●",
@@ -206,7 +207,7 @@ fn render_header(f: &mut Frame, area: Rect, data: &MachinesData, theme: &Theme) 
         ),
         Span::raw("  "),
         Span::styled(
-            format!("[{}/{} online]", online_count, total_count),
+            format!("[{online_count}/{total_count} online]"),
             Style::default().fg(if online_count == total_count {
                 theme.healthy
             } else {
@@ -215,7 +216,7 @@ fn render_header(f: &mut Frame, area: Rect, data: &MachinesData, theme: &Theme) 
         ),
         Span::raw("  "),
         Span::styled(
-            format!("[Refresh: {}]", refresh_text),
+            format!("[Refresh: {refresh_text}]"),
             Style::default().fg(theme.muted),
         ),
     ]);
@@ -262,9 +263,7 @@ fn render_list_view(f: &mut Frame, area: Rect, data: &MachinesData, theme: &Them
             };
 
             let last_seen = m
-                .last_seen
-                .map(|ts| format_relative_time(ts))
-                .unwrap_or_else(|| "never".to_string());
+                .last_seen.map_or_else(|| "never".to_string(), format_relative_time);
 
             let tags = if m.tags.is_empty() {
                 "-".to_string()
@@ -316,15 +315,12 @@ fn render_list_view(f: &mut Frame, area: Rect, data: &MachinesData, theme: &Them
 }
 
 fn render_detail_view(f: &mut Frame, area: Rect, data: &MachinesData, theme: &Theme) {
-    let detail = match &data.selected_detail {
-        Some(d) => d,
-        None => {
-            let msg = Paragraph::new("No machine selected")
-                .style(Style::default().fg(theme.muted))
-                .block(Block::default().borders(Borders::ALL));
-            f.render_widget(msg, area);
-            return;
-        }
+    let detail = if let Some(d) = &data.selected_detail { d } else {
+        let msg = Paragraph::new("No machine selected")
+            .style(Style::default().fg(theme.muted))
+            .block(Block::default().borders(Borders::ALL));
+        f.render_widget(msg, area);
+        return;
     };
 
     // Split into left (info + tools) and right (stats + collections)
@@ -428,9 +424,9 @@ fn render_tools_panel(f: &mut Frame, area: Rect, tools: &[ToolInfoRow], theme: &
                 let indicator = if t.available { "✓" } else { "✗" };
 
                 ListItem::new(Line::from(vec![
-                    Span::styled(format!(" {} ", indicator), Style::default().fg(color)),
+                    Span::styled(format!(" {indicator} "), Style::default().fg(color)),
                     Span::styled(format!("{:<12}", t.name), Style::default().fg(theme.text)),
-                    Span::styled(format!("v{}", version), Style::default().fg(theme.muted)),
+                    Span::styled(format!("v{version}"), Style::default().fg(theme.muted)),
                 ]))
             })
             .collect()
@@ -535,12 +531,12 @@ fn render_recent_collections(f: &mut Frame, area: Rect, events: &[CollectionEven
                 let time_ago = format_relative_time(e.collected_at);
 
                 ListItem::new(Line::from(vec![
-                    Span::styled(format!(" {} ", indicator), Style::default().fg(color)),
+                    Span::styled(format!(" {indicator} "), Style::default().fg(color)),
                     Span::styled(
                         format!("{:<10}", e.collector),
                         Style::default().fg(theme.text),
                     ),
-                    Span::styled(format!("{:<8}", time_ago), Style::default().fg(theme.muted)),
+                    Span::styled(format!("{time_ago:<8}"), Style::default().fg(theme.muted)),
                     Span::styled(
                         format!("{:>5} rows", e.record_count),
                         Style::default().fg(theme.text),

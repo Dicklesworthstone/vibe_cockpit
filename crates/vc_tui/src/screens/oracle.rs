@@ -1,6 +1,6 @@
 //! Oracle screen implementation
 //!
-//! Displays predictions, forecasts, and risk assessments from vc_oracle.
+//! Displays predictions, forecasts, and risk assessments from `vc_oracle`.
 
 use ratatui::{
     Frame,
@@ -199,7 +199,7 @@ fn render_header(f: &mut Frame, area: Rect, data: &OracleData, theme: &Theme) {
         Span::raw("  "),
         if rate_warning_count > 0 {
             Span::styled(
-                format!("[{} rate warnings]", rate_warning_count),
+                format!("[{rate_warning_count} rate warnings]"),
                 Style::default().fg(theme.warning),
             )
         } else {
@@ -207,7 +207,7 @@ fn render_header(f: &mut Frame, area: Rect, data: &OracleData, theme: &Theme) {
         },
         if at_risk_count > 0 {
             Span::styled(
-                format!("  [{} at risk]", at_risk_count),
+                format!("  [{at_risk_count} at risk]"),
                 Style::default().fg(theme.critical),
             )
         } else {
@@ -215,7 +215,7 @@ fn render_header(f: &mut Frame, area: Rect, data: &OracleData, theme: &Theme) {
         },
         Span::raw("  "),
         Span::styled(
-            format!("[Updated: {}]", refresh_text),
+            format!("[Updated: {refresh_text}]"),
             Style::default().fg(theme.muted),
         ),
     ]);
@@ -295,7 +295,7 @@ fn render_rate_forecasts(f: &mut Frame, area: Rect, data: &OracleData, theme: &T
             };
 
             let status_text = match forecast.minutes_to_limit {
-                Some(mins) if mins < 60 => format!("limit in {} min", mins),
+                Some(mins) if mins < 60 => format!("limit in {mins} min"),
                 Some(mins) => format!("{} hr headroom", mins / 60),
                 None => "plenty of headroom".to_string(),
             };
@@ -496,7 +496,7 @@ fn render_cost_trajectory(f: &mut Frame, area: Rect, data: &OracleData, theme: &
                 Style::default().fg(theme.muted),
             ),
             Span::styled(
-                format!(" ({:.0}%)", today_pct),
+                format!(" ({today_pct:.0}%)"),
                 Style::default().fg(status_color),
             ),
         ])),
@@ -523,7 +523,7 @@ fn render_cost_trajectory(f: &mut Frame, area: Rect, data: &OracleData, theme: &
                 Style::default().fg(theme.muted),
             ),
             Span::styled(
-                format!(" ({:.0}%)", week_pct),
+                format!(" ({week_pct:.0}%)"),
                 Style::default().fg(theme.text),
             ),
         ])),

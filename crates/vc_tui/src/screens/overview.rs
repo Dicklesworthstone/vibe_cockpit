@@ -132,7 +132,7 @@ fn render_header(f: &mut Frame, area: Rect, data: &OverviewData, theme: &Theme) 
         Span::styled("]", Style::default().fg(theme.muted)),
         Span::raw("  "),
         Span::styled(
-            format!("[Refresh: {}]", refresh_text),
+            format!("[Refresh: {refresh_text}]"),
             Style::default().fg(theme.muted),
         ),
     ]);
@@ -187,7 +187,7 @@ fn render_machines_panel(f: &mut Frame, area: Rect, machines: &[MachineStatus], 
                 let metrics = if m.online {
                     match (m.cpu_pct, m.mem_pct) {
                         (Some(cpu), Some(mem)) => {
-                            format!("CPU {:>3.0}% MEM {:>3.0}%", cpu, mem)
+                            format!("CPU {cpu:>3.0}% MEM {mem:>3.0}%")
                         }
                         _ => "metrics pending".to_string(),
                     }
@@ -298,7 +298,7 @@ fn render_repos_panel(f: &mut Frame, area: Rect, repos: &[RepoStatus], theme: &T
                     status_indicator,
                     Span::raw(" "),
                     Span::styled(
-                        format!("{:<18}", status_text),
+                        format!("{status_text:<18}"),
                         Style::default().fg(if r.is_dirty {
                             theme.warning
                         } else {

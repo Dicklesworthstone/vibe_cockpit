@@ -43,6 +43,7 @@ pub enum EventSection {
 }
 
 impl EventSection {
+    #[must_use] 
     pub fn next(&self) -> Self {
         match self {
             Self::Dcg => Self::Rano,
@@ -51,6 +52,7 @@ impl EventSection {
         }
     }
 
+    #[must_use] 
     pub fn prev(&self) -> Self {
         match self {
             Self::Dcg => Self::Pt,
@@ -59,6 +61,7 @@ impl EventSection {
         }
     }
 
+    #[must_use] 
     pub fn label(&self) -> &'static str {
         match self {
             Self::Dcg => "DCG",
@@ -90,6 +93,7 @@ pub enum TimeRange {
 }
 
 impl TimeRange {
+    #[must_use] 
     pub fn label(&self) -> &'static str {
         match self {
             Self::Hour1 => "1h",
@@ -99,6 +103,7 @@ impl TimeRange {
         }
     }
 
+    #[must_use] 
     pub fn next(&self) -> Self {
         match self {
             Self::Hour1 => Self::Hour6,
@@ -121,6 +126,7 @@ pub enum EventSeverity {
 }
 
 impl EventSeverity {
+    #[must_use] 
     pub fn symbol(&self) -> &'static str {
         match self {
             Self::Critical => "🔴",
@@ -131,6 +137,7 @@ impl EventSeverity {
         }
     }
 
+    #[must_use] 
     pub fn label(&self) -> &'static str {
         match self {
             Self::Critical => "critical",
@@ -144,6 +151,7 @@ impl EventSeverity {
 
 /// DCG (dangerous command guard) event
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct DcgEvent {
     /// Event ID
     pub id: u64,
@@ -163,23 +171,10 @@ pub struct DcgEvent {
     pub source: Option<String>,
 }
 
-impl Default for DcgEvent {
-    fn default() -> Self {
-        Self {
-            id: 0,
-            machine_id: String::new(),
-            command: String::new(),
-            reason: String::new(),
-            severity: EventSeverity::default(),
-            timestamp: String::new(),
-            age: String::new(),
-            source: None,
-        }
-    }
-}
 
 /// RANO (network observer) event
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct RanoEvent {
     /// Event ID
     pub id: u64,
@@ -205,23 +200,6 @@ pub struct RanoEvent {
     pub details: Option<String>,
 }
 
-impl Default for RanoEvent {
-    fn default() -> Self {
-        Self {
-            id: 0,
-            machine_id: String::new(),
-            event_type: RanoEventType::default(),
-            remote_host: String::new(),
-            process: String::new(),
-            pid: 0,
-            connection_count: 0,
-            timestamp: String::new(),
-            age: String::new(),
-            severity: EventSeverity::default(),
-            details: None,
-        }
-    }
-}
 
 /// RANO event types
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
@@ -240,6 +218,7 @@ pub enum RanoEventType {
 }
 
 impl RanoEventType {
+    #[must_use] 
     pub fn label(&self) -> &'static str {
         match self {
             Self::UnknownProvider => "Unknown provider",
@@ -253,6 +232,7 @@ impl RanoEventType {
 
 /// PT (process tracker) finding
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct PtFinding {
     /// Finding ID
     pub id: u64,
@@ -276,22 +256,6 @@ pub struct PtFinding {
     pub metric_value: Option<String>,
 }
 
-impl Default for PtFinding {
-    fn default() -> Self {
-        Self {
-            id: 0,
-            machine_id: String::new(),
-            finding_type: PtFindingType::default(),
-            process_name: String::new(),
-            pid: 0,
-            details: String::new(),
-            severity: EventSeverity::default(),
-            timestamp: String::new(),
-            age: String::new(),
-            metric_value: None,
-        }
-    }
-}
 
 /// PT finding types
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
@@ -312,6 +276,7 @@ pub enum PtFindingType {
 }
 
 impl PtFindingType {
+    #[must_use] 
     pub fn label(&self) -> &'static str {
         match self {
             Self::Zombie => "Zombie process",
@@ -323,6 +288,7 @@ impl PtFindingType {
         }
     }
 
+    #[must_use] 
     pub fn symbol(&self) -> &'static str {
         match self {
             Self::Zombie => "💀",
@@ -450,7 +416,7 @@ fn render_dcg(f: &mut Frame, area: Rect, data: &EventsData, theme: &Theme) {
         " DCG Denies ({}) {}",
         data.dcg_events.len(),
         if critical_count > 0 {
-            format!("[{} critical]", critical_count)
+            format!("[{critical_count} critical]")
         } else {
             String::new()
         }
@@ -499,7 +465,7 @@ fn render_dcg(f: &mut Frame, area: Rect, data: &EventsData, theme: &Theme) {
             ),
             if critical > 0 {
                 Span::styled(
-                    format!(" ({} critical)", critical),
+                    format!(" ({critical} critical)"),
                     Style::default().fg(theme.critical),
                 )
             } else {
@@ -650,7 +616,7 @@ fn render_pt(f: &mut Frame, area: Rect, data: &EventsData, theme: &Theme) {
                     Style::default().fg(theme.text),
                 ),
                 if let Some(ref metric) = finding.metric_value {
-                    Span::styled(format!(" ({})", metric), Style::default().fg(theme.muted))
+                    Span::styled(format!(" ({metric})"), Style::default().fg(theme.muted))
                 } else {
                     Span::raw("")
                 },

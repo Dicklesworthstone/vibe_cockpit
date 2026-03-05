@@ -1,7 +1,7 @@
 //! Beads TUI screen implementation
 //!
 //! Shows bv triage output, blockers, and recommended next picks.
-//! Data is sourced from beads_triage_snapshots, beads_issues, and beads_graph_metrics tables.
+//! Data is sourced from `beads_triage_snapshots`, `beads_issues`, and `beads_graph_metrics` tables.
 
 use ratatui::{
     Frame,
@@ -24,7 +24,7 @@ pub struct BeadsData {
     pub blockers: Vec<BlockerItem>,
     /// Graph health metrics
     pub graph_health: GraphHealthData,
-    /// Currently selected section (0=quick_ref, 1=recommendations, 2=blockers, 3=graph)
+    /// Currently selected section (`0=quick_ref`, 1=recommendations, 2=blockers, 3=graph)
     pub selected_section: usize,
     /// Selected item index within recommendations list
     pub selected_recommendation: usize,
@@ -66,7 +66,7 @@ pub struct RecommendationItem {
     pub score: f64,
     /// Number of issues this unblocks
     pub unblocks_count: u32,
-    /// Status (open, in_progress)
+    /// Status (open, `in_progress`)
     pub status: String,
     /// Top reason for recommendation
     pub reason: String,
@@ -88,6 +88,7 @@ impl Default for RecommendationItem {
 
 /// A blocker item to clear
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct BlockerItem {
     /// Issue ID
     pub id: String,
@@ -101,17 +102,6 @@ pub struct BlockerItem {
     pub blocked_by: Vec<String>,
 }
 
-impl Default for BlockerItem {
-    fn default() -> Self {
-        Self {
-            id: String::new(),
-            title: String::new(),
-            unblocks_count: 0,
-            is_actionable: false,
-            blocked_by: vec![],
-        }
-    }
-}
 
 /// Graph health metrics
 #[derive(Debug, Clone, Default)]
@@ -120,7 +110,7 @@ pub struct GraphHealthData {
     pub node_count: u32,
     /// Total edges in dependency graph
     pub edge_count: u32,
-    /// Graph density (edges / max_possible_edges)
+    /// Graph density (edges / `max_possible_edges`)
     pub density: f64,
     /// Whether graph has cycles
     pub has_cycles: bool,
@@ -201,7 +191,7 @@ fn render_header(f: &mut Frame, area: Rect, data: &BeadsData, theme: &Theme) {
         ),
         Span::raw("  "),
         Span::styled(
-            format!("[{}]", refresh_text),
+            format!("[{refresh_text}]"),
             Style::default().fg(theme.muted),
         ),
         Span::raw("  "),

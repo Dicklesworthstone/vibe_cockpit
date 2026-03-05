@@ -40,6 +40,7 @@ pub enum GuardianSection {
 }
 
 impl GuardianSection {
+    #[must_use] 
     pub fn next(&self) -> Self {
         match self {
             Self::Status => Self::Active,
@@ -49,6 +50,7 @@ impl GuardianSection {
         }
     }
 
+    #[must_use] 
     pub fn prev(&self) -> Self {
         match self {
             Self::Status => Self::History,
@@ -74,6 +76,7 @@ pub enum GuardianMode {
 }
 
 impl GuardianMode {
+    #[must_use] 
     pub fn label(&self) -> &'static str {
         match self {
             Self::Off => "off",
@@ -83,6 +86,7 @@ impl GuardianMode {
         }
     }
 
+    #[must_use] 
     pub fn description(&self) -> &'static str {
         match self {
             Self::Off => "Guardian disabled",
@@ -92,6 +96,7 @@ impl GuardianMode {
         }
     }
 
+    #[must_use] 
     pub fn next(&self) -> Self {
         match self {
             Self::Off => Self::Suggest,
@@ -123,6 +128,7 @@ pub struct GuardianStatus {
 
 /// Active healing protocol
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct ActiveProtocol {
     /// Protocol/playbook ID
     pub playbook_id: String,
@@ -142,20 +148,6 @@ pub struct ActiveProtocol {
     pub status: ProtocolStatus,
 }
 
-impl Default for ActiveProtocol {
-    fn default() -> Self {
-        Self {
-            playbook_id: String::new(),
-            name: String::new(),
-            machine_id: String::new(),
-            current_step: 0,
-            total_steps: 0,
-            step_description: String::new(),
-            started_ago: String::new(),
-            status: ProtocolStatus::default(),
-        }
-    }
-}
 
 /// Protocol execution status
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
@@ -168,6 +160,7 @@ pub enum ProtocolStatus {
 }
 
 impl ProtocolStatus {
+    #[must_use] 
     pub fn symbol(&self) -> &'static str {
         match self {
             Self::Running => "▶",
@@ -177,6 +170,7 @@ impl ProtocolStatus {
         }
     }
 
+    #[must_use] 
     pub fn label(&self) -> &'static str {
         match self {
             Self::Running => "running",
@@ -189,6 +183,7 @@ impl ProtocolStatus {
 
 /// Pending approval for destructive action
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct PendingApproval {
     /// Approval ID
     pub id: u64,
@@ -206,22 +201,10 @@ pub struct PendingApproval {
     pub queued_ago: String,
 }
 
-impl Default for PendingApproval {
-    fn default() -> Self {
-        Self {
-            id: 0,
-            playbook_id: String::new(),
-            playbook_name: String::new(),
-            machine_id: String::new(),
-            action_description: String::new(),
-            reason: String::new(),
-            queued_ago: String::new(),
-        }
-    }
-}
 
 /// Guardian run history entry
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct GuardianRun {
     /// Run ID
     pub id: u64,
@@ -239,19 +222,6 @@ pub struct GuardianRun {
     pub summary: String,
 }
 
-impl Default for GuardianRun {
-    fn default() -> Self {
-        Self {
-            id: 0,
-            playbook_id: String::new(),
-            playbook_name: String::new(),
-            machine_id: String::new(),
-            result: RunResult::default(),
-            completed_ago: String::new(),
-            summary: String::new(),
-        }
-    }
-}
 
 /// Run result status
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
@@ -264,6 +234,7 @@ pub enum RunResult {
 }
 
 impl RunResult {
+    #[must_use] 
     pub fn symbol(&self) -> &'static str {
         match self {
             Self::Success => "✓",
@@ -273,6 +244,7 @@ impl RunResult {
         }
     }
 
+    #[must_use] 
     pub fn label(&self) -> &'static str {
         match self {
             Self::Success => "OK",

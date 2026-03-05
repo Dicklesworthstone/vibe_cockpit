@@ -76,6 +76,7 @@ impl Default for AccountStatus {
 
 impl AccountStatus {
     /// Get a short sparkline representation of usage trend
+    #[must_use] 
     pub fn sparkline(&self) -> String {
         if self.usage_trend.is_empty() {
             return "────────".to_string();
@@ -89,7 +90,7 @@ impl AccountStatus {
         self.usage_trend
             .iter()
             .map(|&v| {
-                let idx = ((v - min) as f64 / range as f64 * 7.0).round() as usize;
+                let idx = (f64::from(v - min) / f64::from(range) * 7.0).round() as usize;
                 chars[idx.min(7)]
             })
             .collect()
@@ -128,17 +129,17 @@ fn render_header(f: &mut Frame, area: Rect, data: &AccountsData, theme: &Theme) 
         ),
         Span::raw("  "),
         Span::styled(
-            format!("[{} accounts]", total_accounts),
+            format!("[{total_accounts} accounts]"),
             Style::default().fg(theme.muted),
         ),
         Span::raw("  "),
         Span::styled(
-            format!("[{} active]", active_count),
+            format!("[{active_count} active]"),
             Style::default().fg(theme.healthy),
         ),
         if red_count > 0 {
             Span::styled(
-                format!("  [{} rate-limited]", red_count),
+                format!("  [{red_count} rate-limited]"),
                 Style::default().fg(theme.critical),
             )
         } else {
@@ -220,19 +221,15 @@ fn render_accounts_table(f: &mut Frame, area: Rect, data: &AccountsData, theme: 
             };
 
             let usage_text = match (account.usage, account.limit) {
-                (u, Some(l)) => format!("{}/{}", u, l),
-                (u, None) => format!("{}", u),
+                (u, Some(l)) => format!("{u}/{l}"),
+                (u, None) => format!("{u}"),
             };
 
             let pct_text = account
-                .usage_pct
-                .map(|p| format!("{:>5.1}%", p))
-                .unwrap_or_else(|| "  N/A".to_string());
+                .usage_pct.map_or_else(|| "  N/A".to_string(), |p| format!("{p:>5.1}%"));
 
             let switch_text = account
-                .last_switch
-                .as_ref()
-                .map(|s| s.as_str())
+                .last_switch.as_deref()
                 .unwrap_or("-");
 
             Row::new(vec![

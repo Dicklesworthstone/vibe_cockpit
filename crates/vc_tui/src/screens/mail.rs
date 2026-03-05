@@ -1,6 +1,6 @@
 //! Agent Mail screen implementation
 //!
-//! Displays agent communication threads and messages from mcp_agent_mail collector.
+//! Displays agent communication threads and messages from `mcp_agent_mail` collector.
 
 use ratatui::{
     Frame,
@@ -25,7 +25,7 @@ pub struct MailData {
     pub selected_message: usize,
     /// Active pane (Threads or Messages)
     pub active_pane: MailPane,
-    /// Agent activity heatmap data (agent_name -> activity level 0-4)
+    /// Agent activity heatmap data (`agent_name` -> activity level 0-4)
     pub agent_activity: Vec<(String, u8)>,
     /// Filter string
     pub filter: String,
@@ -41,6 +41,7 @@ pub enum MailPane {
 
 /// Thread summary for display
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct ThreadSummary {
     /// Thread ID
     pub id: String,
@@ -60,20 +61,6 @@ pub struct ThreadSummary {
     pub has_urgent: bool,
 }
 
-impl Default for ThreadSummary {
-    fn default() -> Self {
-        Self {
-            id: String::new(),
-            subject: String::new(),
-            participant_count: 0,
-            participants: vec![],
-            message_count: 0,
-            unacked_count: 0,
-            last_activity: String::new(),
-            has_urgent: false,
-        }
-    }
-}
 
 /// Individual message information
 #[derive(Debug, Clone)]
@@ -144,12 +131,12 @@ fn render_header(f: &mut Frame, area: Rect, data: &MailData, theme: &Theme) {
         ),
         Span::raw("  "),
         Span::styled(
-            format!("[{} threads]", total_threads),
+            format!("[{total_threads} threads]"),
             Style::default().fg(theme.muted),
         ),
         if total_unacked > 0 {
             Span::styled(
-                format!("  [{} unacked]", total_unacked),
+                format!("  [{total_unacked} unacked]"),
                 Style::default().fg(theme.warning),
             )
         } else {
@@ -157,7 +144,7 @@ fn render_header(f: &mut Frame, area: Rect, data: &MailData, theme: &Theme) {
         },
         if urgent_count > 0 {
             Span::styled(
-                format!("  [{} urgent]", urgent_count),
+                format!("  [{urgent_count} urgent]"),
                 Style::default().fg(theme.critical),
             )
         } else {
@@ -256,7 +243,7 @@ fn render_threads_pane(f: &mut Frame, area: Rect, data: &MailData, theme: &Theme
             // Truncate subject
             let subject_display = if thread.subject.chars().count() > 25 {
                 let trunc: String = thread.subject.chars().take(22).collect();
-                format!("{}...", trunc)
+                format!("{trunc}...")
             } else {
                 thread.subject.clone()
             };
@@ -342,14 +329,14 @@ fn render_messages_pane(f: &mut Frame, area: Rect, data: &MailData, theme: &Them
             // Build message line
             let from_display = if msg.from.chars().count() > 12 {
                 let trunc: String = msg.from.chars().take(9).collect();
-                format!("{}...", trunc)
+                format!("{trunc}...")
             } else {
                 msg.from.clone()
             };
 
             let preview = if msg.body_preview.chars().count() > 30 {
                 let trunc: String = msg.body_preview.chars().take(27).collect();
-                format!("{}...", trunc)
+                format!("{trunc}...")
             } else {
                 msg.body_preview.clone()
             };
@@ -413,7 +400,7 @@ fn render_activity_heatmap(f: &mut Frame, area: Rect, data: &MailData, theme: &T
             vec![
                 Span::styled(heatmap_chars[level].to_string(), Style::default().fg(color)),
                 Span::styled(
-                    format!("{} ", short_name),
+                    format!("{short_name} "),
                     Style::default().fg(theme.muted),
                 ),
             ]

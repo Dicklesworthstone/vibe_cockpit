@@ -42,6 +42,7 @@ pub enum RchSection {
 }
 
 impl RchSection {
+    #[must_use] 
     pub fn next(&self) -> Self {
         match self {
             Self::Workers => Self::Builds,
@@ -51,6 +52,7 @@ impl RchSection {
         }
     }
 
+    #[must_use] 
     pub fn prev(&self) -> Self {
         match self {
             Self::Workers => Self::Cache,
@@ -88,6 +90,7 @@ pub enum WorkerState {
 }
 
 impl WorkerState {
+    #[must_use] 
     pub fn symbol(&self) -> &'static str {
         match self {
             Self::Idle => "🟢",
@@ -96,6 +99,7 @@ impl WorkerState {
         }
     }
 
+    #[must_use] 
     pub fn label(&self) -> &'static str {
         match self {
             Self::Idle => "idle",
@@ -158,6 +162,7 @@ pub enum CacheStatus {
 }
 
 impl CacheStatus {
+    #[must_use] 
     pub fn label(&self) -> &'static str {
         match self {
             Self::Hit => "HIT",
@@ -229,7 +234,7 @@ fn render_header(f: &mut Frame, area: Rect, data: &RchData, theme: &Theme) {
         Span::raw("  "),
         if building_count > 0 {
             Span::styled(
-                format!("[{} building]", building_count),
+                format!("[{building_count} building]"),
                 Style::default().fg(theme.info),
             )
         } else {
@@ -455,7 +460,7 @@ fn render_footer(f: &mut Frame, area: Rect, data: &RchData, theme: &Theme) {
                 Style::default().fg(cache_color)
             },
         ),
-        Span::styled(format!(" {}%", cache_pct), Style::default().fg(theme.text)),
+        Span::styled(format!(" {cache_pct}%"), Style::default().fg(theme.text)),
         Span::raw("    "),
         Span::styled(
             format!("[{} builds/24h]", data.builds_24h),

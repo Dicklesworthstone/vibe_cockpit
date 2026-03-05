@@ -1,4 +1,4 @@
-//! vc_tui - Terminal UI for Vibe Cockpit
+//! `vc_tui` - Terminal UI for Vibe Cockpit
 //!
 //! This crate provides:
 //! - ratatui-based terminal interface
@@ -54,6 +54,7 @@ pub enum Screen {
 
 impl Screen {
     /// Get screen title
+    #[must_use] 
     pub fn title(&self) -> &'static str {
         match self {
             Screen::Overview => "Overview",
@@ -73,6 +74,7 @@ impl Screen {
     }
 
     /// Get keyboard shortcut
+    #[must_use] 
     pub fn shortcut(&self) -> Option<char> {
         match self {
             Screen::Overview => Some('o'),
@@ -92,6 +94,7 @@ impl Screen {
     }
 
     /// All screens in order
+    #[must_use] 
     pub fn all() -> &'static [Screen] {
         &[
             Screen::Overview,
@@ -126,6 +129,7 @@ pub struct App {
 
 impl App {
     /// Create a new app instance
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             current_screen: Screen::Overview,
@@ -174,15 +178,11 @@ impl App {
     /// Handle keyboard input
     pub fn handle_key(&mut self, key: KeyEvent) {
         // Global shortcuts
-        if key.modifiers.contains(KeyModifiers::CONTROL) {
-            match key.code {
-                KeyCode::Char('c') | KeyCode::Char('q') => {
-                    self.should_quit = true;
-                    return;
-                }
-                _ => {}
+        if key.modifiers.contains(KeyModifiers::CONTROL)
+            && let KeyCode::Char('c' | 'q') = key.code {
+                self.should_quit = true;
+                return;
             }
-        }
 
         match key.code {
             KeyCode::Char('q') => self.should_quit = true,
@@ -403,8 +403,7 @@ mod tests {
                 app.handle_key(KeyEvent::new(KeyCode::Char(shortcut), KeyModifiers::NONE));
                 assert_eq!(
                     app.current_screen, *screen,
-                    "Shortcut '{}' should navigate to {:?}",
-                    shortcut, screen
+                    "Shortcut '{shortcut}' should navigate to {screen:?}"
                 );
             }
         }
@@ -417,12 +416,12 @@ mod tests {
     #[test]
     fn test_tui_error_display() {
         let err = TuiError::TerminalError("resize failed".to_string());
-        assert_eq!(format!("{}", err), "Terminal error: resize failed");
+        assert_eq!(format!("{err}"), "Terminal error: resize failed");
     }
 
     #[test]
     fn test_tui_error_from_io() {
-        let io_err = std::io::Error::new(std::io::ErrorKind::Other, "test");
+        let io_err = std::io::Error::other("test");
         let tui_err: TuiError = io_err.into();
         assert!(matches!(tui_err, TuiError::IoError(_)));
     }
