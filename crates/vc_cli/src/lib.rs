@@ -1,4 +1,4 @@
-//! vc_cli - CLI commands for Vibe Cockpit
+//! `vc_cli` - CLI commands for Vibe Cockpit
 //!
 //! This crate provides:
 //! - clap-based command definitions
@@ -115,7 +115,7 @@ pub enum Commands {
 
     /// Watch for events (streaming mode)
     Watch {
-        /// Event types to watch (alert, prediction, opportunity, health_change, collector_status)
+        /// Event types to watch (alert, prediction, opportunity, `health_change`, `collector_status`)
         #[arg(short, long, value_delimiter = ',')]
         events: Option<Vec<String>>,
 
@@ -554,7 +554,7 @@ pub enum HealthCommands {
 pub enum KnowledgeCommands {
     /// Add a new knowledge entry
     Add {
-        /// Entry type: solution, pattern, prompt, debug_log
+        /// Entry type: solution, pattern, prompt, `debug_log`
         #[arg(long)]
         entry_type: String,
 
@@ -592,7 +592,7 @@ pub enum KnowledgeCommands {
         /// Search query
         query: String,
 
-        /// Filter by entry type: solution, pattern, prompt, debug_log
+        /// Filter by entry type: solution, pattern, prompt, `debug_log`
         #[arg(long)]
         entry_type: Option<String>,
 
@@ -634,7 +634,7 @@ pub enum KnowledgeCommands {
         /// Entry ID
         id: i64,
 
-        /// Feedback type: helpful, not_helpful, outdated
+        /// Feedback type: helpful, `not_helpful`, outdated
         #[arg(long)]
         feedback_type: String,
 
@@ -934,7 +934,7 @@ pub enum GuardianCommands {
 
     /// List playbook drafts
     Drafts {
-        /// Filter by status: pending_review, approved, rejected, activated
+        /// Filter by status: `pending_review`, approved, rejected, activated
         #[arg(long)]
         status: Option<String>,
 
@@ -999,7 +999,7 @@ pub enum AutopilotCommands {
 
     /// List recent autopilot decisions
     Decisions {
-        /// Filter by decision type (account_switch, workload_balance, cost_optimization)
+        /// Filter by decision type (`account_switch`, `workload_balance`, `cost_optimization`)
         #[arg(long)]
         decision_type: Option<String>,
 
@@ -1483,7 +1483,7 @@ impl Cli {
                                     "available": t.is_available,
                                 })).collect::<Vec<_>>()
                             }),
-                            "tools_found": tools_result.as_ref().map(|r| r.tool_count()).unwrap_or(0),
+                            "tools_found": tools_result.as_ref().map_or(0, vc_collect::ProbeResult::tool_count),
                             "probe_errors": tools_result.as_ref().map(|r| &r.errors),
                         });
                         print_output(&payload, self.format);
@@ -1531,7 +1531,7 @@ impl Cli {
                         let rows = store.query_json(&query)?;
 
                         if rows.len() >= limit {
-                            eprintln!("Warning: Results may be truncated at {} rows", limit);
+                            eprintln!("Warning: Results may be truncated at {limit} rows");
                         }
 
                         print_output(&rows, self.format);
@@ -1544,8 +1544,7 @@ impl Cli {
                                 params.insert(key.to_string(), value.to_string());
                             } else {
                                 return Err(CliError::CommandFailed(format!(
-                                    "Invalid parameter format: '{}'. Use key=value",
-                                    p
+                                    "Invalid parameter format: '{p}'. Use key=value"
                                 )));
                             }
                         }
@@ -1670,7 +1669,7 @@ impl Cli {
 
                         // Write to file
                         std::fs::write(&output_path, &content).map_err(|e| {
-                            CliError::CommandFailed(format!("Failed to write config: {}", e))
+                            CliError::CommandFailed(format!("Failed to write config: {e}"))
                         })?;
 
                         println!("✓ Generated configuration: {}", output_path.display());
@@ -2262,8 +2261,8 @@ impl Cli {
                                 println!("- **Status**: {status}");
                                 println!();
 
-                                if let Some(timeline) = export["timeline"].as_array() {
-                                    if !timeline.is_empty() {
+                                if let Some(timeline) = export["timeline"].as_array()
+                                    && !timeline.is_empty() {
                                         println!("## Timeline");
                                         println!();
                                         for event in timeline {
@@ -2274,10 +2273,9 @@ impl Cli {
                                         }
                                         println!();
                                     }
-                                }
 
-                                if let Some(notes) = export["notes"].as_array() {
-                                    if !notes.is_empty() {
+                                if let Some(notes) = export["notes"].as_array()
+                                    && !notes.is_empty() {
                                         println!("## Notes");
                                         println!();
                                         for note in notes {
@@ -2287,7 +2285,6 @@ impl Cli {
                                         }
                                         println!();
                                     }
-                                }
                             }
                             _ => {
                                 print_output(&export, self.format);
@@ -2375,7 +2372,7 @@ impl Cli {
                         force,
                     } => {
                         if !force {
-                            println!("Emergency stop requested for scope '{}'. Use --force to confirm.", scope);
+                            println!("Emergency stop requested for scope '{scope}'. Use --force to confirm.");
                             return Ok(());
                         }
 
@@ -2899,7 +2896,7 @@ impl Cli {
                             let table = table_info["table"].as_str().unwrap_or("");
                             let path = format!("{from}/{table}.jsonl");
                             if let Ok(content) = std::fs::read_to_string(&path) {
-                                let lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
+                                let lines: Vec<String> = content.lines().map(std::string::ToString::to_string).collect();
                                 let imported = store.import_table_jsonl(table, &lines)
                                     .map_err(|e| CliError::CommandFailed(format!("Failed to import {table}: {e}")))?;
                                 total_imported += imported;
@@ -3046,7 +3043,7 @@ impl Cli {
                     TokenCommands::Add { name, role, allowed_ips } => {
                         let Some(parsed_role) = vc_web::auth::Role::parse(&role) else {
                             return Err(CliError::CommandFailed(
-                                format!("Invalid role '{}'. Valid: read, operator, admin", role)
+                                format!("Invalid role '{role}'. Valid: read, operator, admin")
                             ));
                         };
 
@@ -3194,7 +3191,7 @@ mod tests {
     #[test]
     fn cli_error_debug_format() {
         let err = CliError::CommandFailed("test".to_string());
-        let debug = format!("{:?}", err);
+        let debug = format!("{err:?}");
         assert!(debug.contains("CommandFailed"));
     }
 
@@ -3257,7 +3254,7 @@ mod tests {
     #[test]
     fn test_cli_debug() {
         let cli = Cli::parse_from(["vc", "tui"]);
-        let debug = format!("{:?}", cli);
+        let debug = format!("{cli:?}");
         assert!(debug.contains("Cli"));
     }
 

@@ -31,7 +31,7 @@ pub trait ToToon {
     fn to_toon(&self) -> String;
 }
 
-/// Convert a HealthData to TOON format
+/// Convert a `HealthData` to TOON format
 ///
 /// Example output:
 /// ```text
@@ -63,7 +63,7 @@ impl ToToon for HealthData {
             let machines: Vec<String> = self
                 .machines
                 .iter()
-                .map(|m| machine_health_toon(m))
+                .map(machine_health_toon)
                 .collect();
             parts.push(format!("M:{}", machines.join(",")));
         }
@@ -78,7 +78,7 @@ impl ToToon for HealthData {
     }
 }
 
-/// Convert TriageData to TOON format
+/// Convert `TriageData` to TOON format
 ///
 /// Example output:
 /// ```text
@@ -114,7 +114,7 @@ impl ToToon for TriageData {
     }
 }
 
-/// Convert StatusData to TOON format
+/// Convert `StatusData` to TOON format
 ///
 /// Example output:
 /// ```text
@@ -183,7 +183,7 @@ impl ToToon for StatusData {
     }
 }
 
-/// Generic TOON for serde_json::Value — produces a compact key:value summary
+/// Generic TOON for `serde_json::Value` — produces a compact key:value summary
 impl ToToon for serde_json::Value {
     fn to_toon(&self) -> String {
         let mut parts = vec!["TOON1".to_string()];
@@ -225,7 +225,7 @@ fn pct(score: f64) -> u32 {
     if score.is_nan() {
         return 0;
     }
-    (score * 100.0).clamp(0.0, u32::MAX as f64).round() as u32
+    (score * 100.0).clamp(0.0, f64::from(u32::MAX)).round() as u32
 }
 
 /// Abbreviate a status string
@@ -248,11 +248,11 @@ fn abbreviate(s: &str, max_len: usize) -> String {
         s.chars().take(max_len).collect()
     } else {
         let truncated: String = s.chars().take(max_len - 2).collect();
-        format!("{}..", truncated)
+        format!("{truncated}..")
     }
 }
 
-/// Convert a MachineHealth to a compact TOON segment
+/// Convert a `MachineHealth` to a compact TOON segment
 fn machine_health_toon(m: &MachineHealth) -> String {
     let mut s = format!(
         "{}:{},h{},{}ag",
@@ -282,7 +282,7 @@ fn value_toon(v: &serde_json::Value) -> String {
             if let Some(i) = n.as_i64() {
                 i.to_string()
             } else if let Some(f) = n.as_f64() {
-                format!("{:.1}", f)
+                format!("{f:.1}")
             } else {
                 n.to_string()
             }

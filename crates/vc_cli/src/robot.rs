@@ -73,13 +73,13 @@ impl<T: Serialize> RobotEnvelope<T> {
     /// Serialize to pretty JSON string
     pub fn to_json_pretty(&self) -> String {
         serde_json::to_string_pretty(self)
-            .unwrap_or_else(|e| format!(r#"{{"error": "serialization failed: {}"}}"#, e))
+            .unwrap_or_else(|e| format!(r#"{{"error": "serialization failed: {e}"}}"#))
     }
 
     /// Serialize to compact JSON string
     pub fn to_json(&self) -> String {
         serde_json::to_string(self)
-            .unwrap_or_else(|e| format!(r#"{{"error": "serialization failed: {}"}}"#, e))
+            .unwrap_or_else(|e| format!(r#"{{"error": "serialization failed: {e}"}}"#))
     }
 }
 
@@ -320,6 +320,7 @@ pub struct AlertSummary {
 /// Generate health status (stub implementation)
 ///
 /// This returns placeholder data until the store queries are implemented.
+#[must_use] 
 pub fn robot_health() -> RobotEnvelope<HealthData> {
     let data = HealthData {
         overall: OverallHealth {
@@ -348,6 +349,7 @@ pub fn robot_health() -> RobotEnvelope<HealthData> {
 }
 
 /// Generate triage recommendations (stub implementation)
+#[must_use] 
 pub fn robot_triage() -> RobotEnvelope<TriageData> {
     let data = TriageData {
         recommendations: vec![],
@@ -365,6 +367,7 @@ pub fn robot_triage() -> RobotEnvelope<TriageData> {
 ///
 /// Returns machine status, repo summary, and alerts for agent consumption.
 /// This is the primary command for agents to understand overall system state.
+#[must_use] 
 pub fn robot_status() -> RobotEnvelope<StatusData> {
     // Build fleet summary
     let fleet = FleetSummary {

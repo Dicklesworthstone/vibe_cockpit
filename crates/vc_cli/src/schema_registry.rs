@@ -105,26 +105,31 @@ impl SchemaRegistry {
     }
 
     /// Get schema content by ID
+    #[must_use] 
     pub fn get_schema(&self, schema_id: &str) -> Option<&str> {
-        self.schemas.get(schema_id).map(|s| s.as_str())
+        self.schemas.get(schema_id).map(std::string::String::as_str)
     }
 
     /// Get the schema index
+    #[must_use] 
     pub fn index(&self) -> &SchemaIndex {
         &self.index
     }
 
     /// List all available schema IDs
+    #[must_use] 
     pub fn list_schemas(&self) -> Vec<&str> {
         self.index.schemas.iter().map(|e| e.id.as_str()).collect()
     }
 
     /// Find schema entry by ID
+    #[must_use] 
     pub fn find_entry(&self, schema_id: &str) -> Option<&SchemaEntry> {
         self.index.schemas.iter().find(|e| e.id == schema_id)
     }
 
-    /// Get schema for a given schema_version from robot output
+    /// Get schema for a given `schema_version` from robot output
+    #[must_use] 
     pub fn get_schema_for_version(&self, schema_version: &str) -> Option<&str> {
         self.get_schema(schema_version)
     }
@@ -153,7 +158,7 @@ pub fn robot_docs_schemas(project_root: impl AsRef<Path>) -> SchemasOutput {
     }
 }
 
-/// Validate that JSON output matches the expected schema_version format
+/// Validate that JSON output matches the expected `schema_version` format
 pub fn validate_schema_version(json: &str) -> Result<String, String> {
     let value: serde_json::Value =
         serde_json::from_str(json).map_err(|e| format!("Invalid JSON: {e}"))?;

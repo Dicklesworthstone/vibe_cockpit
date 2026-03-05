@@ -19,6 +19,7 @@ pub enum WatchSeverity {
 }
 
 impl WatchSeverity {
+    #[must_use] 
     pub fn from_str_loose(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "low" | "l" => Some(Self::Low),
@@ -54,6 +55,7 @@ pub enum WatchEventType {
 }
 
 impl WatchEventType {
+    #[must_use] 
     pub fn from_str_loose(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "alert" => Some(Self::Alert),
@@ -99,6 +101,7 @@ pub struct WatchEvent {
 
 impl WatchEvent {
     /// Create an alert event.
+    #[must_use] 
     pub fn alert(machine: &str, severity: WatchSeverity, alert_id: &str, message: &str) -> Self {
         Self {
             event_type: WatchEventType::Alert,
@@ -111,6 +114,7 @@ impl WatchEvent {
     }
 
     /// Create a prediction event.
+    #[must_use] 
     pub fn prediction(
         machine: &str,
         prediction_type: &str,
@@ -132,6 +136,7 @@ impl WatchEvent {
     }
 
     /// Create a health change event.
+    #[must_use] 
     pub fn health_change(
         machine: &str,
         old_score: f64,
@@ -162,6 +167,7 @@ impl WatchEvent {
     }
 
     /// Create a collector status event.
+    #[must_use] 
     pub fn collector_status(
         machine: &str,
         collector: &str,
@@ -183,6 +189,7 @@ impl WatchEvent {
     }
 
     /// Create an opportunity event.
+    #[must_use] 
     pub fn opportunity(
         opportunity_type: &str,
         estimated_savings: f64,
@@ -203,6 +210,7 @@ impl WatchEvent {
     }
 
     /// Create a heartbeat event.
+    #[must_use] 
     pub fn heartbeat() -> Self {
         Self {
             event_type: WatchEventType::Heartbeat,
@@ -215,11 +223,13 @@ impl WatchEvent {
     }
 
     /// Serialize to a single JSONL line.
+    #[must_use] 
     pub fn to_jsonl(&self) -> String {
         serde_json::to_string(self).unwrap_or_else(|_| "{}".to_string())
     }
 
     /// Serialize to TOON format.
+    #[must_use] 
     pub fn to_toon(&self) -> String {
         let ty = match self.event_type {
             WatchEventType::Alert => "AL",
@@ -246,7 +256,7 @@ impl WatchEvent {
                 let char_count = m.chars().count();
                 let truncated = if char_count > 40 {
                     let trunc: String = m.chars().take(38).collect();
-                    format!("{}..", trunc)
+                    format!("{trunc}..")
                 } else {
                     m.to_string()
                 };
@@ -267,6 +277,7 @@ pub struct WatchFilter {
 
 impl WatchFilter {
     /// Parse event type strings into a filter set.
+    #[must_use] 
     pub fn parse_event_types(events: &[String]) -> Option<HashSet<WatchEventType>> {
         let set: HashSet<WatchEventType> = events
             .iter()
@@ -276,6 +287,7 @@ impl WatchFilter {
     }
 
     /// Parse machine name strings into a filter set.
+    #[must_use] 
     pub fn parse_machines(machines: &[String]) -> Option<HashSet<String>> {
         let set: HashSet<String> = machines
             .iter()
@@ -285,6 +297,7 @@ impl WatchFilter {
     }
 
     /// Check whether a given event passes this filter.
+    #[must_use] 
     pub fn matches(&self, event: &WatchEvent) -> bool {
         // Heartbeats always pass
         if event.event_type == WatchEventType::Heartbeat {
@@ -292,31 +305,26 @@ impl WatchFilter {
         }
 
         // Event type filter
-        if let Some(ref types) = self.event_types {
-            if !types.contains(&event.event_type) {
+        if let Some(ref types) = self.event_types
+            && !types.contains(&event.event_type) {
                 return false;
             }
-        }
 
         // Machine filter
-        if let Some(ref machines) = self.machines {
-            if let Some(ref machine) = event.machine {
-                if !machines.contains(&machine.to_lowercase()) {
+        if let Some(ref machines) = self.machines
+            && let Some(ref machine) = event.machine
+                && !machines.contains(&machine.to_lowercase()) {
                     return false;
                 }
-            }
             // Events without a machine field pass the machine filter
-        }
 
         // Severity filter
-        if let Some(ref min_sev) = self.min_severity {
-            if let Some(ref sev) = event.severity {
-                if sev < min_sev {
+        if let Some(ref min_sev) = self.min_severity
+            && let Some(ref sev) = event.severity
+                && sev < min_sev {
                     return false;
                 }
-            }
             // Events without a severity field pass the severity filter
-        }
 
         true
     }
