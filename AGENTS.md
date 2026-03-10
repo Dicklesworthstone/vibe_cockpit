@@ -54,15 +54,17 @@ We only use **Cargo** in this project, NEVER any other package manager.
 - **Configuration:** Cargo.toml workspace with `workspace = true` pattern
 - **Unsafe code:** Forbidden (`#![forbid(unsafe_code)]`)
 
-### Async Runtime: Tokio
+### Async Runtime: Asupersync (primary) + Tokio compat bridge
 
-This project uses **tokio** with the `full` feature set for all async operations.
+This project uses **Asupersync** (`/dp/asupersync`) as the primary async runtime with explicit `Cx` capability tokens for structured concurrency. A **Tokio compat bridge** (`asupersync-tokio-compat`) keeps tokio-locked crates (axum, russh, reqwest) working until native alternatives are ready. The binary entry point (`src/main.rs`) builds an Asupersync runtime, establishes a root `Cx`, and runs the CLI inside `with_tokio_context()`.
 
 ### Key Dependencies
 
 | Crate | Purpose |
 |-------|---------|
-| `tokio` | Async runtime (full features) |
+| `asupersync` | Primary async runtime (structured concurrency, Cx tokens) |
+| `asupersync-tokio-compat` | Tokio compatibility bridge for downstream crates |
+| `tokio` | Compat bridge runtime (axum, russh, reqwest still use tokio internally) |
 | `duckdb` | Embedded analytical database (bundled build) |
 | `serde` + `serde_json` + `toml` | Serialization (JSON, TOML config) |
 | `clap` | CLI argument parsing (derive mode) |
@@ -274,7 +276,7 @@ vibe_cockpit/
 ├── Cargo.toml                     # Workspace root + vc binary crate
 ├── build.rs                       # Build metadata (vergen-gix)
 ├── src/
-│   └── main.rs                    # Binary entry point (tokio::main)
+│   └── main.rs                    # Binary entry point (Asupersync runtime + Tokio compat)
 ├── crates/
 │   ├── vc_config/                 # TOML config parsing, env overrides, machine inventory, linting
 │   ├── vc_collect/                # Data collectors (SSH, local), cursor management, tool probing
@@ -380,7 +382,7 @@ The CLI provides agent-optimized output via `vc robot <subcommand>`:
 ### Key Design Decisions
 
 - **DuckDB over SQLite** — analytical workloads (aggregations, time-series rollups) are the primary query pattern; DuckDB excels here
-- **Tokio async runtime** — standard ecosystem; axum, russh, reqwest all use tokio natively
+- **Asupersync async runtime** — structured concurrency with Cx capability tokens; Tokio compat bridge for axum, russh, reqwest
 - **SSH-based remote collection** — no agent installation required on remote machines; collectors run commands over SSH
 - **Incremental collection with cursors** — avoids rescanning entire histories every poll cycle
 - **Fail-soft collectors** — a broken collector shows "stale" data, never crashes the system
