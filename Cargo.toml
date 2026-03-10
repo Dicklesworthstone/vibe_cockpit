@@ -23,9 +23,13 @@ license = "MIT"
 repository = "https://github.com/Dicklesworthstone/vibe_cockpit"
 
 [workspace.dependencies]
-# Async runtime
+# Async runtime (primary)
 asupersync = { path = "/dp/asupersync" }
 asupersync-tokio-compat = { path = "/dp/asupersync/asupersync-tokio-compat" }
+# Tokio kept as an explicit compat bridge while crate-local migrations land in
+# Phases 2a–2e. This is intentionally broad so each crate can compile until its
+# direct Tokio usage is removed.
+tokio = { version = "1", features = ["fs", "macros", "net", "process", "rt-multi-thread", "signal", "sync", "time"] }
 
 # Database
 duckdb = { version = "1.4", features = ["bundled"] }
@@ -118,6 +122,7 @@ vc_cli.workspace = true
 vc_config.workspace = true
 asupersync.workspace = true
 asupersync-tokio-compat.workspace = true
+tokio.workspace = true
 clap.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true

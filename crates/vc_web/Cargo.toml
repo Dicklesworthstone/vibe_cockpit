@@ -22,6 +22,7 @@ serde.workspace = true
 serde_json.workspace = true
 asupersync.workspace = true
 asupersync-tokio-compat.workspace = true
+tokio.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 chrono.workspace = true
