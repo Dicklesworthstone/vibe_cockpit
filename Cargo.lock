@@ -6189,17 +6189,16 @@ name = "vc_alert"
 version = "0.1.0"
 dependencies = [
  "asupersync",
- "asupersync-tokio-compat",
  "async-trait",
  "chrono",
  "dashmap",
+ "futures",
  "mockall",
  "proptest",
  "reqwest 0.13.2",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
- "tokio",
  "tracing",
  "vc_config",
  "vc_store",

@@ -24,8 +24,10 @@ repository = "https://github.com/Dicklesworthstone/vibe_cockpit"
 
 [workspace.dependencies]
 # Async runtime (primary)
-asupersync = { path = "/dp/asupersync" }
-asupersync-tokio-compat = { path = "/dp/asupersync/asupersync-tokio-compat" }
+# Use the canonical sibling checkout so remote RCH workers resolve the same
+# synced path instead of relying on a host-local /dp symlink.
+asupersync = { path = "../asupersync" }
+asupersync-tokio-compat = { path = "../asupersync/asupersync-tokio-compat" }
 # Tokio kept as an explicit compat bridge while crate-local migrations land in
 # Phases 2a–2e. This is intentionally broad so each crate can compile until its
 # direct Tokio usage is removed.
