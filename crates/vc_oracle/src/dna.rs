@@ -652,7 +652,12 @@ impl DnaComputer {
             let deviation = (current_val - mean).abs() / effective_stddev;
 
             if deviation > self.config.anomaly_threshold {
-                anomalies.push(Anomaly::new(metric.name, current_val, mean, effective_stddev));
+                anomalies.push(Anomaly::new(
+                    metric.name,
+                    current_val,
+                    mean,
+                    effective_stddev,
+                ));
             }
         }
 

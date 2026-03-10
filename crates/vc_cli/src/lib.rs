@@ -15,8 +15,10 @@ use std::time::Duration;
 use thiserror::Error;
 use vc_collect::executor::Executor;
 use vc_config::VcConfig;
-use vc_knowledge::{EntryType, FeedbackType, KnowledgeEntry, KnowledgeFeedback, KnowledgeStore, SearchOptions};
-use vc_store::{escape_sql_literal, AuditEventFilter, AuditEventType, VcStore};
+use vc_knowledge::{
+    EntryType, FeedbackType, KnowledgeEntry, KnowledgeFeedback, KnowledgeStore, SearchOptions,
+};
+use vc_store::{AuditEventFilter, AuditEventType, VcStore, escape_sql_literal};
 
 pub mod robot;
 pub mod schema_registry;
@@ -1197,10 +1199,13 @@ impl Cli {
                         }
                     }
                     RobotCommands::Accounts => {
-                        let data = serde_json::json!({ "accounts": [], "warning": "not yet implemented" });
+                        let data =
+                            serde_json::json!({ "accounts": [], "warning": "not yet implemented" });
                         let output = robot::RobotEnvelope::new("vc.robot.accounts.v1", data);
                         match self.format {
-                            OutputFormat::Toon => println!("{}", toon::to_toon_via_json(&output.data)),
+                            OutputFormat::Toon => {
+                                println!("{}", toon::to_toon_via_json(&output.data))
+                            }
                             _ => println!("{}", output.to_json_pretty()),
                         }
                     }
@@ -1208,7 +1213,9 @@ impl Cli {
                         let data = serde_json::json!({ "predictions": [], "warning": "not yet implemented" });
                         let output = robot::RobotEnvelope::new("vc.robot.oracle.v1", data);
                         match self.format {
-                            OutputFormat::Toon => println!("{}", toon::to_toon_via_json(&output.data)),
+                            OutputFormat::Toon => {
+                                println!("{}", toon::to_toon_via_json(&output.data))
+                            }
                             _ => println!("{}", output.to_json_pretty()),
                         }
                     }
@@ -1227,15 +1234,20 @@ impl Cli {
                         });
                         let output = robot::RobotEnvelope::new("vc.robot.machines.v1", data);
                         match self.format {
-                            OutputFormat::Toon => println!("{}", toon::to_toon_via_json(&output.data)),
+                            OutputFormat::Toon => {
+                                println!("{}", toon::to_toon_via_json(&output.data))
+                            }
                             _ => println!("{}", output.to_json_pretty()),
                         }
                     }
                     RobotCommands::Repos => {
-                        let data = serde_json::json!({ "repos": [], "warning": "not yet implemented" });
+                        let data =
+                            serde_json::json!({ "repos": [], "warning": "not yet implemented" });
                         let output = robot::RobotEnvelope::new("vc.robot.repos.v1", data);
                         match self.format {
-                            OutputFormat::Toon => println!("{}", toon::to_toon_via_json(&output.data)),
+                            OutputFormat::Toon => {
+                                println!("{}", toon::to_toon_via_json(&output.data))
+                            }
                             _ => println!("{}", output.to_json_pretty()),
                         }
                     }
@@ -1975,9 +1987,12 @@ impl Cli {
                         lines,
                         tags,
                     } => {
-                        let et: EntryType = entry_type.parse().map_err(|e: vc_knowledge::KnowledgeError| {
-                            CliError::CommandFailed(e.to_string())
-                        })?;
+                        let et: EntryType =
+                            entry_type
+                                .parse()
+                                .map_err(|e: vc_knowledge::KnowledgeError| {
+                                    CliError::CommandFailed(e.to_string())
+                                })?;
 
                         let tags_vec = tags
                             .map(|t| {
@@ -1994,8 +2009,8 @@ impl Cli {
                             })
                             .unwrap_or_default();
 
-                        let mut entry = KnowledgeEntry::new(et, &title, &content)
-                            .with_tags(tags_vec);
+                        let mut entry =
+                            KnowledgeEntry::new(et, &title, &content).with_tags(tags_vec);
 
                         if let Some(summary) = summary {
                             entry = entry.with_summary(summary);
@@ -2027,9 +2042,10 @@ impl Cli {
                         let mut opts = SearchOptions::new().with_limit(limit);
 
                         if let Some(et_str) = entry_type {
-                            let et: EntryType = et_str.parse().map_err(|e: vc_knowledge::KnowledgeError| {
-                                CliError::CommandFailed(e.to_string())
-                            })?;
+                            let et: EntryType =
+                                et_str.parse().map_err(|e: vc_knowledge::KnowledgeError| {
+                                    CliError::CommandFailed(e.to_string())
+                                })?;
                             opts = opts.with_type(et);
                         }
 
@@ -2058,9 +2074,10 @@ impl Cli {
                     }
                     KnowledgeCommands::List { limit, entry_type } => {
                         if let Some(et_str) = entry_type {
-                            let et: EntryType = et_str.parse().map_err(|e: vc_knowledge::KnowledgeError| {
-                                CliError::CommandFailed(e.to_string())
-                            })?;
+                            let et: EntryType =
+                                et_str.parse().map_err(|e: vc_knowledge::KnowledgeError| {
+                                    CliError::CommandFailed(e.to_string())
+                                })?;
                             let opts = SearchOptions::new().with_type(et).with_limit(limit);
                             let results = kb.search("", &opts)?;
                             print_output(&results, self.format);
@@ -2109,9 +2126,9 @@ impl Cli {
                     KnowledgeCommands::Mine { limit, min_quality } => {
                         let miner = vc_knowledge::mining::SolutionMiner::new(store.clone())
                             .with_min_quality(min_quality);
-                        let results = miner.mine_all(limit).map_err(|e| {
-                            CliError::CommandFailed(format!("Mining failed: {e}"))
-                        })?;
+                        let results = miner
+                            .mine_all(limit)
+                            .map_err(|e| CliError::CommandFailed(format!("Mining failed: {e}")))?;
 
                         let total_solutions: usize =
                             results.iter().map(|r| r.solutions_extracted).sum();
@@ -2143,9 +2160,14 @@ impl Cli {
 
                 match command {
                     IncidentCommands::List { status, limit } => {
-                        let incidents = store
-                            .list_incidents(status.as_deref(), limit)
-                            .map_err(|e| CliError::CommandFailed(format!("Failed to list incidents: {e}")))?;
+                        let incidents =
+                            store
+                                .list_incidents(status.as_deref(), limit)
+                                .map_err(|e| {
+                                    CliError::CommandFailed(format!(
+                                        "Failed to list incidents: {e}"
+                                    ))
+                                })?;
 
                         if incidents.is_empty() {
                             println!("No incidents found");
@@ -2154,9 +2176,9 @@ impl Cli {
                         }
                     }
                     IncidentCommands::Show { id } => {
-                        let incident = store
-                            .get_incident(&id)
-                            .map_err(|e| CliError::CommandFailed(format!("Failed to get incident: {e}")))?;
+                        let incident = store.get_incident(&id).map_err(|e| {
+                            CliError::CommandFailed(format!("Failed to get incident: {e}"))
+                        })?;
 
                         match incident {
                             Some(inc) => {
@@ -2183,8 +2205,15 @@ impl Cli {
                     } => {
                         let incident_id = format!("inc-{}", &uuid::Uuid::new_v4().to_string()[..8]);
                         store
-                            .create_incident(&incident_id, &title, &severity, description.as_deref())
-                            .map_err(|e| CliError::CommandFailed(format!("Failed to create incident: {e}")))?;
+                            .create_incident(
+                                &incident_id,
+                                &title,
+                                &severity,
+                                description.as_deref(),
+                            )
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!("Failed to create incident: {e}"))
+                            })?;
 
                         let result = serde_json::json!({
                             "incident_id": incident_id,
@@ -2195,10 +2224,16 @@ impl Cli {
                         });
                         print_output(&result, self.format);
                     }
-                    IncidentCommands::Note { id, content, author } => {
+                    IncidentCommands::Note {
+                        id,
+                        content,
+                        author,
+                    } => {
                         let note_id = store
                             .add_incident_note(&id, author.as_deref(), &content)
-                            .map_err(|e| CliError::CommandFailed(format!("Failed to add note: {e}")))?;
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!("Failed to add note: {e}"))
+                            })?;
 
                         let result = serde_json::json!({
                             "note_id": note_id,
@@ -2207,10 +2242,21 @@ impl Cli {
                         });
                         print_output(&result, self.format);
                     }
-                    IncidentCommands::Close { id, reason, root_cause } => {
+                    IncidentCommands::Close {
+                        id,
+                        reason,
+                        root_cause,
+                    } => {
                         let affected = store
-                            .update_incident_status(&id, "closed", reason.as_deref(), root_cause.as_deref())
-                            .map_err(|e| CliError::CommandFailed(format!("Failed to close incident: {e}")))?;
+                            .update_incident_status(
+                                &id,
+                                "closed",
+                                reason.as_deref(),
+                                root_cause.as_deref(),
+                            )
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!("Failed to close incident: {e}"))
+                            })?;
 
                         if affected == 0 {
                             return Err(CliError::CommandFailed(format!(
@@ -2226,9 +2272,9 @@ impl Cli {
                         print_output(&result, self.format);
                     }
                     IncidentCommands::Timeline { id } => {
-                        let timeline = store
-                            .get_incident_timeline(&id)
-                            .map_err(|e| CliError::CommandFailed(format!("Failed to get timeline: {e}")))?;
+                        let timeline = store.get_incident_timeline(&id).map_err(|e| {
+                            CliError::CommandFailed(format!("Failed to get timeline: {e}"))
+                        })?;
 
                         if timeline.is_empty() {
                             println!("No timeline events for incident {id}");
@@ -2237,16 +2283,16 @@ impl Cli {
                         }
                     }
                     IncidentCommands::Replay { id, at } => {
-                        let snapshot = store
-                            .get_or_build_replay(&id, &at)
-                            .map_err(|e| CliError::CommandFailed(format!("Failed to build replay: {e}")))?;
+                        let snapshot = store.get_or_build_replay(&id, &at).map_err(|e| {
+                            CliError::CommandFailed(format!("Failed to build replay: {e}"))
+                        })?;
 
                         print_output(&snapshot, self.format);
                     }
                     IncidentCommands::Export { id, output } => {
-                        let export = store
-                            .export_incident_replay(&id)
-                            .map_err(|e| CliError::CommandFailed(format!("Failed to export: {e}")))?;
+                        let export = store.export_incident_replay(&id).map_err(|e| {
+                            CliError::CommandFailed(format!("Failed to export: {e}"))
+                        })?;
 
                         match output.as_str() {
                             "md" | "markdown" => {
@@ -2262,29 +2308,31 @@ impl Cli {
                                 println!();
 
                                 if let Some(timeline) = export["timeline"].as_array()
-                                    && !timeline.is_empty() {
-                                        println!("## Timeline");
-                                        println!();
-                                        for event in timeline {
-                                            let ts = event["ts"].as_str().unwrap_or("?");
-                                            let desc = event["description"].as_str().unwrap_or("?");
-                                            let etype = event["event_type"].as_str().unwrap_or("event");
-                                            println!("- **{ts}** [{etype}]: {desc}");
-                                        }
-                                        println!();
+                                    && !timeline.is_empty()
+                                {
+                                    println!("## Timeline");
+                                    println!();
+                                    for event in timeline {
+                                        let ts = event["ts"].as_str().unwrap_or("?");
+                                        let desc = event["description"].as_str().unwrap_or("?");
+                                        let etype = event["event_type"].as_str().unwrap_or("event");
+                                        println!("- **{ts}** [{etype}]: {desc}");
                                     }
+                                    println!();
+                                }
 
                                 if let Some(notes) = export["notes"].as_array()
-                                    && !notes.is_empty() {
-                                        println!("## Notes");
-                                        println!();
-                                        for note in notes {
-                                            let author = note["author"].as_str().unwrap_or("anonymous");
-                                            let content = note["content"].as_str().unwrap_or("");
-                                            println!("- **{author}**: {content}");
-                                        }
-                                        println!();
+                                    && !notes.is_empty()
+                                {
+                                    println!("## Notes");
+                                    println!();
+                                    for note in notes {
+                                        let author = note["author"].as_str().unwrap_or("anonymous");
+                                        let content = note["content"].as_str().unwrap_or("");
+                                        println!("- **{author}**: {content}");
                                     }
+                                    println!();
+                                }
                             }
                             _ => {
                                 print_output(&export, self.format);
@@ -2308,24 +2356,27 @@ impl Cli {
                             "count": count,
                             "machine": machine,
                         });
-                        store.record_fleet_command(
-                            &command_id,
-                            "spawn",
-                            &params.to_string(),
-                            None,
-                        ).map_err(|e| CliError::CommandFailed(format!("Failed to record command: {e}")))?;
+                        store
+                            .record_fleet_command(&command_id, "spawn", &params.to_string(), None)
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!("Failed to record command: {e}"))
+                            })?;
 
                         // Mark as completed with result (actual spawning would integrate with ntm)
                         let result = serde_json::json!({
                             "message": format!("Spawn request recorded: {} x {} on {}", count, agent_type, machine),
                             "note": "Agent spawning requires ntm integration - command recorded for execution",
                         });
-                        store.update_fleet_command(
-                            &command_id,
-                            "completed",
-                            Some(&result.to_string()),
-                            None,
-                        ).map_err(|e| CliError::CommandFailed(format!("Failed to update command: {e}")))?;
+                        store
+                            .update_fleet_command(
+                                &command_id,
+                                "completed",
+                                Some(&result.to_string()),
+                                None,
+                            )
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!("Failed to update command: {e}"))
+                            })?;
 
                         let output = serde_json::json!({
                             "command_id": command_id,
@@ -2343,12 +2394,16 @@ impl Cli {
                         let params = serde_json::json!({
                             "strategy": strategy,
                         });
-                        store.record_fleet_command(
-                            &command_id,
-                            "rebalance",
-                            &params.to_string(),
-                            None,
-                        ).map_err(|e| CliError::CommandFailed(format!("Failed to record command: {e}")))?;
+                        store
+                            .record_fleet_command(
+                                &command_id,
+                                "rebalance",
+                                &params.to_string(),
+                                None,
+                            )
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!("Failed to record command: {e}"))
+                            })?;
 
                         store.update_fleet_command(
                             &command_id,
@@ -2372,7 +2427,9 @@ impl Cli {
                         force,
                     } => {
                         if !force {
-                            println!("Emergency stop requested for scope '{scope}'. Use --force to confirm.");
+                            println!(
+                                "Emergency stop requested for scope '{scope}'. Use --force to confirm."
+                            );
                             return Ok(());
                         }
 
@@ -2382,19 +2439,30 @@ impl Cli {
                             "reason": reason,
                             "force": force,
                         });
-                        store.record_fleet_command(
-                            &command_id,
-                            "emergency_stop",
-                            &params.to_string(),
-                            None,
-                        ).map_err(|e| CliError::CommandFailed(format!("Failed to record command: {e}")))?;
+                        store
+                            .record_fleet_command(
+                                &command_id,
+                                "emergency_stop",
+                                &params.to_string(),
+                                None,
+                            )
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!("Failed to record command: {e}"))
+                            })?;
 
-                        store.update_fleet_command(
-                            &command_id,
-                            "completed",
-                            Some(&serde_json::json!({"scope": scope, "stopped": true}).to_string()),
-                            None,
-                        ).map_err(|e| CliError::CommandFailed(format!("Failed to update command: {e}")))?;
+                        store
+                            .update_fleet_command(
+                                &command_id,
+                                "completed",
+                                Some(
+                                    &serde_json::json!({"scope": scope, "stopped": true})
+                                        .to_string(),
+                                ),
+                                None,
+                            )
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!("Failed to update command: {e}"))
+                            })?;
 
                         let output = serde_json::json!({
                             "command_id": command_id,
@@ -2406,23 +2474,18 @@ impl Cli {
                         });
                         print_output(&output, self.format);
                     }
-                    FleetCommands::Migrate {
-                        from,
-                        to,
-                        workload,
-                    } => {
+                    FleetCommands::Migrate { from, to, workload } => {
                         let command_id = format!("fc-{}", &uuid::Uuid::new_v4().to_string()[..8]);
                         let params = serde_json::json!({
                             "from": from,
                             "to": to,
                             "workload": workload,
                         });
-                        store.record_fleet_command(
-                            &command_id,
-                            "migrate",
-                            &params.to_string(),
-                            None,
-                        ).map_err(|e| CliError::CommandFailed(format!("Failed to record command: {e}")))?;
+                        store
+                            .record_fleet_command(&command_id, "migrate", &params.to_string(), None)
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!("Failed to record command: {e}"))
+                            })?;
 
                         store.update_fleet_command(
                             &command_id,
@@ -2483,8 +2546,10 @@ impl Cli {
                 if use_toon {
                     println!("W|START,i{interval_secs},b{buffer_size}");
                 } else {
-                    println!("{}", serde_json::to_string(&start_event)
-                        .unwrap_or_else(|_| "{}".to_string()));
+                    println!(
+                        "{}",
+                        serde_json::to_string(&start_event).unwrap_or_else(|_| "{}".to_string())
+                    );
                 }
 
                 // Streaming loop: poll store for new events at the configured interval
@@ -2504,12 +2569,15 @@ impl Cli {
                     );
                     if let Ok(rows) = store.query_json(&sql) {
                         for row in rows {
-                            let severity = row.get("severity")
+                            let severity = row
+                                .get("severity")
                                 .and_then(|v| v.as_str())
                                 .and_then(watch::WatchSeverity::from_str_loose)
                                 .unwrap_or(watch::WatchSeverity::Medium);
                             let event = watch::WatchEvent::alert(
-                                row.get("machine_id").and_then(|v| v.as_str()).unwrap_or("unknown"),
+                                row.get("machine_id")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("unknown"),
                                 severity,
                                 row.get("id").and_then(|v| v.as_str()).unwrap_or(""),
                                 row.get("message").and_then(|v| v.as_str()).unwrap_or(""),
@@ -2614,10 +2682,14 @@ impl Cli {
                         machine,
                         operator,
                     } => {
-                        use vc_guardian::autogen::{ActionCapture, CapturedAction, ResolutionOutcome};
+                        use vc_guardian::autogen::{
+                            ActionCapture, CapturedAction, ResolutionOutcome,
+                        };
 
                         let parsed_actions: Vec<CapturedAction> = serde_json::from_str(&actions)
-                            .map_err(|e| CliError::CommandFailed(format!("Invalid actions JSON: {e}")))?;
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!("Invalid actions JSON: {e}"))
+                            })?;
 
                         let parsed_outcome = match outcome.to_lowercase().as_str() {
                             "success" => ResolutionOutcome::Success,
@@ -2654,7 +2726,9 @@ impl Cli {
                         use vc_guardian::autogen;
 
                         let drafts = autogen::run_pipeline(store, min_samples, min_confidence)
-                            .map_err(|e| CliError::CommandFailed(format!("Generation failed: {e}")))?;
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!("Generation failed: {e}"))
+                            })?;
 
                         let result = serde_json::json!({
                             "drafts_created": drafts.len(),
@@ -2673,7 +2747,9 @@ impl Cli {
                     GuardianCommands::Drafts { status, limit } => {
                         let drafts = store
                             .list_playbook_drafts(status.as_deref(), limit)
-                            .map_err(|e| CliError::CommandFailed(format!("Failed to list drafts: {e}")))?;
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!("Failed to list drafts: {e}"))
+                            })?;
 
                         if drafts.is_empty() {
                             println!("No playbook drafts found");
@@ -2686,26 +2762,30 @@ impl Cli {
 
                         let draft_row = store
                             .get_playbook_draft(&draft_id)
-                            .map_err(|e| CliError::CommandFailed(format!("Failed to get draft: {e}")))?
-                            .ok_or_else(|| CliError::CommandFailed(format!("Draft not found: {draft_id}")))?;
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!("Failed to get draft: {e}"))
+                            })?
+                            .ok_or_else(|| {
+                                CliError::CommandFailed(format!("Draft not found: {draft_id}"))
+                            })?;
 
                         // Reconstruct minimal draft for validation
                         let steps_json = draft_row["steps_json"].as_str().unwrap_or("[]");
                         let steps: Vec<vc_guardian::PlaybookStep> =
                             serde_json::from_str(steps_json).unwrap_or_default();
 
-                        let trigger_json = draft_row["trigger_json"].as_str().unwrap_or(r#"{"type":"manual"}"#);
+                        let trigger_json = draft_row["trigger_json"]
+                            .as_str()
+                            .unwrap_or(r#"{"type":"manual"}"#);
                         let trigger: vc_guardian::PlaybookTrigger =
-                            serde_json::from_str(trigger_json).unwrap_or(vc_guardian::PlaybookTrigger::Manual);
+                            serde_json::from_str(trigger_json)
+                                .unwrap_or(vc_guardian::PlaybookTrigger::Manual);
 
                         let confidence = draft_row["confidence"].as_f64().unwrap_or(0.0);
                         let sample_count = draft_row["sample_count"].as_u64().unwrap_or(0) as usize;
 
                         let pattern = autogen::ResolutionPattern {
-                            alert_type: draft_row["alert_type"]
-                                .as_str()
-                                .unwrap_or("")
-                                .to_string(),
+                            alert_type: draft_row["alert_type"].as_str().unwrap_or("").to_string(),
                             description: String::new(),
                             common_steps: vec![],
                             confidence,
@@ -2732,9 +2812,12 @@ impl Cli {
                         print_output(&validation, self.format);
                     }
                     GuardianCommands::ApproveDraft { draft_id, approver } => {
-                        let affected = store
-                            .approve_playbook_draft(&draft_id, &approver)
-                            .map_err(|e| CliError::CommandFailed(format!("Approval failed: {e}")))?;
+                        let affected =
+                            store
+                                .approve_playbook_draft(&draft_id, &approver)
+                                .map_err(|e| {
+                                    CliError::CommandFailed(format!("Approval failed: {e}"))
+                                })?;
 
                         if affected == 0 {
                             return Err(CliError::CommandFailed(format!(
@@ -2753,7 +2836,9 @@ impl Cli {
                     GuardianCommands::RejectDraft { draft_id, reason } => {
                         let affected = store
                             .reject_playbook_draft(&draft_id, reason.as_deref())
-                            .map_err(|e| CliError::CommandFailed(format!("Rejection failed: {e}")))?;
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!("Rejection failed: {e}"))
+                            })?;
 
                         if affected == 0 {
                             return Err(CliError::CommandFailed(format!(
@@ -2770,9 +2855,10 @@ impl Cli {
                         print_output(&result, self.format);
                     }
                     GuardianCommands::ActivateDraft { draft_id } => {
-                        let result = store
-                            .activate_playbook_from_draft(&draft_id)
-                            .map_err(|e| CliError::CommandFailed(format!("Activation failed: {e}")))?;
+                        let result =
+                            store.activate_playbook_from_draft(&draft_id).map_err(|e| {
+                                CliError::CommandFailed(format!("Activation failed: {e}"))
+                            })?;
 
                         match result {
                             Some(r) => print_output(&r, self.format),
@@ -2790,7 +2876,9 @@ impl Cli {
                     } => {
                         let resolutions = store
                             .list_resolutions(alert_type.as_deref(), outcome.as_deref(), limit)
-                            .map_err(|e| CliError::CommandFailed(format!("Failed to list resolutions: {e}")))?;
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!("Failed to list resolutions: {e}"))
+                            })?;
 
                         if resolutions.is_empty() {
                             println!("No resolutions captured yet");
@@ -2807,17 +2895,20 @@ impl Cli {
 
                 match command {
                     McpCommands::Serve => {
-                        server.run_stdio()
-                            .map_err(|e| CliError::CommandFailed(format!("MCP server error: {e}")))?;
+                        server.run_stdio().map_err(|e| {
+                            CliError::CommandFailed(format!("MCP server error: {e}"))
+                        })?;
                     }
                     McpCommands::Tools => {
                         let tools: Vec<serde_json::Value> = server
                             .list_tools()
                             .iter()
-                            .map(|t| serde_json::json!({
-                                "name": t.name,
-                                "description": t.description,
-                            }))
+                            .map(|t| {
+                                serde_json::json!({
+                                    "name": t.name,
+                                    "description": t.description,
+                                })
+                            })
                             .collect();
                         print_output(&serde_json::json!({"tools": tools}), self.format);
                     }
@@ -2827,10 +2918,16 @@ impl Cli {
                 let store = open_store(self.config.as_ref())?;
 
                 match command {
-                    DbCommands::Export { out, since, until, tables } => {
+                    DbCommands::Export {
+                        out,
+                        since,
+                        until,
+                        tables,
+                    } => {
                         // Get tables to export
-                        let all_tables = store.list_tables()
-                            .map_err(|e| CliError::CommandFailed(format!("Failed to list tables: {e}")))?;
+                        let all_tables = store.list_tables().map_err(|e| {
+                            CliError::CommandFailed(format!("Failed to list tables: {e}"))
+                        })?;
 
                         let export_tables: Vec<String> = if let Some(ref t) = tables {
                             t.split(',').map(|s| s.trim().to_string()).collect()
@@ -2839,37 +2936,46 @@ impl Cli {
                         };
 
                         // Create output directory
-                        std::fs::create_dir_all(&out)
-                            .map_err(|e| CliError::CommandFailed(format!("Failed to create output dir: {e}")))?;
+                        std::fs::create_dir_all(&out).map_err(|e| {
+                            CliError::CommandFailed(format!("Failed to create output dir: {e}"))
+                        })?;
 
                         // Build manifest
-                        let manifest = store.build_export_manifest(
-                            &export_tables,
-                            since.as_deref(),
-                            until.as_deref(),
-                        ).map_err(|e| CliError::CommandFailed(format!("Failed to build manifest: {e}")))?;
+                        let manifest = store
+                            .build_export_manifest(
+                                &export_tables,
+                                since.as_deref(),
+                                until.as_deref(),
+                            )
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!("Failed to build manifest: {e}"))
+                            })?;
 
                         // Export each table
                         let mut total_rows = 0usize;
                         for table in &export_tables {
-                            let lines = store.export_table_jsonl(
-                                table,
-                                since.as_deref(),
-                                until.as_deref(),
-                            ).unwrap_or_default();
+                            let lines = store
+                                .export_table_jsonl(table, since.as_deref(), until.as_deref())
+                                .unwrap_or_default();
 
                             if !lines.is_empty() {
                                 let path = format!("{out}/{table}.jsonl");
-                                std::fs::write(&path, lines.join("\n") + "\n")
-                                    .map_err(|e| CliError::CommandFailed(format!("Failed to write {path}: {e}")))?;
+                                std::fs::write(&path, lines.join("\n") + "\n").map_err(|e| {
+                                    CliError::CommandFailed(format!("Failed to write {path}: {e}"))
+                                })?;
                                 total_rows += lines.len();
                             }
                         }
 
                         // Write manifest
                         let manifest_path = format!("{out}/manifest.json");
-                        std::fs::write(&manifest_path, serde_json::to_string_pretty(&manifest).unwrap())
-                            .map_err(|e| CliError::CommandFailed(format!("Failed to write manifest: {e}")))?;
+                        std::fs::write(
+                            &manifest_path,
+                            serde_json::to_string_pretty(&manifest).unwrap(),
+                        )
+                        .map_err(|e| {
+                            CliError::CommandFailed(format!("Failed to write manifest: {e}"))
+                        })?;
 
                         let result = serde_json::json!({
                             "status": "ok",
@@ -2883,22 +2989,34 @@ impl Cli {
                     DbCommands::Import { from } => {
                         // Read manifest
                         let manifest_path = format!("{from}/manifest.json");
-                        let manifest_str = std::fs::read_to_string(&manifest_path)
-                            .map_err(|e| CliError::CommandFailed(format!("Failed to read manifest: {e}")))?;
+                        let manifest_str =
+                            std::fs::read_to_string(&manifest_path).map_err(|e| {
+                                CliError::CommandFailed(format!("Failed to read manifest: {e}"))
+                            })?;
                         let manifest: serde_json::Value = serde_json::from_str(&manifest_str)
-                            .map_err(|e| CliError::CommandFailed(format!("Invalid manifest JSON: {e}")))?;
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!("Invalid manifest JSON: {e}"))
+                            })?;
 
-                        let tables = manifest["tables"].as_array()
-                            .ok_or_else(|| CliError::CommandFailed("Manifest missing tables array".to_string()))?;
+                        let tables = manifest["tables"].as_array().ok_or_else(|| {
+                            CliError::CommandFailed("Manifest missing tables array".to_string())
+                        })?;
 
                         let mut total_imported = 0usize;
                         for table_info in tables {
                             let table = table_info["table"].as_str().unwrap_or("");
                             let path = format!("{from}/{table}.jsonl");
                             if let Ok(content) = std::fs::read_to_string(&path) {
-                                let lines: Vec<String> = content.lines().map(std::string::ToString::to_string).collect();
-                                let imported = store.import_table_jsonl(table, &lines)
-                                    .map_err(|e| CliError::CommandFailed(format!("Failed to import {table}: {e}")))?;
+                                let lines: Vec<String> = content
+                                    .lines()
+                                    .map(std::string::ToString::to_string)
+                                    .collect();
+                                let imported =
+                                    store.import_table_jsonl(table, &lines).map_err(|e| {
+                                        CliError::CommandFailed(format!(
+                                            "Failed to import {table}: {e}"
+                                        ))
+                                    })?;
                                 total_imported += imported;
                             }
                         }
@@ -2912,8 +3030,9 @@ impl Cli {
                         print_output(&result, self.format);
                     }
                     DbCommands::Info => {
-                        let tables = store.list_tables()
-                            .map_err(|e| CliError::CommandFailed(format!("Failed to list tables: {e}")))?;
+                        let tables = store.list_tables().map_err(|e| {
+                            CliError::CommandFailed(format!("Failed to list tables: {e}"))
+                        })?;
 
                         let mut table_info = Vec::new();
                         for table in &tables {
@@ -2937,7 +3056,11 @@ impl Cli {
                 let store = Arc::new(store);
 
                 match command {
-                    ProfileCommands::Start { machine, interval, duration } => {
+                    ProfileCommands::Start {
+                        machine,
+                        interval,
+                        duration,
+                    } => {
                         let profile_id = format!("prof-{}", chrono::Utc::now().timestamp());
                         let mut scheduler = vc_collect::scheduler::AdaptiveScheduler::with_store(
                             vc_collect::scheduler::AdaptiveConfig::default(),
@@ -2964,14 +3087,26 @@ impl Cli {
                         print_output(&result, self.format);
                     }
                     ProfileCommands::Samples { machine, limit } => {
-                        let samples = store.list_profile_samples(machine.as_deref(), limit)
-                            .map_err(|e| CliError::CommandFailed(format!("Failed to list samples: {e}")))?;
-                        print_output(&serde_json::json!({"samples": samples, "count": samples.len()}), self.format);
+                        let samples = store
+                            .list_profile_samples(machine.as_deref(), limit)
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!("Failed to list samples: {e}"))
+                            })?;
+                        print_output(
+                            &serde_json::json!({"samples": samples, "count": samples.len()}),
+                            self.format,
+                        );
                     }
                     ProfileCommands::Decisions { machine, limit } => {
-                        let decisions = store.list_poll_decisions(machine.as_deref(), limit)
-                            .map_err(|e| CliError::CommandFailed(format!("Failed to list decisions: {e}")))?;
-                        print_output(&serde_json::json!({"decisions": decisions, "count": decisions.len()}), self.format);
+                        let decisions = store
+                            .list_poll_decisions(machine.as_deref(), limit)
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!("Failed to list decisions: {e}"))
+                            })?;
+                        print_output(
+                            &serde_json::json!({"decisions": decisions, "count": decisions.len()}),
+                            self.format,
+                        );
                     }
                 }
             }
@@ -2980,34 +3115,47 @@ impl Cli {
 
                 // Read manifest
                 let manifest_path = format!("{from}/manifest.json");
-                let manifest_str = std::fs::read_to_string(&manifest_path)
-                    .map_err(|e| CliError::CommandFailed(format!("Failed to read manifest: {e}")))?;
-                let manifest: vc_collect::node::BundleManifest = serde_json::from_str(&manifest_str)
-                    .map_err(|e| CliError::CommandFailed(format!("Invalid manifest: {e}")))?;
+                let manifest_str = std::fs::read_to_string(&manifest_path).map_err(|e| {
+                    CliError::CommandFailed(format!("Failed to read manifest: {e}"))
+                })?;
+                let manifest: vc_collect::node::BundleManifest =
+                    serde_json::from_str(&manifest_str)
+                        .map_err(|e| CliError::CommandFailed(format!("Invalid manifest: {e}")))?;
 
                 let result = vc_collect::node::ingest_bundle(&store, &manifest)
                     .map_err(|e| CliError::CommandFailed(format!("Ingest failed: {e}")))?;
 
-                print_output(&serde_json::json!({
-                    "status": "ok",
-                    "bundle_id": result.bundle_id,
-                    "batches_processed": result.batches_processed,
-                    "rows_ingested": result.rows_ingested,
-                    "rows_deduplicated": result.rows_deduplicated,
-                    "message": format!(
-                        "Ingested {} rows ({} deduped) from {}",
-                        result.rows_ingested, result.rows_deduplicated, result.bundle_id
-                    ),
-                }), self.format);
+                print_output(
+                    &serde_json::json!({
+                        "status": "ok",
+                        "bundle_id": result.bundle_id,
+                        "batches_processed": result.batches_processed,
+                        "rows_ingested": result.rows_ingested,
+                        "rows_deduplicated": result.rows_deduplicated,
+                        "message": format!(
+                            "Ingested {} rows ({} deduped) from {}",
+                            result.rows_ingested, result.rows_deduplicated, result.bundle_id
+                        ),
+                    }),
+                    self.format,
+                );
             }
             Commands::Node { command } => {
                 let store = open_store(self.config.as_ref())?;
 
                 match command {
                     NodeCommands::History { machine, limit } => {
-                        let records = store.list_ingest_records(machine.as_deref(), limit)
-                            .map_err(|e| CliError::CommandFailed(format!("Failed to list ingest records: {e}")))?;
-                        print_output(&serde_json::json!({"records": records, "count": records.len()}), self.format);
+                        let records = store
+                            .list_ingest_records(machine.as_deref(), limit)
+                            .map_err(|e| {
+                                CliError::CommandFailed(format!(
+                                    "Failed to list ingest records: {e}"
+                                ))
+                            })?;
+                        print_output(
+                            &serde_json::json!({"records": records, "count": records.len()}),
+                            self.format,
+                        );
                     }
                     NodeCommands::Config => {
                         let config = vc_collect::node::SpoolConfig::default();
@@ -3020,31 +3168,42 @@ impl Cli {
                     TokenCommands::List => {
                         let auth_config = vc_web::auth::AuthConfig::default();
                         // In a real deployment, load from config file
-                        let tokens: Vec<serde_json::Value> = auth_config.tokens.iter().map(|t| {
-                            serde_json::json!({
-                                "name": t.name,
-                                "role": t.role.as_str(),
-                                "enabled": t.enabled,
-                                "allowed_ips": t.allowed_ips,
-                                "token_prefix": if t.token.len() > 8 {
-                                    format!("{}...", &t.token[..8])
-                                } else {
-                                    "***".to_string()
-                                },
+                        let tokens: Vec<serde_json::Value> = auth_config
+                            .tokens
+                            .iter()
+                            .map(|t| {
+                                serde_json::json!({
+                                    "name": t.name,
+                                    "role": t.role.as_str(),
+                                    "enabled": t.enabled,
+                                    "allowed_ips": t.allowed_ips,
+                                    "token_prefix": if t.token.len() > 8 {
+                                        format!("{}...", &t.token[..8])
+                                    } else {
+                                        "***".to_string()
+                                    },
+                                })
                             })
-                        }).collect();
-                        print_output(&serde_json::json!({
-                            "auth_enabled": auth_config.enabled,
-                            "local_bypass": auth_config.local_bypass,
-                            "tokens": tokens,
-                            "count": tokens.len(),
-                        }), self.format);
+                            .collect();
+                        print_output(
+                            &serde_json::json!({
+                                "auth_enabled": auth_config.enabled,
+                                "local_bypass": auth_config.local_bypass,
+                                "tokens": tokens,
+                                "count": tokens.len(),
+                            }),
+                            self.format,
+                        );
                     }
-                    TokenCommands::Add { name, role, allowed_ips } => {
+                    TokenCommands::Add {
+                        name,
+                        role,
+                        allowed_ips,
+                    } => {
                         let Some(parsed_role) = vc_web::auth::Role::parse(&role) else {
-                            return Err(CliError::CommandFailed(
-                                format!("Invalid role '{role}'. Valid: read, operator, admin")
-                            ));
+                            return Err(CliError::CommandFailed(format!(
+                                "Invalid role '{role}'. Valid: read, operator, admin"
+                            )));
                         };
 
                         // Generate a random-ish token
@@ -3066,24 +3225,34 @@ impl Cli {
                             enabled: true,
                         };
 
-                        print_output(&serde_json::json!({
-                            "status": "ok",
-                            "message": format!("Token '{}' created. Add to vc.toml [web.auth.tokens]", name),
-                            "token": token_value,
-                            "name": new_token.name,
-                            "role": parsed_role.as_str(),
-                        }), self.format);
+                        print_output(
+                            &serde_json::json!({
+                                "status": "ok",
+                                "message": format!("Token '{}' created. Add to vc.toml [web.auth.tokens]", name),
+                                "token": token_value,
+                                "name": new_token.name,
+                                "role": parsed_role.as_str(),
+                            }),
+                            self.format,
+                        );
                     }
                     TokenCommands::Revoke { name } => {
-                        print_output(&serde_json::json!({
-                            "status": "ok",
-                            "message": format!("Token '{}' marked for revocation. Remove from vc.toml or set enabled=false", name),
-                            "name": name,
-                        }), self.format);
+                        print_output(
+                            &serde_json::json!({
+                                "status": "ok",
+                                "message": format!("Token '{}' marked for revocation. Remove from vc.toml or set enabled=false", name),
+                                "name": name,
+                            }),
+                            self.format,
+                        );
                     }
                 }
             }
-            Commands::Report { window, output, save } => {
+            Commands::Report {
+                window,
+                output,
+                save,
+            } => {
                 let store = open_store(self.config.as_ref())?;
                 let report = vc_query::digest::generate_digest(&store, window);
 
@@ -3097,50 +3266,67 @@ impl Cli {
                 if save {
                     let json = serde_json::to_string(&report.summary).unwrap_or_default();
                     let md = vc_query::digest::render_markdown(&report);
-                    store.insert_digest_report(&report.report_id, window as i32, &json, &md)
-                        .map_err(|e| CliError::CommandFailed(format!("Failed to save report: {e}")))?;
+                    store
+                        .insert_digest_report(&report.report_id, window as i32, &json, &md)
+                        .map_err(|e| {
+                            CliError::CommandFailed(format!("Failed to save report: {e}"))
+                        })?;
                     eprintln!("Report saved: {}", report.report_id);
                 }
             }
-            Commands::Redact { command } => {
-                match command {
-                    RedactCommands::Rules => {
-                        let rules = vc_collect::redact::default_rules();
-                        let entries: Vec<serde_json::Value> = rules.iter().map(|r| {
+            Commands::Redact { command } => match command {
+                RedactCommands::Rules => {
+                    let rules = vc_collect::redact::default_rules();
+                    let entries: Vec<serde_json::Value> = rules
+                        .iter()
+                        .map(|r| {
                             serde_json::json!({
                                 "name": r.name,
                                 "pattern": r.pattern,
                                 "replacement": r.replacement,
                                 "description": r.description,
                             })
-                        }).collect();
-                        print_output(&serde_json::json!({"rules": entries, "count": entries.len()}), self.format);
-                    }
-                    RedactCommands::History { machine, limit } => {
-                        let store = open_store(self.config.as_ref())?;
-                        let events = store.list_redaction_events(machine.as_deref(), limit)
-                            .map_err(|e| CliError::CommandFailed(format!("Failed to list redaction events: {e}")))?;
-                        print_output(&serde_json::json!({"events": events, "count": events.len()}), self.format);
-                    }
-                    RedactCommands::Summary => {
-                        let store = open_store(self.config.as_ref())?;
-                        let summary = store.redaction_summary()
-                            .map_err(|e| CliError::CommandFailed(format!("Failed to get summary: {e}")))?;
-                        print_output(&serde_json::json!({"summary": summary}), self.format);
-                    }
-                    RedactCommands::Test { input } => {
-                        let engine = vc_collect::redact::RedactionEngine::new();
-                        let (output, stats) = engine.redact_text(&input);
-                        print_output(&serde_json::json!({
+                        })
+                        .collect();
+                    print_output(
+                        &serde_json::json!({"rules": entries, "count": entries.len()}),
+                        self.format,
+                    );
+                }
+                RedactCommands::History { machine, limit } => {
+                    let store = open_store(self.config.as_ref())?;
+                    let events = store
+                        .list_redaction_events(machine.as_deref(), limit)
+                        .map_err(|e| {
+                            CliError::CommandFailed(format!("Failed to list redaction events: {e}"))
+                        })?;
+                    print_output(
+                        &serde_json::json!({"events": events, "count": events.len()}),
+                        self.format,
+                    );
+                }
+                RedactCommands::Summary => {
+                    let store = open_store(self.config.as_ref())?;
+                    let summary = store.redaction_summary().map_err(|e| {
+                        CliError::CommandFailed(format!("Failed to get summary: {e}"))
+                    })?;
+                    print_output(&serde_json::json!({"summary": summary}), self.format);
+                }
+                RedactCommands::Test { input } => {
+                    let engine = vc_collect::redact::RedactionEngine::new();
+                    let (output, stats) = engine.redact_text(&input);
+                    print_output(
+                        &serde_json::json!({
                             "input": input,
                             "output": output,
                             "fields_redacted": stats.fields_redacted,
                             "bytes_redacted": stats.bytes_redacted,
                             "rule_matches": stats.rule_matches,
-                        }), self.format);
-                    }
+                        }),
+                        self.format,
+                    );
                 }
-            }
+            },
             _ => {
                 println!("Command not yet implemented: {:?}", self.command);
             }
@@ -3674,13 +3860,19 @@ mod tests {
     #[test]
     fn test_watch_full_args() {
         let cli = Cli::parse_from([
-            "vc", "watch",
-            "--events", "alert,health_change",
+            "vc",
+            "watch",
+            "--events",
+            "alert,health_change",
             "--changes-only",
-            "--interval", "15",
-            "--machines", "orko",
-            "--min-severity", "critical",
-            "--buffer", "5",
+            "--interval",
+            "15",
+            "--machines",
+            "orko",
+            "--min-severity",
+            "critical",
+            "--buffer",
+            "5",
         ]);
         if let Commands::Watch {
             events,
@@ -3848,14 +4040,27 @@ mod tests {
     #[test]
     fn test_guardian_capture_parse() {
         let cli = Cli::parse_from([
-            "vc", "guardian", "capture",
-            "--alert-type", "rate-limit",
-            "--actions", r#"[{"type":"command","cmd":"caam","args":["switch"],"success":true}]"#,
-            "--outcome", "success",
-            "--machine", "orko",
+            "vc",
+            "guardian",
+            "capture",
+            "--alert-type",
+            "rate-limit",
+            "--actions",
+            r#"[{"type":"command","cmd":"caam","args":["switch"],"success":true}]"#,
+            "--outcome",
+            "success",
+            "--machine",
+            "orko",
         ]);
         if let Commands::Guardian { command } = cli.command {
-            if let GuardianCommands::Capture { alert_type, actions, outcome, machine, .. } = command {
+            if let GuardianCommands::Capture {
+                alert_type,
+                actions,
+                outcome,
+                machine,
+                ..
+            } = command
+            {
                 assert_eq!(alert_type, "rate-limit");
                 assert!(actions.contains("caam"));
                 assert_eq!(outcome, "success");
@@ -3871,12 +4076,20 @@ mod tests {
     #[test]
     fn test_guardian_generate_parse() {
         let cli = Cli::parse_from([
-            "vc", "guardian", "generate",
-            "--min-samples", "5",
-            "--min-confidence", "0.7",
+            "vc",
+            "guardian",
+            "generate",
+            "--min-samples",
+            "5",
+            "--min-confidence",
+            "0.7",
         ]);
         if let Commands::Guardian { command } = cli.command {
-            if let GuardianCommands::Generate { min_samples, min_confidence } = command {
+            if let GuardianCommands::Generate {
+                min_samples,
+                min_confidence,
+            } = command
+            {
                 assert_eq!(min_samples, 5);
                 assert!((min_confidence - 0.7).abs() < f64::EPSILON);
             } else {
@@ -3891,7 +4104,11 @@ mod tests {
     fn test_guardian_generate_defaults() {
         let cli = Cli::parse_from(["vc", "guardian", "generate"]);
         if let Commands::Guardian { command } = cli.command {
-            if let GuardianCommands::Generate { min_samples, min_confidence } = command {
+            if let GuardianCommands::Generate {
+                min_samples,
+                min_confidence,
+            } = command
+            {
                 assert_eq!(min_samples, 3);
                 assert!((min_confidence - 0.5).abs() < f64::EPSILON);
             } else {
@@ -3905,9 +4122,13 @@ mod tests {
     #[test]
     fn test_guardian_drafts_parse() {
         let cli = Cli::parse_from([
-            "vc", "guardian", "drafts",
-            "--status", "pending_review",
-            "--limit", "10",
+            "vc",
+            "guardian",
+            "drafts",
+            "--status",
+            "pending_review",
+            "--limit",
+            "10",
         ]);
         if let Commands::Guardian { command } = cli.command {
             if let GuardianCommands::Drafts { status, limit } = command {
@@ -3938,8 +4159,12 @@ mod tests {
     #[test]
     fn test_guardian_approve_draft_parse() {
         let cli = Cli::parse_from([
-            "vc", "guardian", "approve-draft", "draft-1",
-            "--approver", "admin",
+            "vc",
+            "guardian",
+            "approve-draft",
+            "draft-1",
+            "--approver",
+            "admin",
         ]);
         if let Commands::Guardian { command } = cli.command {
             if let GuardianCommands::ApproveDraft { draft_id, approver } = command {
@@ -3956,8 +4181,12 @@ mod tests {
     #[test]
     fn test_guardian_reject_draft_parse() {
         let cli = Cli::parse_from([
-            "vc", "guardian", "reject-draft", "draft-2",
-            "--reason", "too risky",
+            "vc",
+            "guardian",
+            "reject-draft",
+            "draft-2",
+            "--reason",
+            "too risky",
         ]);
         if let Commands::Guardian { command } = cli.command {
             if let GuardianCommands::RejectDraft { draft_id, reason } = command {
@@ -3988,13 +4217,23 @@ mod tests {
     #[test]
     fn test_guardian_resolutions_parse() {
         let cli = Cli::parse_from([
-            "vc", "guardian", "resolutions",
-            "--alert-type", "rate-limit",
-            "--outcome", "success",
-            "--limit", "20",
+            "vc",
+            "guardian",
+            "resolutions",
+            "--alert-type",
+            "rate-limit",
+            "--outcome",
+            "success",
+            "--limit",
+            "20",
         ]);
         if let Commands::Guardian { command } = cli.command {
-            if let GuardianCommands::Resolutions { alert_type, outcome, limit } = command {
+            if let GuardianCommands::Resolutions {
+                alert_type,
+                outcome,
+                limit,
+            } = command
+            {
                 assert_eq!(alert_type.unwrap(), "rate-limit");
                 assert_eq!(outcome.unwrap(), "success");
                 assert_eq!(limit, 20);
@@ -4967,7 +5206,13 @@ mod tests {
     #[test]
     fn test_knowledge_mine_with_options() {
         let cli = Cli::parse_from([
-            "vc", "knowledge", "mine", "--limit", "50", "--min-quality", "4",
+            "vc",
+            "knowledge",
+            "mine",
+            "--limit",
+            "50",
+            "--min-quality",
+            "4",
         ]);
         if let Commands::Knowledge { command } = cli.command {
             if let KnowledgeCommands::Mine { limit, min_quality } = command {
@@ -5012,7 +5257,9 @@ mod tests {
 
     #[test]
     fn test_incident_list_with_status_parse() {
-        let cli = Cli::parse_from(["vc", "incident", "list", "--status", "open", "--limit", "10"]);
+        let cli = Cli::parse_from([
+            "vc", "incident", "list", "--status", "open", "--limit", "10",
+        ]);
         if let Commands::Incident { command } = cli.command {
             if let IncidentCommands::List { status, limit } = command {
                 assert_eq!(status, Some("open".to_string()));
@@ -5155,8 +5402,12 @@ mod tests {
     #[test]
     fn test_incident_replay_parse() {
         let cli = Cli::parse_from([
-            "vc", "incident", "replay", "inc-abc123",
-            "--at", "2026-02-20T10:30:00",
+            "vc",
+            "incident",
+            "replay",
+            "inc-abc123",
+            "--at",
+            "2026-02-20T10:30:00",
         ]);
         if let Commands::Incident { command } = cli.command {
             if let IncidentCommands::Replay { id, at } = command {
@@ -5172,10 +5423,7 @@ mod tests {
 
     #[test]
     fn test_incident_export_parse() {
-        let cli = Cli::parse_from([
-            "vc", "incident", "export", "inc-abc123",
-            "--output", "md",
-        ]);
+        let cli = Cli::parse_from(["vc", "incident", "export", "inc-abc123", "--output", "md"]);
         if let Commands::Incident { command } = cli.command {
             if let IncidentCommands::Export { id, output } = command {
                 assert_eq!(id, "inc-abc123");
@@ -5234,12 +5482,22 @@ mod tests {
     #[test]
     fn test_db_export_parse() {
         let cli = Cli::parse_from([
-            "vc", "db", "export",
-            "--out", "/tmp/export",
-            "--since", "2026-01-01",
+            "vc",
+            "db",
+            "export",
+            "--out",
+            "/tmp/export",
+            "--since",
+            "2026-01-01",
         ]);
         if let Commands::Db { command } = cli.command {
-            if let DbCommands::Export { out, since, until, tables } = command {
+            if let DbCommands::Export {
+                out,
+                since,
+                until,
+                tables,
+            } = command
+            {
                 assert_eq!(out, "/tmp/export");
                 assert_eq!(since, Some("2026-01-01".to_string()));
                 assert!(until.is_none());
@@ -5283,13 +5541,23 @@ mod tests {
     #[test]
     fn test_profile_start_parse() {
         let cli = Cli::parse_from([
-            "vc", "profile", "start",
-            "--machine", "orko",
-            "--interval", "2",
-            "--duration", "120",
+            "vc",
+            "profile",
+            "start",
+            "--machine",
+            "orko",
+            "--interval",
+            "2",
+            "--duration",
+            "120",
         ]);
         if let Commands::Profile { command } = cli.command {
-            if let ProfileCommands::Start { machine, interval, duration } = command {
+            if let ProfileCommands::Start {
+                machine,
+                interval,
+                duration,
+            } = command
+            {
                 assert_eq!(machine, "orko");
                 assert_eq!(interval, 2);
                 assert_eq!(duration, 120);
@@ -5305,7 +5573,10 @@ mod tests {
     fn test_profile_start_defaults() {
         let cli = Cli::parse_from(["vc", "profile", "start", "--machine", "orko"]);
         if let Commands::Profile { command } = cli.command {
-            if let ProfileCommands::Start { interval, duration, .. } = command {
+            if let ProfileCommands::Start {
+                interval, duration, ..
+            } = command
+            {
                 assert_eq!(interval, 5);
                 assert_eq!(duration, 300);
             } else {
@@ -5318,7 +5589,15 @@ mod tests {
 
     #[test]
     fn test_profile_samples_parse() {
-        let cli = Cli::parse_from(["vc", "profile", "samples", "--machine", "orko", "--limit", "50"]);
+        let cli = Cli::parse_from([
+            "vc",
+            "profile",
+            "samples",
+            "--machine",
+            "orko",
+            "--limit",
+            "50",
+        ]);
         if let Commands::Profile { command } = cli.command {
             if let ProfileCommands::Samples { machine, limit } = command {
                 assert_eq!(machine, Some("orko".to_string()));
@@ -5366,7 +5645,15 @@ mod tests {
 
     #[test]
     fn test_node_history_parse() {
-        let cli = Cli::parse_from(["vc", "node", "history", "--machine", "orko", "--limit", "50"]);
+        let cli = Cli::parse_from([
+            "vc",
+            "node",
+            "history",
+            "--machine",
+            "orko",
+            "--limit",
+            "50",
+        ]);
         if let Commands::Node { command } = cli.command {
             if let NodeCommands::History { machine, limit } = command {
                 assert_eq!(machine, Some("orko".to_string()));
@@ -5406,13 +5693,23 @@ mod tests {
     #[test]
     fn test_token_add_parse() {
         let cli = Cli::parse_from([
-            "vc", "token", "add",
-            "--name", "ci-bot",
-            "--role", "read",
-            "--allowed-ips", "10.0.0.1,10.0.0.2",
+            "vc",
+            "token",
+            "add",
+            "--name",
+            "ci-bot",
+            "--role",
+            "read",
+            "--allowed-ips",
+            "10.0.0.1,10.0.0.2",
         ]);
         if let Commands::Token { command } = cli.command {
-            if let TokenCommands::Add { name, role, allowed_ips } = command {
+            if let TokenCommands::Add {
+                name,
+                role,
+                allowed_ips,
+            } = command
+            {
                 assert_eq!(name, "ci-bot");
                 assert_eq!(role, "read");
                 assert_eq!(allowed_ips, Some("10.0.0.1,10.0.0.2".to_string()));
@@ -5445,7 +5742,12 @@ mod tests {
     #[test]
     fn test_report_parse_defaults() {
         let cli = Cli::parse_from(["vc", "report"]);
-        if let Commands::Report { window, output, save } = cli.command {
+        if let Commands::Report {
+            window,
+            output,
+            save,
+        } = cli.command
+        {
             assert_eq!(window, 24);
             assert_eq!(output, "md");
             assert!(!save);
@@ -5456,8 +5758,15 @@ mod tests {
 
     #[test]
     fn test_report_parse_weekly_json() {
-        let cli = Cli::parse_from(["vc", "report", "--window", "168", "--output", "json", "--save"]);
-        if let Commands::Report { window, output, save } = cli.command {
+        let cli = Cli::parse_from([
+            "vc", "report", "--window", "168", "--output", "json", "--save",
+        ]);
+        if let Commands::Report {
+            window,
+            output,
+            save,
+        } = cli.command
+        {
             assert_eq!(window, 168);
             assert_eq!(output, "json");
             assert!(save);
@@ -5482,7 +5791,15 @@ mod tests {
 
     #[test]
     fn test_redact_history_parse() {
-        let cli = Cli::parse_from(["vc", "redact", "history", "--machine", "orko", "--limit", "50"]);
+        let cli = Cli::parse_from([
+            "vc",
+            "redact",
+            "history",
+            "--machine",
+            "orko",
+            "--limit",
+            "50",
+        ]);
         if let Commands::Redact { command } = cli.command {
             if let RedactCommands::History { machine, limit } = command {
                 assert_eq!(machine, Some("orko".to_string()));

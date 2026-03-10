@@ -48,7 +48,7 @@ pub enum MachineOnlineStatus {
 
 impl MachineOnlineStatus {
     /// Get display indicator
-    #[must_use] 
+    #[must_use]
     pub fn indicator(&self) -> &'static str {
         match self {
             Self::Online => "●",
@@ -263,7 +263,8 @@ fn render_list_view(f: &mut Frame, area: Rect, data: &MachinesData, theme: &Them
             };
 
             let last_seen = m
-                .last_seen.map_or_else(|| "never".to_string(), format_relative_time);
+                .last_seen
+                .map_or_else(|| "never".to_string(), format_relative_time);
 
             let tags = if m.tags.is_empty() {
                 "-".to_string()
@@ -315,7 +316,9 @@ fn render_list_view(f: &mut Frame, area: Rect, data: &MachinesData, theme: &Them
 }
 
 fn render_detail_view(f: &mut Frame, area: Rect, data: &MachinesData, theme: &Theme) {
-    let detail = if let Some(d) = &data.selected_detail { d } else {
+    let detail = if let Some(d) = &data.selected_detail {
+        d
+    } else {
         let msg = Paragraph::new("No machine selected")
             .style(Style::default().fg(theme.muted))
             .block(Block::default().borders(Borders::ALL));

@@ -213,15 +213,20 @@ impl Collector for RchCollector {
         let mut current_pos = 0;
 
         while current_pos < content_bytes.len() {
-            let next_newline = content_bytes[current_pos..].iter().position(|&b| b == b'\n');
+            let next_newline = content_bytes[current_pos..]
+                .iter()
+                .position(|&b| b == b'\n');
             let (line_bytes, next_pos) = match next_newline {
-                Some(pos) => (&content_bytes[current_pos..current_pos + pos], current_pos + pos + 1),
+                Some(pos) => (
+                    &content_bytes[current_pos..current_pos + pos],
+                    current_pos + pos + 1,
+                ),
                 None => (&content_bytes[current_pos..], content_bytes.len()),
             };
-            
+
             bytes_read = next_pos as u64;
             current_pos = next_pos;
-            
+
             let line_str = String::from_utf8_lossy(line_bytes);
             let line = line_str.trim();
             if line.is_empty() {

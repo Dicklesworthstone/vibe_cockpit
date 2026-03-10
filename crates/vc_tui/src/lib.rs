@@ -54,7 +54,7 @@ pub enum Screen {
 
 impl Screen {
     /// Get screen title
-    #[must_use] 
+    #[must_use]
     pub fn title(&self) -> &'static str {
         match self {
             Screen::Overview => "Overview",
@@ -74,7 +74,7 @@ impl Screen {
     }
 
     /// Get keyboard shortcut
-    #[must_use] 
+    #[must_use]
     pub fn shortcut(&self) -> Option<char> {
         match self {
             Screen::Overview => Some('o'),
@@ -94,7 +94,7 @@ impl Screen {
     }
 
     /// All screens in order
-    #[must_use] 
+    #[must_use]
     pub fn all() -> &'static [Screen] {
         &[
             Screen::Overview,
@@ -129,7 +129,7 @@ pub struct App {
 
 impl App {
     /// Create a new app instance
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             current_screen: Screen::Overview,
@@ -179,10 +179,11 @@ impl App {
     pub fn handle_key(&mut self, key: KeyEvent) {
         // Global shortcuts
         if key.modifiers.contains(KeyModifiers::CONTROL)
-            && let KeyCode::Char('c' | 'q') = key.code {
-                self.should_quit = true;
-                return;
-            }
+            && let KeyCode::Char('c' | 'q') = key.code
+        {
+            self.should_quit = true;
+            return;
+        }
 
         match key.code {
             KeyCode::Char('q') => self.should_quit = true,

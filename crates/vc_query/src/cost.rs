@@ -8,7 +8,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use vc_store::{escape_sql_literal, VcStore};
+use vc_store::{VcStore, escape_sql_literal};
 
 use crate::QueryError;
 

@@ -41,7 +41,7 @@ pub enum AlertViewMode {
 }
 
 impl AlertViewMode {
-    #[must_use] 
+    #[must_use]
     pub fn next(&self) -> Self {
         match self {
             Self::Active => Self::History,
@@ -50,7 +50,7 @@ impl AlertViewMode {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn label(&self) -> &'static str {
         match self {
             Self::Active => "Active",
@@ -72,7 +72,7 @@ pub enum Severity {
 }
 
 impl Severity {
-    #[must_use] 
+    #[must_use]
     pub fn symbol(&self) -> &'static str {
         match self {
             Self::Critical => "🔴",
@@ -83,7 +83,7 @@ impl Severity {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn label(&self) -> &'static str {
         match self {
             Self::Critical => "CRITICAL",
@@ -96,8 +96,7 @@ impl Severity {
 }
 
 /// Individual alert information
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct AlertInfo {
     /// Alert ID
     pub id: u64,
@@ -122,7 +121,6 @@ pub struct AlertInfo {
     /// Additional context
     pub context: Option<String>,
 }
-
 
 /// Alert rule information
 #[derive(Debug, Clone)]

@@ -105,31 +105,31 @@ impl SchemaRegistry {
     }
 
     /// Get schema content by ID
-    #[must_use] 
+    #[must_use]
     pub fn get_schema(&self, schema_id: &str) -> Option<&str> {
         self.schemas.get(schema_id).map(std::string::String::as_str)
     }
 
     /// Get the schema index
-    #[must_use] 
+    #[must_use]
     pub fn index(&self) -> &SchemaIndex {
         &self.index
     }
 
     /// List all available schema IDs
-    #[must_use] 
+    #[must_use]
     pub fn list_schemas(&self) -> Vec<&str> {
         self.index.schemas.iter().map(|e| e.id.as_str()).collect()
     }
 
     /// Find schema entry by ID
-    #[must_use] 
+    #[must_use]
     pub fn find_entry(&self, schema_id: &str) -> Option<&SchemaEntry> {
         self.index.schemas.iter().find(|e| e.id == schema_id)
     }
 
     /// Get schema for a given `schema_version` from robot output
-    #[must_use] 
+    #[must_use]
     pub fn get_schema_for_version(&self, schema_version: &str) -> Option<&str> {
         self.get_schema(schema_version)
     }

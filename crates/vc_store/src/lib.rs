@@ -483,8 +483,10 @@ impl VcStore {
                     }
                 };
 
-                let params: Vec<Box<dyn duckdb::ToSql>> = map.values().map(json_value_to_sql).collect();
-                let param_refs: Vec<&dyn duckdb::ToSql> = params.iter().map(AsRef::as_ref).collect();
+                let params: Vec<Box<dyn duckdb::ToSql>> =
+                    map.values().map(json_value_to_sql).collect();
+                let param_refs: Vec<&dyn duckdb::ToSql> =
+                    params.iter().map(AsRef::as_ref).collect();
 
                 if let Err(e) = stmt.execute(param_refs.as_slice()) {
                     let _ = conn.execute("ROLLBACK", []);
@@ -495,7 +497,7 @@ impl VcStore {
                 continue;
             }
         }
-        
+
         conn.execute("COMMIT", [])?;
         Ok(count)
     }
@@ -1743,7 +1745,7 @@ impl VcStore {
                 continue;
             }
         }
-        
+
         conn.execute("COMMIT", [])?;
         Ok(count)
     }

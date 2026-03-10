@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use thiserror::Error;
 use tracing::debug;
-use vc_store::{escape_sql_literal, VcStore};
+use vc_store::{VcStore, escape_sql_literal};
 
 // ============================================================================
 // Error types
@@ -551,7 +551,8 @@ impl McpServer {
             .and_then(serde_json::Value::as_u64)
             .unwrap_or(50);
 
-        let sql = format!("SELECT * FROM collector_health ORDER BY collected_at DESC LIMIT {limit}");
+        let sql =
+            format!("SELECT * FROM collector_health ORDER BY collected_at DESC LIMIT {limit}");
 
         let collectors = self.store.query_json(&sql).unwrap_or_default();
         Ok(serde_json::json!({ "collectors": collectors, "count": collectors.len() }))

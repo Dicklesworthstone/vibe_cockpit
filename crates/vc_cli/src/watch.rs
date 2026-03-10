@@ -19,7 +19,7 @@ pub enum WatchSeverity {
 }
 
 impl WatchSeverity {
-    #[must_use] 
+    #[must_use]
     pub fn from_str_loose(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "low" | "l" => Some(Self::Low),
@@ -55,7 +55,7 @@ pub enum WatchEventType {
 }
 
 impl WatchEventType {
-    #[must_use] 
+    #[must_use]
     pub fn from_str_loose(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "alert" => Some(Self::Alert),
@@ -101,7 +101,7 @@ pub struct WatchEvent {
 
 impl WatchEvent {
     /// Create an alert event.
-    #[must_use] 
+    #[must_use]
     pub fn alert(machine: &str, severity: WatchSeverity, alert_id: &str, message: &str) -> Self {
         Self {
             event_type: WatchEventType::Alert,
@@ -114,13 +114,8 @@ impl WatchEvent {
     }
 
     /// Create a prediction event.
-    #[must_use] 
-    pub fn prediction(
-        machine: &str,
-        prediction_type: &str,
-        confidence: f64,
-        action: &str,
-    ) -> Self {
+    #[must_use]
+    pub fn prediction(machine: &str, prediction_type: &str, confidence: f64, action: &str) -> Self {
         Self {
             event_type: WatchEventType::Prediction,
             ts: Utc::now(),
@@ -136,13 +131,8 @@ impl WatchEvent {
     }
 
     /// Create a health change event.
-    #[must_use] 
-    pub fn health_change(
-        machine: &str,
-        old_score: f64,
-        new_score: f64,
-        factor: &str,
-    ) -> Self {
+    #[must_use]
+    pub fn health_change(machine: &str, old_score: f64, new_score: f64, factor: &str) -> Self {
         let severity = if new_score < 0.5 {
             Some(WatchSeverity::Critical)
         } else if new_score < 0.7 {
@@ -167,7 +157,7 @@ impl WatchEvent {
     }
 
     /// Create a collector status event.
-    #[must_use] 
+    #[must_use]
     pub fn collector_status(
         machine: &str,
         collector: &str,
@@ -189,12 +179,8 @@ impl WatchEvent {
     }
 
     /// Create an opportunity event.
-    #[must_use] 
-    pub fn opportunity(
-        opportunity_type: &str,
-        estimated_savings: f64,
-        action: &str,
-    ) -> Self {
+    #[must_use]
+    pub fn opportunity(opportunity_type: &str, estimated_savings: f64, action: &str) -> Self {
         Self {
             event_type: WatchEventType::Opportunity,
             ts: Utc::now(),
@@ -210,7 +196,7 @@ impl WatchEvent {
     }
 
     /// Create a heartbeat event.
-    #[must_use] 
+    #[must_use]
     pub fn heartbeat() -> Self {
         Self {
             event_type: WatchEventType::Heartbeat,
@@ -223,13 +209,13 @@ impl WatchEvent {
     }
 
     /// Serialize to a single JSONL line.
-    #[must_use] 
+    #[must_use]
     pub fn to_jsonl(&self) -> String {
         serde_json::to_string(self).unwrap_or_else(|_| "{}".to_string())
     }
 
     /// Serialize to TOON format.
-    #[must_use] 
+    #[must_use]
     pub fn to_toon(&self) -> String {
         let ty = match self.event_type {
             WatchEventType::Alert => "AL",
@@ -277,7 +263,7 @@ pub struct WatchFilter {
 
 impl WatchFilter {
     /// Parse event type strings into a filter set.
-    #[must_use] 
+    #[must_use]
     pub fn parse_event_types(events: &[String]) -> Option<HashSet<WatchEventType>> {
         let set: HashSet<WatchEventType> = events
             .iter()
@@ -287,17 +273,14 @@ impl WatchFilter {
     }
 
     /// Parse machine name strings into a filter set.
-    #[must_use] 
+    #[must_use]
     pub fn parse_machines(machines: &[String]) -> Option<HashSet<String>> {
-        let set: HashSet<String> = machines
-            .iter()
-            .map(|s| s.to_lowercase())
-            .collect();
+        let set: HashSet<String> = machines.iter().map(|s| s.to_lowercase()).collect();
         if set.is_empty() { None } else { Some(set) }
     }
 
     /// Check whether a given event passes this filter.
-    #[must_use] 
+    #[must_use]
     pub fn matches(&self, event: &WatchEvent) -> bool {
         // Heartbeats always pass
         if event.event_type == WatchEventType::Heartbeat {
@@ -306,25 +289,28 @@ impl WatchFilter {
 
         // Event type filter
         if let Some(ref types) = self.event_types
-            && !types.contains(&event.event_type) {
-                return false;
-            }
+            && !types.contains(&event.event_type)
+        {
+            return false;
+        }
 
         // Machine filter
         if let Some(ref machines) = self.machines
             && let Some(ref machine) = event.machine
-                && !machines.contains(&machine.to_lowercase()) {
-                    return false;
-                }
-            // Events without a machine field pass the machine filter
+            && !machines.contains(&machine.to_lowercase())
+        {
+            return false;
+        }
+        // Events without a machine field pass the machine filter
 
         // Severity filter
         if let Some(ref min_sev) = self.min_severity
             && let Some(ref sev) = event.severity
-                && sev < min_sev {
-                    return false;
-                }
-            // Events without a severity field pass the severity filter
+            && sev < min_sev
+        {
+            return false;
+        }
+        // Events without a severity field pass the severity filter
 
         true
     }
@@ -343,19 +329,43 @@ mod tests {
 
     #[test]
     fn test_watch_severity_from_str() {
-        assert_eq!(WatchSeverity::from_str_loose("low"), Some(WatchSeverity::Low));
-        assert_eq!(WatchSeverity::from_str_loose("HIGH"), Some(WatchSeverity::High));
-        assert_eq!(WatchSeverity::from_str_loose("crit"), Some(WatchSeverity::Critical));
-        assert_eq!(WatchSeverity::from_str_loose("med"), Some(WatchSeverity::Medium));
+        assert_eq!(
+            WatchSeverity::from_str_loose("low"),
+            Some(WatchSeverity::Low)
+        );
+        assert_eq!(
+            WatchSeverity::from_str_loose("HIGH"),
+            Some(WatchSeverity::High)
+        );
+        assert_eq!(
+            WatchSeverity::from_str_loose("crit"),
+            Some(WatchSeverity::Critical)
+        );
+        assert_eq!(
+            WatchSeverity::from_str_loose("med"),
+            Some(WatchSeverity::Medium)
+        );
         assert_eq!(WatchSeverity::from_str_loose("bogus"), None);
     }
 
     #[test]
     fn test_watch_event_type_from_str() {
-        assert_eq!(WatchEventType::from_str_loose("alert"), Some(WatchEventType::Alert));
-        assert_eq!(WatchEventType::from_str_loose("health_change"), Some(WatchEventType::HealthChange));
-        assert_eq!(WatchEventType::from_str_loose("health"), Some(WatchEventType::HealthChange));
-        assert_eq!(WatchEventType::from_str_loose("collector"), Some(WatchEventType::CollectorStatus));
+        assert_eq!(
+            WatchEventType::from_str_loose("alert"),
+            Some(WatchEventType::Alert)
+        );
+        assert_eq!(
+            WatchEventType::from_str_loose("health_change"),
+            Some(WatchEventType::HealthChange)
+        );
+        assert_eq!(
+            WatchEventType::from_str_loose("health"),
+            Some(WatchEventType::HealthChange)
+        );
+        assert_eq!(
+            WatchEventType::from_str_loose("collector"),
+            Some(WatchEventType::CollectorStatus)
+        );
         assert_eq!(WatchEventType::from_str_loose("nope"), None);
     }
 
@@ -504,7 +514,11 @@ mod tests {
 
     #[test]
     fn test_parse_event_types() {
-        let input = vec!["alert".to_string(), "health".to_string(), "bogus".to_string()];
+        let input = vec![
+            "alert".to_string(),
+            "health".to_string(),
+            "bogus".to_string(),
+        ];
         let result = WatchFilter::parse_event_types(&input).unwrap();
         assert!(result.contains(&WatchEventType::Alert));
         assert!(result.contains(&WatchEventType::HealthChange));

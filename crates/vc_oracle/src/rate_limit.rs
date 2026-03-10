@@ -194,7 +194,7 @@ impl RateLimitForecaster {
 
         let minutes_to_limit = remaining / velocity;
         let secs = minutes_to_limit * 60.0;
-        
+
         if secs.is_nan() || secs >= (u64::MAX / 2) as f64 {
             Duration::from_secs(u64::MAX / 2)
         } else {
@@ -211,7 +211,8 @@ impl RateLimitForecaster {
         let velocities: Vec<f64> = samples
             .windows(2)
             .filter_map(|w| {
-                let minutes = i64_to_f64((w[1].collected_at - w[0].collected_at).num_seconds()) / 60.0;
+                let minutes =
+                    i64_to_f64((w[1].collected_at - w[0].collected_at).num_seconds()) / 60.0;
                 if minutes > 0.0 {
                     Some((w[1].used_percent - w[0].used_percent) / minutes)
                 } else {

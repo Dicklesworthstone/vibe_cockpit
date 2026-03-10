@@ -40,7 +40,7 @@ pub enum GuardianSection {
 }
 
 impl GuardianSection {
-    #[must_use] 
+    #[must_use]
     pub fn next(&self) -> Self {
         match self {
             Self::Status => Self::Active,
@@ -50,7 +50,7 @@ impl GuardianSection {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn prev(&self) -> Self {
         match self {
             Self::Status => Self::History,
@@ -76,7 +76,7 @@ pub enum GuardianMode {
 }
 
 impl GuardianMode {
-    #[must_use] 
+    #[must_use]
     pub fn label(&self) -> &'static str {
         match self {
             Self::Off => "off",
@@ -86,7 +86,7 @@ impl GuardianMode {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn description(&self) -> &'static str {
         match self {
             Self::Off => "Guardian disabled",
@@ -96,7 +96,7 @@ impl GuardianMode {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn next(&self) -> Self {
         match self {
             Self::Off => Self::Suggest,
@@ -127,8 +127,7 @@ pub struct GuardianStatus {
 }
 
 /// Active healing protocol
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ActiveProtocol {
     /// Protocol/playbook ID
     pub playbook_id: String,
@@ -148,7 +147,6 @@ pub struct ActiveProtocol {
     pub status: ProtocolStatus,
 }
 
-
 /// Protocol execution status
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum ProtocolStatus {
@@ -160,7 +158,7 @@ pub enum ProtocolStatus {
 }
 
 impl ProtocolStatus {
-    #[must_use] 
+    #[must_use]
     pub fn symbol(&self) -> &'static str {
         match self {
             Self::Running => "▶",
@@ -170,7 +168,7 @@ impl ProtocolStatus {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn label(&self) -> &'static str {
         match self {
             Self::Running => "running",
@@ -182,8 +180,7 @@ impl ProtocolStatus {
 }
 
 /// Pending approval for destructive action
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct PendingApproval {
     /// Approval ID
     pub id: u64,
@@ -201,10 +198,8 @@ pub struct PendingApproval {
     pub queued_ago: String,
 }
 
-
 /// Guardian run history entry
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct GuardianRun {
     /// Run ID
     pub id: u64,
@@ -222,7 +217,6 @@ pub struct GuardianRun {
     pub summary: String,
 }
 
-
 /// Run result status
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum RunResult {
@@ -234,7 +228,7 @@ pub enum RunResult {
 }
 
 impl RunResult {
-    #[must_use] 
+    #[must_use]
     pub fn symbol(&self) -> &'static str {
         match self {
             Self::Success => "✓",
@@ -244,7 +238,7 @@ impl RunResult {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn label(&self) -> &'static str {
         match self {
             Self::Success => "OK",

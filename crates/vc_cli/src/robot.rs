@@ -320,7 +320,7 @@ pub struct AlertSummary {
 /// Generate health status (stub implementation)
 ///
 /// This returns placeholder data until the store queries are implemented.
-#[must_use] 
+#[must_use]
 pub fn robot_health() -> RobotEnvelope<HealthData> {
     let data = HealthData {
         overall: OverallHealth {
@@ -349,7 +349,7 @@ pub fn robot_health() -> RobotEnvelope<HealthData> {
 }
 
 /// Generate triage recommendations (stub implementation)
-#[must_use] 
+#[must_use]
 pub fn robot_triage() -> RobotEnvelope<TriageData> {
     let data = TriageData {
         recommendations: vec![],
@@ -367,7 +367,7 @@ pub fn robot_triage() -> RobotEnvelope<TriageData> {
 ///
 /// Returns machine status, repo summary, and alerts for agent consumption.
 /// This is the primary command for agents to understand overall system state.
-#[must_use] 
+#[must_use]
 pub fn robot_status() -> RobotEnvelope<StatusData> {
     // Build fleet summary
     let fleet = FleetSummary {

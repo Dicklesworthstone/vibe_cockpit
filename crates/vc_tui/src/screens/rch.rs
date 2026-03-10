@@ -42,7 +42,7 @@ pub enum RchSection {
 }
 
 impl RchSection {
-    #[must_use] 
+    #[must_use]
     pub fn next(&self) -> Self {
         match self {
             Self::Workers => Self::Builds,
@@ -52,7 +52,7 @@ impl RchSection {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn prev(&self) -> Self {
         match self {
             Self::Workers => Self::Cache,
@@ -90,7 +90,7 @@ pub enum WorkerState {
 }
 
 impl WorkerState {
-    #[must_use] 
+    #[must_use]
     pub fn symbol(&self) -> &'static str {
         match self {
             Self::Idle => "🟢",
@@ -99,7 +99,7 @@ impl WorkerState {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn label(&self) -> &'static str {
         match self {
             Self::Idle => "idle",
@@ -162,7 +162,7 @@ pub enum CacheStatus {
 }
 
 impl CacheStatus {
-    #[must_use] 
+    #[must_use]
     pub fn label(&self) -> &'static str {
         match self {
             Self::Hit => "HIT",

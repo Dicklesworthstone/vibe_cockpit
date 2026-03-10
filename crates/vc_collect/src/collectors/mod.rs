@@ -930,9 +930,13 @@ impl FallbackProbeCollector {
                         });
                     }
                 }
-                
+
                 // Sort by usage percentage descending so $[0] is the max usage
-                disks.sort_by(|a, b| b.pct.partial_cmp(&a.pct).unwrap_or(std::cmp::Ordering::Equal));
+                disks.sort_by(|a, b| {
+                    b.pct
+                        .partial_cmp(&a.pct)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
             } else {
                 warnings.push("df command failed".to_string());
             }

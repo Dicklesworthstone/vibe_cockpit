@@ -60,11 +60,7 @@ impl ToToon for HealthData {
 
         // Machine section
         if !self.machines.is_empty() {
-            let machines: Vec<String> = self
-                .machines
-                .iter()
-                .map(machine_health_toon)
-                .collect();
+            let machines: Vec<String> = self.machines.iter().map(machine_health_toon).collect();
             parts.push(format!("M:{}", machines.join(",")));
         }
 

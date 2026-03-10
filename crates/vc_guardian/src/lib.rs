@@ -119,7 +119,7 @@ pub struct Guardian {
 
 impl Guardian {
     /// Create a new Guardian with default playbooks
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             playbooks: Self::default_playbooks(),
@@ -221,19 +221,19 @@ impl Guardian {
     }
 
     /// Get all playbooks
-    #[must_use] 
+    #[must_use]
     pub fn playbooks(&self) -> &[Playbook] {
         &self.playbooks
     }
 
     /// Find playbook by ID
-    #[must_use] 
+    #[must_use]
     pub fn get_playbook(&self, id: &str) -> Option<&Playbook> {
         self.playbooks.iter().find(|p| p.playbook_id == id)
     }
 
     /// Find playbooks that trigger on a specific alert
-    #[must_use] 
+    #[must_use]
     pub fn playbooks_for_alert(&self, alert_rule_id: &str) -> Vec<&Playbook> {
         self.playbooks
             .iter()
@@ -245,13 +245,13 @@ impl Guardian {
     }
 
     /// Get enabled playbooks only
-    #[must_use] 
+    #[must_use]
     pub fn enabled_playbooks(&self) -> Vec<&Playbook> {
         self.playbooks.iter().filter(|p| p.enabled).collect()
     }
 
     /// Check if playbook should be triggered by an alert
-    #[must_use] 
+    #[must_use]
     pub fn should_trigger(&self, playbook: &Playbook, alert_rule_id: &str) -> bool {
         if !playbook.enabled {
             return false;
@@ -265,13 +265,13 @@ impl Guardian {
 
 impl Playbook {
     /// Get total number of steps
-    #[must_use] 
+    #[must_use]
     pub fn step_count(&self) -> usize {
         self.steps.len()
     }
 
     /// Check if this playbook is destructive (requires approval)
-    #[must_use] 
+    #[must_use]
     pub fn is_destructive(&self) -> bool {
         self.requires_approval
     }
@@ -279,7 +279,7 @@ impl Playbook {
 
 impl PlaybookStep {
     /// Check if this step allows failure
-    #[must_use] 
+    #[must_use]
     pub fn allows_failure(&self) -> bool {
         match self {
             PlaybookStep::Command { allow_failure, .. } => *allow_failure,
@@ -288,7 +288,7 @@ impl PlaybookStep {
     }
 
     /// Get step type name
-    #[must_use] 
+    #[must_use]
     pub fn type_name(&self) -> &'static str {
         match self {
             PlaybookStep::Log { .. } => "log",

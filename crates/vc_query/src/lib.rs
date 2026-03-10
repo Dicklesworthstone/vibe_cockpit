@@ -335,10 +335,14 @@ impl<'a> QueryBuilder<'a> {
             .map(|r| {
                 let factor_id = r["factor_id"].as_str().unwrap_or("unknown").to_string();
                 let severity_str = r["severity"].as_str().unwrap_or("healthy");
-                
+
                 let details_json_str = r["details_json"].as_str().unwrap_or("{}");
-                let parsed_details: serde_json::Value = serde_json::from_str(details_json_str).unwrap_or_else(|_| serde_json::json!({}));
-                let name = parsed_details["name"].as_str().unwrap_or(&factor_id.replace('_', " ")).to_string();
+                let parsed_details: serde_json::Value = serde_json::from_str(details_json_str)
+                    .unwrap_or_else(|_| serde_json::json!({}));
+                let name = parsed_details["name"]
+                    .as_str()
+                    .unwrap_or(&factor_id.replace('_', " "))
+                    .to_string();
                 let details = parsed_details["details"].as_str().unwrap_or("").to_string();
 
                 HealthFactor {
@@ -418,8 +422,12 @@ impl<'a> QueryBuilder<'a> {
                 "details_json": details_json,
             }));
         }
-        
-        self.store.upsert_json("health_factors", &factor_rows, &["machine_id", "collected_at", "factor_id"])?;
+
+        self.store.upsert_json(
+            "health_factors",
+            &factor_rows,
+            &["machine_id", "collected_at", "factor_id"],
+        )?;
 
         // Insert health_summary row
         let details_str = serde_json::to_string(&details)?;
@@ -433,8 +441,12 @@ impl<'a> QueryBuilder<'a> {
             "warning_count": warning_count,
             "details_json": details_str,
         });
-        
-        self.store.upsert_json("health_summary", &[summary_row], &["machine_id", "collected_at"])?;
+
+        self.store.upsert_json(
+            "health_summary",
+            &[summary_row],
+            &["machine_id", "collected_at"],
+        )?;
 
         Ok(HealthScore {
             machine_id: machine_id.to_string(),

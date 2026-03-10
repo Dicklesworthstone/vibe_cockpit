@@ -40,8 +40,7 @@ pub enum MailPane {
 }
 
 /// Thread summary for display
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ThreadSummary {
     /// Thread ID
     pub id: String,
@@ -60,7 +59,6 @@ pub struct ThreadSummary {
     /// Has urgent/high importance messages
     pub has_urgent: bool,
 }
-
 
 /// Individual message information
 #[derive(Debug, Clone)]
@@ -399,10 +397,7 @@ fn render_activity_heatmap(f: &mut Frame, area: Rect, data: &MailData, theme: &T
             };
             vec![
                 Span::styled(heatmap_chars[level].to_string(), Style::default().fg(color)),
-                Span::styled(
-                    format!("{short_name} "),
-                    Style::default().fg(theme.muted),
-                ),
+                Span::styled(format!("{short_name} "), Style::default().fg(theme.muted)),
             ]
         })
         .collect();

@@ -57,7 +57,7 @@ pub enum ResolutionOutcome {
 }
 
 impl ResolutionOutcome {
-    #[must_use] 
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Success => "success",
@@ -141,7 +141,7 @@ pub struct ActionCapture {
 }
 
 impl ActionCapture {
-    #[must_use] 
+    #[must_use]
     pub fn new(store: Arc<VcStore>) -> Self {
         Self { store }
     }
@@ -156,8 +156,9 @@ impl ActionCapture {
         machine_id: Option<&str>,
         operator: Option<&str>,
     ) -> Result<i64, GuardianError> {
-        let actions_json = serde_json::to_string(actions)
-            .map_err(|e| GuardianError::ExecutionFailed(format!("JSON serialization error: {e}")))?;
+        let actions_json = serde_json::to_string(actions).map_err(|e| {
+            GuardianError::ExecutionFailed(format!("JSON serialization error: {e}"))
+        })?;
 
         let id = self
             .store
@@ -193,7 +194,7 @@ pub struct PatternRecognizer {
 }
 
 impl PatternRecognizer {
-    #[must_use] 
+    #[must_use]
     pub fn new(store: Arc<VcStore>) -> Self {
         Self {
             store,
@@ -201,7 +202,7 @@ impl PatternRecognizer {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn with_min_samples(mut self, min: usize) -> Self {
         self.min_samples = min;
         self
@@ -223,9 +224,10 @@ impl PatternRecognizer {
         for res in &resolutions {
             let actions_str = res["actions"].as_str().unwrap_or("[]");
             if let Ok(actions) = serde_json::from_str::<Vec<CapturedAction>>(actions_str)
-                && !actions.is_empty() {
-                    action_sequences.push(actions);
-                }
+                && !actions.is_empty()
+            {
+                action_sequences.push(actions);
+            }
         }
 
         if action_sequences.len() < self.min_samples {
@@ -343,12 +345,11 @@ impl PatternRecognizer {
 
         for sequence in sequences {
             for action in sequence {
-                if let CapturedAction::Command {
-                    cmd: c, args, ..
-                } = action
-                    && c == cmd {
-                        *arg_counts.entry(args.clone()).or_insert(0) += 1;
-                    }
+                if let CapturedAction::Command { cmd: c, args, .. } = action
+                    && c == cmd
+                {
+                    *arg_counts.entry(args.clone()).or_insert(0) += 1;
+                }
             }
         }
 
@@ -372,7 +373,7 @@ pub struct PlaybookGenerator {
 }
 
 impl PlaybookGenerator {
-    #[must_use] 
+    #[must_use]
     pub fn new(store: Arc<VcStore>) -> Self {
         Self {
             store,
@@ -381,20 +382,20 @@ impl PlaybookGenerator {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn with_min_confidence(mut self, confidence: f64) -> Self {
         self.min_confidence = confidence;
         self
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn with_min_samples(mut self, min: usize) -> Self {
         self.min_samples = min;
         self
     }
 
     /// Generate a playbook draft from a pattern
-    #[must_use] 
+    #[must_use]
     pub fn generate_from_pattern(&self, pattern: &ResolutionPattern) -> PlaybookDraft {
         let steps = self.pattern_to_playbook_steps(&pattern.common_steps);
         let draft_id = format!(
@@ -529,7 +530,7 @@ const DANGEROUS_COMMANDS: &[&str] = &[
 const DANGEROUS_ARGS: &[&str] = &["-rf", "--force", "--no-preserve-root", "format"];
 
 /// Validate a playbook draft for safety
-#[must_use] 
+#[must_use]
 pub fn validate_draft(draft: &PlaybookDraft) -> ValidationResult {
     let mut issues = Vec::new();
 
@@ -554,7 +555,7 @@ pub fn validate_draft(draft: &PlaybookDraft) -> ValidationResult {
         issues.push(ValidationIssue::EmptySteps);
     }
 
-/// Check for dangerous commands
+    /// Check for dangerous commands
     for step in &draft.steps {
         if let PlaybookStep::Command { cmd, args, .. } = step {
             if is_dangerous_command(cmd, args) {
@@ -573,10 +574,12 @@ pub fn validate_draft(draft: &PlaybookDraft) -> ValidationResult {
 }
 
 /// Execution wrappers that should be skipped when analyzing the actual command
-const EXEC_WRAPPERS: &[&str] = &["sudo", "su", "doas", "sh", "bash", "zsh", "nohup", "exec", "eval", "env"];
+const EXEC_WRAPPERS: &[&str] = &[
+    "sudo", "su", "doas", "sh", "bash", "zsh", "nohup", "exec", "eval", "env",
+];
 
 /// Check if a command is considered dangerous
-#[must_use] 
+#[must_use]
 pub fn is_dangerous_command(cmd: &str, args: &[String]) -> bool {
     let mut current_cmd = cmd;
     let mut current_args = args;
@@ -585,7 +588,9 @@ pub fn is_dangerous_command(cmd: &str, args: &[String]) -> bool {
     while EXEC_WRAPPERS.contains(&current_cmd) {
         if let Some(next_cmd) = current_args.first() {
             // Handle `sh -c "rm -rf"` type invocations
-            if (current_cmd == "sh" || current_cmd == "bash" || current_cmd == "zsh") && next_cmd == "-c" {
+            if (current_cmd == "sh" || current_cmd == "bash" || current_cmd == "zsh")
+                && next_cmd == "-c"
+            {
                 if let Some(wrapped_script) = current_args.get(1) {
                     // Extremely basic check for wrapped scripts; for robustness we just scan for the words
                     for word in wrapped_script.split_whitespace() {
@@ -607,8 +612,10 @@ pub fn is_dangerous_command(cmd: &str, args: &[String]) -> bool {
     if DANGEROUS_COMMANDS.contains(&current_cmd) {
         return true;
     }
-    
-    current_args.iter().any(|a| DANGEROUS_ARGS.contains(&a.as_str()) || DANGEROUS_COMMANDS.contains(&a.as_str()))
+
+    current_args
+        .iter()
+        .any(|a| DANGEROUS_ARGS.contains(&a.as_str()) || DANGEROUS_COMMANDS.contains(&a.as_str()))
 }
 
 // ============================================================================
@@ -775,13 +782,34 @@ mod tests {
         }];
 
         capture
-            .capture("test-alert", &actions, ResolutionOutcome::Success, None, None, None)
+            .capture(
+                "test-alert",
+                &actions,
+                ResolutionOutcome::Success,
+                None,
+                None,
+                None,
+            )
             .unwrap();
         capture
-            .capture("test-alert", &actions, ResolutionOutcome::Success, None, None, None)
+            .capture(
+                "test-alert",
+                &actions,
+                ResolutionOutcome::Success,
+                None,
+                None,
+                None,
+            )
             .unwrap();
         capture
-            .capture("test-alert", &actions, ResolutionOutcome::Failed, None, None, None)
+            .capture(
+                "test-alert",
+                &actions,
+                ResolutionOutcome::Failed,
+                None,
+                None,
+                None,
+            )
             .unwrap();
 
         let count = capture.success_count("test-alert").unwrap();
@@ -808,7 +836,11 @@ mod tests {
             let actions = vec![
                 CapturedAction::Command {
                     cmd: "caam".to_string(),
-                    args: vec!["switch".to_string(), "--strategy".to_string(), "least_used".to_string()],
+                    args: vec![
+                        "switch".to_string(),
+                        "--strategy".to_string(),
+                        "least_used".to_string(),
+                    ],
                     success: true,
                 },
                 CapturedAction::ServiceRestart {
@@ -816,13 +848,27 @@ mod tests {
                 },
             ];
             capture
-                .capture("rate-limit", &actions, ResolutionOutcome::Success, None, None, None)
+                .capture(
+                    "rate-limit",
+                    &actions,
+                    ResolutionOutcome::Success,
+                    None,
+                    None,
+                    None,
+                )
                 .unwrap();
         }
 
         // Verify data is retrievable
-        let resolutions = store.list_resolutions(Some("rate-limit"), Some("success"), 50).unwrap();
-        assert_eq!(resolutions.len(), 4, "Expected 4 resolutions, got {}", resolutions.len());
+        let resolutions = store
+            .list_resolutions(Some("rate-limit"), Some("success"), 50)
+            .unwrap();
+        assert_eq!(
+            resolutions.len(),
+            4,
+            "Expected 4 resolutions, got {}",
+            resolutions.len()
+        );
 
         // Check that actions field is parseable
         let first = &resolutions[0];
@@ -1090,19 +1136,39 @@ mod tests {
     fn test_is_dangerous_command() {
         assert!(is_dangerous_command("rm", &[]));
         assert!(is_dangerous_command("dd", &[]));
-        assert!(is_dangerous_command(
-            "echo",
-            &["-rf".to_string()]
-        ));
+        assert!(is_dangerous_command("echo", &["-rf".to_string()]));
         assert!(!is_dangerous_command("echo", &["hello".to_string()]));
         assert!(!is_dangerous_command("caam", &["switch".to_string()]));
 
         // Wrapper testing
-        assert!(is_dangerous_command("sudo", &["rm".to_string(), "-rf".to_string(), "/".to_string()]));
-        assert!(is_dangerous_command("sudo", &["dd".to_string(), "if=/dev/zero".to_string(), "of=/dev/sda".to_string()]));
-        assert!(is_dangerous_command("sh", &["-c".to_string(), "rm -rf /".to_string()]));
-        assert!(is_dangerous_command("bash", &["-c".to_string(), "echo hello && dd if=...".to_string()]));
-        assert!(!is_dangerous_command("sudo", &["systemctl".to_string(), "restart".to_string(), "nginx".to_string()]));
+        assert!(is_dangerous_command(
+            "sudo",
+            &["rm".to_string(), "-rf".to_string(), "/".to_string()]
+        ));
+        assert!(is_dangerous_command(
+            "sudo",
+            &[
+                "dd".to_string(),
+                "if=/dev/zero".to_string(),
+                "of=/dev/sda".to_string()
+            ]
+        ));
+        assert!(is_dangerous_command(
+            "sh",
+            &["-c".to_string(), "rm -rf /".to_string()]
+        ));
+        assert!(is_dangerous_command(
+            "bash",
+            &["-c".to_string(), "echo hello && dd if=...".to_string()]
+        ));
+        assert!(!is_dangerous_command(
+            "sudo",
+            &[
+                "systemctl".to_string(),
+                "restart".to_string(),
+                "nginx".to_string()
+            ]
+        ));
     }
 
     // DraftStatus tests
@@ -1232,7 +1298,9 @@ mod tests {
             )
             .unwrap();
 
-        let affected = store.reject_playbook_draft("draft-rej", Some("too risky")).unwrap();
+        let affected = store
+            .reject_playbook_draft("draft-rej", Some("too risky"))
+            .unwrap();
         assert_eq!(affected, 1);
 
         let draft = store.get_playbook_draft("draft-rej").unwrap().unwrap();

@@ -87,8 +87,7 @@ impl Default for RecommendationItem {
 }
 
 /// A blocker item to clear
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct BlockerItem {
     /// Issue ID
     pub id: String,
@@ -101,7 +100,6 @@ pub struct BlockerItem {
     /// What's blocking this blocker (if not actionable)
     pub blocked_by: Vec<String>,
 }
-
 
 /// Graph health metrics
 #[derive(Debug, Clone, Default)]

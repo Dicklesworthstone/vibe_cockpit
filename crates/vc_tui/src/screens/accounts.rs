@@ -76,7 +76,7 @@ impl Default for AccountStatus {
 
 impl AccountStatus {
     /// Get a short sparkline representation of usage trend
-    #[must_use] 
+    #[must_use]
     pub fn sparkline(&self) -> String {
         if self.usage_trend.is_empty() {
             return "────────".to_string();
@@ -226,11 +226,10 @@ fn render_accounts_table(f: &mut Frame, area: Rect, data: &AccountsData, theme: 
             };
 
             let pct_text = account
-                .usage_pct.map_or_else(|| "  N/A".to_string(), |p| format!("{p:>5.1}%"));
+                .usage_pct
+                .map_or_else(|| "  N/A".to_string(), |p| format!("{p:>5.1}%"));
 
-            let switch_text = account
-                .last_switch.as_deref()
-                .unwrap_or("-");
+            let switch_text = account.last_switch.as_deref().unwrap_or("-");
 
             Row::new(vec![
                 Line::from(Span::styled(active_marker, active_style)),

@@ -19,7 +19,7 @@ pub enum AutopilotMode {
 }
 
 impl AutopilotMode {
-    #[must_use] 
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
             AutopilotMode::Off => "off",
@@ -28,12 +28,12 @@ impl AutopilotMode {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn is_active(&self) -> bool {
         !matches!(self, AutopilotMode::Off)
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn can_execute(&self) -> bool {
         matches!(self, AutopilotMode::Execute)
     }
@@ -73,7 +73,7 @@ pub enum DecisionType {
 }
 
 impl DecisionType {
-    #[must_use] 
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
             DecisionType::AccountSwitch => "account_switch",
@@ -172,7 +172,7 @@ pub struct AutopilotStatus {
 /// Evaluate whether an account switch is needed based on forecast data.
 ///
 /// Returns a `SwitchRecommendation` if switching is advisable.
-#[must_use] 
+#[must_use]
 pub fn evaluate_account_switch(
     current_usage_pct: f64,
     velocity_pct_per_min: f64,
@@ -245,7 +245,7 @@ pub fn evaluate_account_switch(
 /// Evaluate workload balance across machines.
 ///
 /// Returns balance actions for overloaded or underutilized machines.
-#[must_use] 
+#[must_use]
 pub fn evaluate_workload_balance(
     machine_loads: &[(String, f64, usize)], // (machine_id, avg_cpu, agent_count)
     cpu_overload_threshold: f64,
@@ -294,7 +294,7 @@ pub fn evaluate_workload_balance(
 /// Evaluate cost spending against budget.
 ///
 /// Returns a `CostAnalysis` with recommendations.
-#[must_use] 
+#[must_use]
 pub fn evaluate_costs(
     daily_cost: f64,
     daily_budget: Option<f64>,
@@ -308,9 +308,7 @@ pub fn evaluate_costs(
     if let Some(budget) = daily_budget {
         if daily_cost > budget {
             recommendations.push(CostRecommendation {
-                title: format!(
-                    "Daily spend ${daily_cost:.2} exceeds budget ${budget:.2}"
-                ),
+                title: format!("Daily spend ${daily_cost:.2} exceeds budget ${budget:.2}"),
                 potential_savings: daily_cost - budget,
                 severity: "critical".to_string(),
             });

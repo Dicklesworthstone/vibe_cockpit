@@ -81,7 +81,7 @@ impl Default for SessionInfo {
 
 impl SessionInfo {
     /// Format duration as human-readable string
-    #[must_use] 
+    #[must_use]
     pub fn duration_str(&self) -> String {
         if self.duration_mins < 60 {
             format!("{}m", self.duration_mins)
@@ -93,7 +93,7 @@ impl SessionInfo {
     }
 
     /// Format tokens as human-readable string
-    #[must_use] 
+    #[must_use]
     pub fn tokens_str(&self) -> String {
         if self.tokens >= 1_000_000 {
             format!("{:.1}M", self.tokens as f64 / 1_000_000.0)
@@ -105,7 +105,7 @@ impl SessionInfo {
     }
 
     /// Format cost as string
-    #[must_use] 
+    #[must_use]
     pub fn cost_str(&self) -> String {
         if self.cost >= 1.0 {
             format!("${:.2}", self.cost)
@@ -160,10 +160,7 @@ fn render_header(f: &mut Frame, area: Rect, data: &SessionsData, theme: &Theme) 
             Style::default().fg(theme.healthy),
         ),
         Span::raw("  "),
-        Span::styled(
-            format!("[{group_label}]"),
-            Style::default().fg(theme.info),
-        ),
+        Span::styled(format!("[{group_label}]"), Style::default().fg(theme.info)),
         Span::raw("  "),
         Span::styled(
             format!(

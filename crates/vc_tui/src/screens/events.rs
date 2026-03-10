@@ -43,7 +43,7 @@ pub enum EventSection {
 }
 
 impl EventSection {
-    #[must_use] 
+    #[must_use]
     pub fn next(&self) -> Self {
         match self {
             Self::Dcg => Self::Rano,
@@ -52,7 +52,7 @@ impl EventSection {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn prev(&self) -> Self {
         match self {
             Self::Dcg => Self::Pt,
@@ -61,7 +61,7 @@ impl EventSection {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn label(&self) -> &'static str {
         match self {
             Self::Dcg => "DCG",
@@ -93,7 +93,7 @@ pub enum TimeRange {
 }
 
 impl TimeRange {
-    #[must_use] 
+    #[must_use]
     pub fn label(&self) -> &'static str {
         match self {
             Self::Hour1 => "1h",
@@ -103,7 +103,7 @@ impl TimeRange {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn next(&self) -> Self {
         match self {
             Self::Hour1 => Self::Hour6,
@@ -126,7 +126,7 @@ pub enum EventSeverity {
 }
 
 impl EventSeverity {
-    #[must_use] 
+    #[must_use]
     pub fn symbol(&self) -> &'static str {
         match self {
             Self::Critical => "🔴",
@@ -137,7 +137,7 @@ impl EventSeverity {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn label(&self) -> &'static str {
         match self {
             Self::Critical => "critical",
@@ -150,8 +150,7 @@ impl EventSeverity {
 }
 
 /// DCG (dangerous command guard) event
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct DcgEvent {
     /// Event ID
     pub id: u64,
@@ -171,10 +170,8 @@ pub struct DcgEvent {
     pub source: Option<String>,
 }
 
-
 /// RANO (network observer) event
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct RanoEvent {
     /// Event ID
     pub id: u64,
@@ -200,7 +197,6 @@ pub struct RanoEvent {
     pub details: Option<String>,
 }
 
-
 /// RANO event types
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum RanoEventType {
@@ -218,7 +214,7 @@ pub enum RanoEventType {
 }
 
 impl RanoEventType {
-    #[must_use] 
+    #[must_use]
     pub fn label(&self) -> &'static str {
         match self {
             Self::UnknownProvider => "Unknown provider",
@@ -231,8 +227,7 @@ impl RanoEventType {
 }
 
 /// PT (process tracker) finding
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct PtFinding {
     /// Finding ID
     pub id: u64,
@@ -256,7 +251,6 @@ pub struct PtFinding {
     pub metric_value: Option<String>,
 }
 
-
 /// PT finding types
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum PtFindingType {
@@ -276,7 +270,7 @@ pub enum PtFindingType {
 }
 
 impl PtFindingType {
-    #[must_use] 
+    #[must_use]
     pub fn label(&self) -> &'static str {
         match self {
             Self::Zombie => "Zombie process",
@@ -288,7 +282,7 @@ impl PtFindingType {
         }
     }
 
-    #[must_use] 
+    #[must_use]
     pub fn symbol(&self) -> &'static str {
         match self {
             Self::Zombie => "💀",

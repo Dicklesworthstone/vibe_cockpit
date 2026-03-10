@@ -29,7 +29,7 @@ use tower_http::trace::TraceLayer;
 use tracing::warn;
 use vc_config::WebConfig;
 use vc_query::{FleetOverview, QueryBuilder};
-use vc_store::{escape_sql_literal, VcStore};
+use vc_store::{VcStore, escape_sql_literal};
 
 /// Web server errors
 #[derive(Error, Debug)]
@@ -85,7 +85,7 @@ impl AppState {
             auth_config: Arc::new(auth::AuthConfig::default()),
         }
     }
-    
+
     /// Create new app state with the given store and auth config
     #[must_use]
     pub fn new_with_auth(store: VcStore, auth_config: Arc<auth::AuthConfig>) -> Self {
@@ -119,7 +119,7 @@ impl WebServer {
             config,
         }
     }
-    
+
     #[must_use]
     pub fn new_with_auth(store: VcStore, config: WebConfig, auth_config: auth::AuthConfig) -> Self {
         Self {
@@ -147,10 +147,14 @@ impl WebServer {
             .await
             .map_err(|err| WebError::ServerError(err.to_string()))?;
         tracing::info!(%addr, "Starting vc_web server");
-        axum::serve(listener, self.router().into_make_service_with_connect_info::<std::net::SocketAddr>())
-            .with_graceful_shutdown(shutdown_signal())
-            .await
-            .map_err(|err| WebError::ServerError(err.to_string()))?;
+        axum::serve(
+            listener,
+            self.router()
+                .into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .with_graceful_shutdown(shutdown_signal())
+        .await
+        .map_err(|err| WebError::ServerError(err.to_string()))?;
         Ok(())
     }
 }
@@ -257,7 +261,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
     let auth_state = auth::AuthState {
         config: state.auth_config.clone(),
     };
-    
+
     let api_router = Router::new()
         // Health and overview
         .route("/health", get(health_handler))
@@ -267,10 +271,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/machines", get(machines_handler))
         .route("/machines/{id}", get(machine_by_id_handler))
         .route("/machines/{id}/health", get(machine_health_handler))
-        .route(
-            "/machines/{id}/collectors",
-            get(machine_collectors_handler),
-        )
+        .route("/machines/{id}/collectors", get(machine_collectors_handler))
         // Alerts
         .route("/alerts", get(alerts_handler))
         .route("/alerts/rules", get(alert_rules_handler))
