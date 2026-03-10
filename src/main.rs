@@ -51,25 +51,31 @@ fn main() -> Result<()> {
     let tokio_rt = build_tokio_compat_runtime()?;
     let _tokio_guard = tokio_rt.enter();
     tracing::debug!("Tokio compat runtime entered");
+    tracing::info!("Tokio compat bridge ready");
 
     // ── Run the CLI ──────────────────────────────────────────────────────
     tracing::info!("starting CLI execution");
     let cli_result = asupersync_rt
         .block_on(async { with_tokio_context(&root_cx, || async move { cli.run().await }).await });
     let Some(cli_result) = cli_result else {
+        tracing::warn!("CLI execution was cancelled before completion");
         anyhow::bail!("CLI execution was cancelled before completion");
     };
+    tracing::debug!("CLI future completed inside runtime bridge");
     cli_result?;
+    tracing::info!("CLI execution completed successfully");
 
     tracing::info!("graceful shutdown complete");
     Ok(())
 }
 
 fn build_asupersync_runtime() -> Result<Runtime> {
+    tracing::debug!("building Asupersync runtime via RuntimeBuilder::new()");
     RuntimeBuilder::new().build().map_err(anyhow::Error::from)
 }
 
 fn build_tokio_compat_runtime() -> Result<tokio::runtime::Runtime> {
+    tracing::debug!("building Tokio compat runtime (multi-thread, enable_all)");
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
