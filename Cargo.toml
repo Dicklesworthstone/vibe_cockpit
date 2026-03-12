@@ -35,6 +35,10 @@ tokio = { version = "1", features = ["fs", "macros", "net", "process", "rt-multi
 
 # Database
 duckdb = { version = "1.4", features = ["bundled"] }
+# FrankenSQLite – replaces DuckDB once migration complete
+fsqlite = { path = "../frankensqlite/crates/fsqlite", features = ["json"] }
+fsqlite-error = { path = "../frankensqlite/crates/fsqlite-error" }
+fsqlite-types = { path = "../frankensqlite/crates/fsqlite-types", features = ["native"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
