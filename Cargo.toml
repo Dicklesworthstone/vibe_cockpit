@@ -47,6 +47,8 @@ clap = { version = "4.5", features = ["derive"] }
 # TUI
 ratatui = "0.30"
 crossterm = "0.29"
+# FrankenTUI – Elm-architecture TUI framework (replaces ratatui once all screens ported)
+ftui = { path = "../frankentui/crates/ftui" }
 
 # Web
 axum = "0.8"
@@ -67,6 +69,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 # Testing
 proptest = "1.10"
 mockall = "0.14.0"
+ftui-harness = { path = "../frankentui/crates/ftui-harness" }
 
 # Other utilities
 uuid = { version = "1.21", features = ["v4", "serde"] }

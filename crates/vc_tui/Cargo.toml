@@ -17,6 +17,7 @@ vc_query.workspace = true
 vc_alert.workspace = true
 ratatui.workspace = true
 crossterm.workspace = true
+ftui.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 asupersync.workspace = true
@@ -28,3 +29,4 @@ chrono.workspace = true
 [dev-dependencies]
 proptest.workspace = true
 mockall.workspace = true
+ftui-harness.workspace = true
