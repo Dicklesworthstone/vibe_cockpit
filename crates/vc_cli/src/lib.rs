@@ -6,13 +6,18 @@
 //! - TOON output support
 //! - All subcommands (status, tui, daemon, robot, etc.)
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration as ChronoDuration, SecondsFormat, Utc};
 use clap::{Parser, Subcommand, ValueEnum};
+use duckdb::{
+    Connection as DuckConnection,
+    types::{TimeUnit as DuckTimeUnit, Value as DuckValue},
+};
+use fsqlite::{Connection as FrankenConnection, FrankenError, SqliteValue};
 use serde::{Deserialize, Serialize};
 use std::io::IsTerminal;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use thiserror::Error;
 use vc_collect::executor::Executor;
 use vc_collect::machine::{Machine, MachineStatus};
@@ -20,7 +25,9 @@ use vc_config::VcConfig;
 use vc_knowledge::{
     EntryType, FeedbackType, KnowledgeEntry, KnowledgeFeedback, KnowledgeStore, SearchOptions,
 };
-use vc_store::{AuditEventFilter, AuditEventType, VcStore, escape_sql_literal};
+use vc_store::{
+    AuditEventFilter, AuditEventType, VcStore, escape_sql_identifier, escape_sql_literal,
+};
 
 pub mod robot;
 pub mod schema_registry;
@@ -35,6 +42,12 @@ pub use schema_registry::{SchemaEntry, SchemaIndex, SchemaRegistry};
 pub enum CliError {
     #[error("Command failed: {0}")]
     CommandFailed(String),
+
+    #[error("DuckDB error: {0}")]
+    DuckDbError(#[from] duckdb::Error),
+
+    #[error("FrankenSQLite error: {0}")]
+    FrankenSqliteError(#[from] FrankenError),
 
     #[error("Config error: {0}")]
     ConfigError(#[from] vc_config::ConfigError),
@@ -266,6 +279,17 @@ pub enum Commands {
     Db {
         #[command(subcommand)]
         command: DbCommands,
+    },
+
+    /// Migrate a `DuckDB` database into `FrankenSQLite` format
+    MigrateDb {
+        /// Source `DuckDB` database file
+        #[arg(long)]
+        from: String,
+
+        /// Target `FrankenSQLite` database file
+        #[arg(long)]
+        to: String,
     },
 
     /// On-demand profiling and adaptive poll management
@@ -3065,6 +3089,9 @@ impl Cli {
                     }
                 }
             }
+            Commands::MigrateDb { from, to } => {
+                run_duckdb_migration(Path::new(&from), Path::new(&to), self.format)?;
+            }
             Commands::Profile { command } => {
                 let store = open_store(self.config.as_ref())?;
                 let store = Arc::new(store);
@@ -3477,6 +3504,861 @@ fn default_local_machine(collected_at: &str) -> Machine {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct MigrationColumn {
+    name: String,
+    source_type: String,
+    target_type: String,
+    not_null: bool,
+    default_value: Option<String>,
+    pk_order: i32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ForeignKeyConstraint {
+    referenced_table: String,
+    column_pairs: Vec<(String, String)>,
+    on_update: String,
+    on_delete: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct TableMigrationPlan {
+    table: String,
+    columns: Vec<MigrationColumn>,
+    foreign_keys: Vec<ForeignKeyConstraint>,
+}
+
+fn run_duckdb_migration(
+    source_path: &Path,
+    target_path: &Path,
+    format: OutputFormat,
+) -> Result<(), CliError> {
+    if !source_path.exists() {
+        return Err(CliError::CommandFailed(format!(
+            "Source DuckDB file does not exist: {}",
+            source_path.display()
+        )));
+    }
+    if target_path.exists() {
+        return Err(CliError::CommandFailed(format!(
+            "Refusing to overwrite existing target database: {}",
+            target_path.display()
+        )));
+    }
+    if let Some(parent) = target_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    let started_at = Instant::now();
+    let source = DuckConnection::open(source_path)?;
+    let target = FrankenConnection::open(target_path.to_string_lossy().as_ref())?;
+    target.execute("PRAGMA foreign_keys = OFF;")?;
+
+    let tables = source_user_tables(&source)?;
+    let mut summaries = Vec::with_capacity(tables.len());
+    let mut total_rows = 0_i64;
+
+    for table in tables {
+        let table_started_at = Instant::now();
+        let plan = load_table_migration_plan(&source, &table)?;
+        let source_rows = source_table_row_count(&source, &plan.table)?;
+
+        eprintln!("Migrating {}: {} rows...", plan.table, source_rows);
+        target.execute(&build_create_table_sql(&plan))?;
+        let migrated_rows = copy_table_rows(&source, &target, &plan)?;
+        let target_rows = target_table_row_count(&target, &plan.table)?;
+
+        if source_rows != target_rows || source_rows != migrated_rows {
+            return Err(CliError::CommandFailed(format!(
+                "Row-count mismatch for {}: source={}, copied={}, target={}",
+                plan.table, source_rows, migrated_rows, target_rows
+            )));
+        }
+
+        verify_null_counts(&source, &target, &plan)?;
+        verify_sample_rows(&source, &target, &plan, source_rows)?;
+
+        total_rows += migrated_rows;
+        let elapsed_ms = table_started_at.elapsed().as_millis();
+        eprintln!(
+            "Migrating {}: {} rows... done ({} ms)",
+            plan.table, migrated_rows, elapsed_ms
+        );
+
+        summaries.push(serde_json::json!({
+            "table": plan.table,
+            "row_count": migrated_rows,
+            "verified": {
+                "row_count": true,
+                "null_counts": true,
+                "sample_rows": true,
+            },
+        }));
+    }
+
+    target.execute("PRAGMA foreign_keys = ON;")?;
+    let fk_violations = target.query("PRAGMA foreign_key_check;")?;
+    if !fk_violations.is_empty() {
+        return Err(CliError::CommandFailed(format!(
+            "Foreign-key verification failed with {} violation(s)",
+            fk_violations.len()
+        )));
+    }
+
+    let result = serde_json::json!({
+        "status": "ok",
+        "source": source_path.display().to_string(),
+        "target": target_path.display().to_string(),
+        "tables_migrated": summaries.len(),
+        "total_rows": total_rows,
+        "duration_ms": started_at.elapsed().as_millis(),
+        "verified": {
+            "row_counts": true,
+            "null_counts": true,
+            "sample_rows": true,
+            "foreign_keys": true,
+        },
+        "tables": summaries,
+    });
+    print_output(&result, format);
+    Ok(())
+}
+
+fn source_user_tables(source: &DuckConnection) -> Result<Vec<String>, CliError> {
+    let mut stmt = source.prepare(
+        "SELECT table_name \
+         FROM duckdb_tables() \
+         WHERE schema_name = 'main' \
+         ORDER BY table_name",
+    )?;
+    let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+    let mut tables = Vec::new();
+    for row in rows {
+        tables.push(row?);
+    }
+    Ok(tables)
+}
+
+fn load_table_migration_plan(
+    source: &DuckConnection,
+    table: &str,
+) -> Result<TableMigrationPlan, CliError> {
+    let safe_table = escape_sql_literal(table);
+    let mut stmt = source.prepare(&format!("PRAGMA table_info('{safe_table}')"))?;
+    let mut columns = Vec::new();
+    let mut rows = stmt.query([])?;
+    while let Some(row) = rows.next()? {
+        let not_null = decode_duckdb_pragma_flag(row.get_ref_unwrap(3).to_owned(), "notnull")?;
+        let pk_order = decode_duckdb_pragma_flag(row.get_ref_unwrap(5).to_owned(), "pk")?;
+        let mut column = MigrationColumn {
+            name: row.get(1)?,
+            source_type: row.get::<_, String>(2)?,
+            target_type: String::new(),
+            not_null: not_null != 0,
+            default_value: row.get::<_, Option<String>>(4)?,
+            pk_order,
+        };
+        column.target_type = duckdb_type_to_sqlite_type(&column.source_type).to_string();
+        column.default_value = column
+            .default_value
+            .as_deref()
+            .and_then(|value| translate_default_value(value, &column.source_type));
+        columns.push(column);
+    }
+
+    if columns.is_empty() {
+        return Err(CliError::CommandFailed(format!(
+            "Source table has no columns: {table}"
+        )));
+    }
+
+    Ok(TableMigrationPlan {
+        table: table.to_string(),
+        columns,
+        foreign_keys: load_foreign_keys(source, table)?,
+    })
+}
+
+fn decode_duckdb_pragma_flag(value: DuckValue, column_name: &str) -> Result<i32, CliError> {
+    match value {
+        DuckValue::Boolean(flag) => Ok(i32::from(u8::from(flag))),
+        DuckValue::TinyInt(number) => Ok(i32::from(number)),
+        DuckValue::SmallInt(number) => Ok(i32::from(number)),
+        DuckValue::Int(number) => Ok(number),
+        DuckValue::BigInt(number) => i32::try_from(number).map_err(|_| {
+            CliError::CommandFailed(format!(
+                "PRAGMA flag {column_name} out of range for i32: {number}"
+            ))
+        }),
+        DuckValue::UTinyInt(number) => Ok(i32::from(number)),
+        DuckValue::USmallInt(number) => Ok(i32::from(number)),
+        DuckValue::UInt(number) => i32::try_from(number).map_err(|_| {
+            CliError::CommandFailed(format!(
+                "PRAGMA flag {column_name} out of range for i32: {number}"
+            ))
+        }),
+        DuckValue::UBigInt(number) => i32::try_from(number).map_err(|_| {
+            CliError::CommandFailed(format!(
+                "PRAGMA flag {column_name} out of range for i32: {number}"
+            ))
+        }),
+        other => Err(CliError::CommandFailed(format!(
+            "Unexpected PRAGMA flag type for {column_name}: {other:?}"
+        ))),
+    }
+}
+
+fn load_foreign_keys(
+    source: &DuckConnection,
+    table: &str,
+) -> Result<Vec<ForeignKeyConstraint>, CliError> {
+    let safe_table = escape_sql_literal(table);
+    let Ok(mut stmt) = source.prepare(&format!("PRAGMA foreign_key_list('{safe_table}')")) else {
+        return Ok(Vec::new());
+    };
+    let rows = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, i32>(0)?,
+            row.get::<_, i32>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, String>(3)?,
+            row.get::<_, Option<String>>(4)?,
+            row.get::<_, Option<String>>(5)?,
+            row.get::<_, Option<String>>(6)?,
+        ))
+    })?;
+
+    let mut grouped = std::collections::BTreeMap::<i32, ForeignKeyConstraint>::new();
+    for row in rows {
+        let (id, _seq, referenced_table, from, to, on_update, on_delete) = row?;
+        let entry = grouped.entry(id).or_insert_with(|| ForeignKeyConstraint {
+            referenced_table,
+            column_pairs: Vec::new(),
+            on_update: on_update.unwrap_or_else(|| "NO ACTION".to_string()),
+            on_delete: on_delete.unwrap_or_else(|| "NO ACTION".to_string()),
+        });
+        entry.column_pairs.push((from.clone(), to.unwrap_or(from)));
+    }
+
+    Ok(grouped.into_values().collect())
+}
+
+fn duckdb_type_to_sqlite_type(source_type: &str) -> &'static str {
+    let normalized = normalize_duckdb_type(source_type);
+    if is_boolean_type(&normalized) {
+        "INTEGER"
+    } else if is_blob_type(&normalized) {
+        "BLOB"
+    } else if is_integer_type(&normalized) {
+        "INTEGER"
+    } else if is_real_type(&normalized) {
+        "REAL"
+    } else {
+        "TEXT"
+    }
+}
+
+fn normalize_duckdb_type(source_type: &str) -> String {
+    source_type.trim().to_ascii_uppercase()
+}
+
+fn is_boolean_type(normalized_type: &str) -> bool {
+    matches!(normalized_type, "BOOLEAN" | "BOOL")
+}
+
+fn is_integer_type(normalized_type: &str) -> bool {
+    matches!(
+        normalized_type,
+        "TINYINT"
+            | "SMALLINT"
+            | "INTEGER"
+            | "INT"
+            | "BIGINT"
+            | "UTINYINT"
+            | "USMALLINT"
+            | "UINTEGER"
+            | "UINT"
+    )
+}
+
+fn is_real_type(normalized_type: &str) -> bool {
+    matches!(normalized_type, "FLOAT" | "REAL" | "DOUBLE")
+}
+
+fn is_blob_type(normalized_type: &str) -> bool {
+    normalized_type.contains("BLOB") || normalized_type.contains("BINARY")
+}
+
+fn is_text_json_type(normalized_type: &str) -> bool {
+    normalized_type.ends_with("[]")
+        || normalized_type.starts_with("LIST")
+        || normalized_type.starts_with("ARRAY")
+        || normalized_type.starts_with("MAP")
+        || normalized_type.starts_with("STRUCT")
+        || normalized_type.starts_with("UNION")
+}
+
+fn is_temporal_type(normalized_type: &str) -> bool {
+    normalized_type.contains("TIMESTAMP")
+        || normalized_type == "DATE"
+        || normalized_type.starts_with("TIME")
+        || normalized_type == "INTERVAL"
+}
+
+fn translate_default_value(default_value: &str, source_type: &str) -> Option<String> {
+    let trimmed = default_value.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let normalized_type = normalize_duckdb_type(source_type);
+    let translated = if is_boolean_type(&normalized_type) {
+        if trimmed.eq_ignore_ascii_case("TRUE") {
+            "1".to_string()
+        } else if trimmed.eq_ignore_ascii_case("FALSE") {
+            "0".to_string()
+        } else {
+            trimmed.to_string()
+        }
+    } else if is_temporal_type(&normalized_type)
+        && (trimmed.eq_ignore_ascii_case("NOW()")
+            || trimmed.eq_ignore_ascii_case("CURRENT_TIMESTAMP"))
+    {
+        "(strftime('%Y-%m-%dT%H:%M:%f000Z', 'now'))".to_string()
+    } else {
+        trimmed.to_string()
+    };
+
+    Some(translated)
+}
+
+fn build_create_table_sql(plan: &TableMigrationPlan) -> String {
+    let mut fragments = Vec::new();
+    let mut pk_columns: Vec<&MigrationColumn> = plan
+        .columns
+        .iter()
+        .filter(|column| column.pk_order > 0)
+        .collect();
+    pk_columns.sort_by_key(|column| column.pk_order);
+
+    for column in &plan.columns {
+        let mut fragment = format!(
+            "\"{}\" {}",
+            escape_sql_identifier(&column.name),
+            column.target_type
+        );
+        if column.not_null {
+            fragment.push_str(" NOT NULL");
+        }
+        if let Some(default_value) = &column.default_value {
+            fragment.push_str(" DEFAULT ");
+            fragment.push_str(default_value);
+        }
+        if pk_columns.len() == 1 && column.pk_order == 1 {
+            fragment.push_str(" PRIMARY KEY");
+        }
+        fragments.push(fragment);
+    }
+
+    if pk_columns.len() > 1 {
+        let pk = pk_columns
+            .iter()
+            .map(|column| format!("\"{}\"", escape_sql_identifier(&column.name)))
+            .collect::<Vec<_>>()
+            .join(", ");
+        fragments.push(format!("PRIMARY KEY ({pk})"));
+    }
+
+    for foreign_key in &plan.foreign_keys {
+        let from_columns = foreign_key
+            .column_pairs
+            .iter()
+            .map(|(from, _)| format!("\"{}\"", escape_sql_identifier(from)))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let to_columns = foreign_key
+            .column_pairs
+            .iter()
+            .map(|(_, to)| format!("\"{}\"", escape_sql_identifier(to)))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let mut fragment = format!(
+            "FOREIGN KEY ({from_columns}) REFERENCES \"{}\" ({to_columns})",
+            escape_sql_identifier(&foreign_key.referenced_table)
+        );
+        if !foreign_key.on_update.eq_ignore_ascii_case("NO ACTION") {
+            fragment.push_str(" ON UPDATE ");
+            fragment.push_str(&foreign_key.on_update);
+        }
+        if !foreign_key.on_delete.eq_ignore_ascii_case("NO ACTION") {
+            fragment.push_str(" ON DELETE ");
+            fragment.push_str(&foreign_key.on_delete);
+        }
+        fragments.push(fragment);
+    }
+
+    format!(
+        "CREATE TABLE \"{}\" ({})",
+        escape_sql_identifier(&plan.table),
+        fragments.join(", ")
+    )
+}
+
+fn build_insert_sql(plan: &TableMigrationPlan) -> String {
+    let columns = plan
+        .columns
+        .iter()
+        .map(|column| format!("\"{}\"", escape_sql_identifier(&column.name)))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let placeholders = (1..=plan.columns.len())
+        .map(|index| format!("?{index}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "INSERT INTO \"{}\" ({columns}) VALUES ({placeholders})",
+        escape_sql_identifier(&plan.table)
+    )
+}
+
+fn copy_table_rows(
+    source: &DuckConnection,
+    target: &FrankenConnection,
+    plan: &TableMigrationPlan,
+) -> Result<i64, CliError> {
+    let select_sql = format!("SELECT * FROM \"{}\"", escape_sql_identifier(&plan.table));
+    let insert_sql = build_insert_sql(plan);
+
+    target.execute("BEGIN;")?;
+    let copy_result = (|| -> Result<i64, CliError> {
+        let mut stmt = source.prepare(&select_sql)?;
+        let mut rows = stmt.query([])?;
+        let mut migrated_rows = 0_i64;
+        while let Some(row) = rows.next()? {
+            let params = plan
+                .columns
+                .iter()
+                .enumerate()
+                .map(|(index, column)| {
+                    duck_value_to_sqlite_value(
+                        row.get_ref_unwrap(index).to_owned(),
+                        &column.source_type,
+                    )
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            target.execute_with_params(&insert_sql, &params)?;
+            migrated_rows += 1;
+        }
+        Ok(migrated_rows)
+    })();
+
+    match copy_result {
+        Ok(migrated_rows) => {
+            target.execute("COMMIT;")?;
+            Ok(migrated_rows)
+        }
+        Err(error) => {
+            let _ = target.execute("ROLLBACK;");
+            Err(error)
+        }
+    }
+}
+
+fn duck_value_to_sqlite_value(
+    value: DuckValue,
+    source_type: &str,
+) -> Result<SqliteValue, CliError> {
+    let normalized_type = normalize_duckdb_type(source_type);
+    let sqlite_value = match value {
+        DuckValue::Null => SqliteValue::Null,
+        DuckValue::Boolean(flag) => SqliteValue::Integer(i64::from(u8::from(flag))),
+        DuckValue::TinyInt(number) => SqliteValue::Integer(i64::from(number)),
+        DuckValue::SmallInt(number) => SqliteValue::Integer(i64::from(number)),
+        DuckValue::Int(number) => SqliteValue::Integer(i64::from(number)),
+        DuckValue::BigInt(number) => SqliteValue::Integer(number),
+        DuckValue::UTinyInt(number) => SqliteValue::Integer(i64::from(number)),
+        DuckValue::USmallInt(number) => SqliteValue::Integer(i64::from(number)),
+        DuckValue::UInt(number) => SqliteValue::Integer(i64::from(number)),
+        DuckValue::Float(number) => SqliteValue::Float(f64::from(number)),
+        DuckValue::Double(number) => SqliteValue::Float(number),
+        DuckValue::Text(text) => SqliteValue::Text(text),
+        DuckValue::Blob(bytes) => SqliteValue::Blob(bytes),
+        DuckValue::Timestamp(unit, value) => SqliteValue::Text(format_timestamp(unit, value)?),
+        DuckValue::Date32(days) => SqliteValue::Text(format_date(days)?),
+        DuckValue::Time64(unit, value) => SqliteValue::Text(format_time(unit, value)),
+        DuckValue::HugeInt(number) => SqliteValue::Text(number.to_string()),
+        DuckValue::UBigInt(number) => SqliteValue::Text(number.to_string()),
+        DuckValue::Decimal(decimal) => SqliteValue::Text(decimal.normalize().to_string()),
+        DuckValue::Enum(value) => SqliteValue::Text(value),
+        DuckValue::Interval {
+            months,
+            days,
+            nanos,
+        } => SqliteValue::Text(
+            serde_json::json!({
+                "months": months,
+                "days": days,
+                "nanos": nanos,
+            })
+            .to_string(),
+        ),
+        complex @ (DuckValue::List(_)
+        | DuckValue::Array(_)
+        | DuckValue::Struct(_)
+        | DuckValue::Map(_)
+        | DuckValue::Union(_)) => SqliteValue::Text(duck_value_to_json(complex)?.to_string()),
+    };
+
+    if is_text_json_type(&normalized_type)
+        && !matches!(&sqlite_value, SqliteValue::Null | SqliteValue::Text(_))
+    {
+        return Ok(SqliteValue::Text(
+            sqlite_value_to_normalized_json(&sqlite_value, source_type)?.to_string(),
+        ));
+    }
+    Ok(sqlite_value)
+}
+
+fn duck_value_to_json(value: DuckValue) -> Result<serde_json::Value, CliError> {
+    let json = match value {
+        DuckValue::Null => serde_json::Value::Null,
+        DuckValue::Boolean(flag) => serde_json::json!(flag),
+        DuckValue::TinyInt(number) => serde_json::json!(number),
+        DuckValue::SmallInt(number) => serde_json::json!(number),
+        DuckValue::Int(number) => serde_json::json!(number),
+        DuckValue::BigInt(number) => serde_json::json!(number),
+        DuckValue::UTinyInt(number) => serde_json::json!(number),
+        DuckValue::USmallInt(number) => serde_json::json!(number),
+        DuckValue::UInt(number) => serde_json::json!(number),
+        DuckValue::Float(number) => finite_f64_json(f64::from(number)),
+        DuckValue::Double(number) => finite_f64_json(number),
+        DuckValue::HugeInt(number) => serde_json::json!(number.to_string()),
+        DuckValue::UBigInt(number) => serde_json::json!(number.to_string()),
+        DuckValue::Decimal(decimal) => serde_json::json!(decimal.normalize().to_string()),
+        DuckValue::Timestamp(unit, value) => serde_json::json!(format_timestamp(unit, value)?),
+        DuckValue::Text(text) => serde_json::json!(text),
+        DuckValue::Blob(bytes) => {
+            serde_json::Value::Array(bytes.into_iter().map(serde_json::Value::from).collect())
+        }
+        DuckValue::Date32(days) => serde_json::json!(format_date(days)?),
+        DuckValue::Time64(unit, value) => serde_json::json!(format_time(unit, value)),
+        DuckValue::Interval {
+            months,
+            days,
+            nanos,
+        } => serde_json::json!({
+            "months": months,
+            "days": days,
+            "nanos": nanos,
+        }),
+        DuckValue::List(values) | DuckValue::Array(values) => serde_json::Value::Array(
+            values
+                .into_iter()
+                .map(duck_value_to_json)
+                .collect::<Result<Vec<_>, _>>()?,
+        ),
+        DuckValue::Enum(value) => serde_json::json!(value),
+        DuckValue::Struct(fields) => {
+            let mut object = serde_json::Map::new();
+            for (key, value) in fields.iter() {
+                object.insert(key.clone(), duck_value_to_json(value.clone())?);
+            }
+            serde_json::Value::Object(object)
+        }
+        DuckValue::Map(entries) => serde_json::Value::Array(
+            entries
+                .iter()
+                .map(|(key, value)| {
+                    Ok(serde_json::json!({
+                        "key": duck_value_to_json(key.clone())?,
+                        "value": duck_value_to_json(value.clone())?,
+                    }))
+                })
+                .collect::<Result<Vec<_>, CliError>>()?,
+        ),
+        DuckValue::Union(value) => duck_value_to_json(*value)?,
+    };
+    Ok(json)
+}
+
+fn sqlite_value_to_normalized_json(
+    value: &SqliteValue,
+    source_type: &str,
+) -> Result<serde_json::Value, CliError> {
+    let normalized_type = normalize_duckdb_type(source_type);
+    let json = match value {
+        SqliteValue::Null => serde_json::Value::Null,
+        SqliteValue::Integer(number) => serde_json::json!(number),
+        SqliteValue::Float(number) => finite_f64_json(*number),
+        SqliteValue::Text(text) if is_text_json_type(&normalized_type) => {
+            serde_json::from_str(text).map_err(|error| {
+                CliError::CommandFailed(format!("Failed to decode JSON text value: {error}"))
+            })?
+        }
+        SqliteValue::Text(text) => serde_json::json!(text),
+        SqliteValue::Blob(bytes) => {
+            serde_json::Value::Array(bytes.iter().copied().map(serde_json::Value::from).collect())
+        }
+    };
+    Ok(json)
+}
+
+fn finite_f64_json(number: f64) -> serde_json::Value {
+    if number.is_finite() {
+        serde_json::json!(number)
+    } else {
+        serde_json::json!(number.to_string())
+    }
+}
+
+fn format_timestamp(unit: DuckTimeUnit, value: i64) -> Result<String, CliError> {
+    let (seconds, nanos) = split_timestamp(unit, value);
+    let timestamp = DateTime::<Utc>::from_timestamp(seconds, nanos).ok_or_else(|| {
+        CliError::CommandFailed(format!(
+            "Timestamp out of range: unit={unit:?}, value={value}"
+        ))
+    })?;
+    Ok(timestamp.to_rfc3339_opts(SecondsFormat::Micros, true))
+}
+
+fn split_timestamp(unit: DuckTimeUnit, value: i64) -> (i64, u32) {
+    match unit {
+        DuckTimeUnit::Second => (value, 0),
+        DuckTimeUnit::Millisecond => {
+            let seconds = value.div_euclid(1_000);
+            let nanos = u32::try_from(value.rem_euclid(1_000))
+                .expect("millisecond remainder must fit in u32")
+                * 1_000_000;
+            (seconds, nanos)
+        }
+        DuckTimeUnit::Microsecond => {
+            let seconds = value.div_euclid(1_000_000);
+            let nanos = u32::try_from(value.rem_euclid(1_000_000))
+                .expect("microsecond remainder must fit in u32")
+                * 1_000;
+            (seconds, nanos)
+        }
+        DuckTimeUnit::Nanosecond => {
+            let seconds = value.div_euclid(1_000_000_000);
+            let nanos = u32::try_from(value.rem_euclid(1_000_000_000))
+                .expect("nanosecond remainder must fit in u32");
+            (seconds, nanos)
+        }
+    }
+}
+
+fn format_date(days_since_epoch: i32) -> Result<String, CliError> {
+    let epoch = DateTime::<Utc>::from_timestamp(0, 0)
+        .ok_or_else(|| CliError::CommandFailed("Unix epoch is unavailable".to_string()))?
+        .date_naive();
+    let date = epoch
+        .checked_add_signed(ChronoDuration::days(i64::from(days_since_epoch)))
+        .ok_or_else(|| CliError::CommandFailed(format!("Date out of range: {days_since_epoch}")))?;
+    Ok(date.format("%Y-%m-%d").to_string())
+}
+
+fn format_time(unit: DuckTimeUnit, value: i64) -> String {
+    let total_nanos = match unit {
+        DuckTimeUnit::Second => i128::from(value) * 1_000_000_000,
+        DuckTimeUnit::Millisecond => i128::from(value) * 1_000_000,
+        DuckTimeUnit::Microsecond => i128::from(value) * 1_000,
+        DuckTimeUnit::Nanosecond => i128::from(value),
+    };
+    let nanos_per_day = 86_400_i128 * 1_000_000_000;
+    let normalized = total_nanos.rem_euclid(nanos_per_day);
+    let seconds = normalized / 1_000_000_000;
+    let nanos = u32::try_from(normalized % 1_000_000_000).expect("time remainder must fit in u32");
+    let hours = seconds / 3600;
+    let minutes = (seconds % 3600) / 60;
+    let whole_seconds = seconds % 60;
+
+    if nanos == 0 {
+        format!("{hours:02}:{minutes:02}:{whole_seconds:02}")
+    } else {
+        let mut fractional = format!("{nanos:09}");
+        while fractional.ends_with('0') {
+            fractional.pop();
+        }
+        format!("{hours:02}:{minutes:02}:{whole_seconds:02}.{fractional}")
+    }
+}
+
+fn source_table_row_count(source: &DuckConnection, table: &str) -> Result<i64, CliError> {
+    let safe_table = escape_sql_identifier(table);
+    Ok(source.query_row(
+        &format!("SELECT COUNT(*) FROM \"{safe_table}\""),
+        [],
+        |row| row.get(0),
+    )?)
+}
+
+fn target_table_row_count(target: &FrankenConnection, table: &str) -> Result<i64, CliError> {
+    let safe_table = escape_sql_identifier(table);
+    let row = target.query_row(&format!("SELECT COUNT(*) FROM \"{safe_table}\""))?;
+    match row.get(0) {
+        Some(SqliteValue::Integer(number)) => Ok(*number),
+        other => Err(CliError::CommandFailed(format!(
+            "Unexpected row-count value for {table}: {other:?}"
+        ))),
+    }
+}
+
+fn verify_null_counts(
+    source: &DuckConnection,
+    target: &FrankenConnection,
+    plan: &TableMigrationPlan,
+) -> Result<(), CliError> {
+    let safe_table = escape_sql_identifier(&plan.table);
+    for column in &plan.columns {
+        let safe_column = escape_sql_identifier(&column.name);
+        let sql = format!(
+            "SELECT COALESCE(SUM(CASE WHEN \"{safe_column}\" IS NULL THEN 1 ELSE 0 END), 0) \
+             FROM \"{safe_table}\""
+        );
+        let source_nulls: i64 = source.query_row(&sql, [], |row| row.get(0))?;
+        let target_row = target.query_row(&sql)?;
+        let target_nulls = match target_row.get(0) {
+            Some(SqliteValue::Integer(number)) => *number,
+            Some(SqliteValue::Null) | None => 0,
+            other => {
+                return Err(CliError::CommandFailed(format!(
+                    "Unexpected NULL-count value for {}.{}: {other:?}",
+                    plan.table, column.name
+                )));
+            }
+        };
+
+        if source_nulls != target_nulls {
+            return Err(CliError::CommandFailed(format!(
+                "NULL-count mismatch for {}.{}: source={}, target={}",
+                plan.table, column.name, source_nulls, target_nulls
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn verify_sample_rows(
+    source: &DuckConnection,
+    target: &FrankenConnection,
+    plan: &TableMigrationPlan,
+    row_count: i64,
+) -> Result<(), CliError> {
+    for offset in sample_offsets(&plan.table, row_count) {
+        let source_row = fetch_source_row_snapshot(source, plan, offset)?;
+        let target_row = fetch_target_row_snapshot(target, plan, offset)?;
+        if source_row != target_row {
+            return Err(CliError::CommandFailed(format!(
+                "Sample-row mismatch for {} at offset {}",
+                plan.table, offset
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn sample_offsets(table: &str, row_count: i64) -> Vec<i64> {
+    if row_count <= 0 {
+        return Vec::new();
+    }
+    let row_count_u64 = u64::try_from(row_count).expect("positive row_count must fit in u64");
+
+    let mut offsets = std::collections::BTreeSet::from([0_i64, row_count - 1]);
+    offsets.insert(row_count / 2);
+
+    let table_seed = table.bytes().fold(0_u64, |seed, byte| {
+        seed.wrapping_mul(131).wrapping_add(u64::from(byte))
+    });
+    for salt in [17_u64, 97, 193] {
+        let offset = i64::try_from((table_seed ^ salt) % row_count_u64)
+            .expect("sample offset must fit in i64");
+        offsets.insert(offset);
+    }
+
+    offsets.into_iter().collect()
+}
+
+fn fetch_source_row_snapshot(
+    source: &DuckConnection,
+    plan: &TableMigrationPlan,
+    offset: i64,
+) -> Result<serde_json::Value, CliError> {
+    let order_by = sample_row_order_by(plan);
+    let sql = format!(
+        "SELECT * FROM \"{}\" ORDER BY {order_by} LIMIT 1 OFFSET {offset}",
+        escape_sql_identifier(&plan.table)
+    );
+    let mut stmt = source.prepare(&sql)?;
+    let mut rows = stmt.query([])?;
+    let row = rows.next()?.ok_or_else(|| {
+        CliError::CommandFailed(format!(
+            "Source row missing for {} at offset {offset}",
+            plan.table
+        ))
+    })?;
+
+    let mut object = serde_json::Map::new();
+    for (index, column) in plan.columns.iter().enumerate() {
+        let converted =
+            duck_value_to_sqlite_value(row.get_ref_unwrap(index).to_owned(), &column.source_type)?;
+        object.insert(
+            column.name.clone(),
+            sqlite_value_to_normalized_json(&converted, &column.source_type)?,
+        );
+    }
+    Ok(serde_json::Value::Object(object))
+}
+
+fn fetch_target_row_snapshot(
+    target: &FrankenConnection,
+    plan: &TableMigrationPlan,
+    offset: i64,
+) -> Result<serde_json::Value, CliError> {
+    let order_by = sample_row_order_by(plan);
+    let sql = format!(
+        "SELECT * FROM \"{}\" ORDER BY {order_by} LIMIT 1 OFFSET {offset}",
+        escape_sql_identifier(&plan.table)
+    );
+    let stmt = target.prepare(&sql)?;
+    let rows = stmt.query()?;
+    let row = rows.into_iter().next().ok_or_else(|| {
+        CliError::CommandFailed(format!(
+            "Target row missing for {} at offset {offset}",
+            plan.table
+        ))
+    })?;
+
+    let mut object = serde_json::Map::new();
+    for (index, column) in plan.columns.iter().enumerate() {
+        let value = row.values().get(index).unwrap_or(&SqliteValue::Null);
+        object.insert(
+            column.name.clone(),
+            sqlite_value_to_normalized_json(value, &column.source_type)?,
+        );
+    }
+    Ok(serde_json::Value::Object(object))
+}
+
+fn sample_row_order_by(plan: &TableMigrationPlan) -> String {
+    let mut pk_columns: Vec<&MigrationColumn> = plan
+        .columns
+        .iter()
+        .filter(|column| column.pk_order > 0)
+        .collect();
+    pk_columns.sort_by_key(|column| column.pk_order);
+
+    if pk_columns.is_empty() {
+        "rowid".to_string()
+    } else {
+        pk_columns
+            .into_iter()
+            .map(|column| format!("\"{}\"", escape_sql_identifier(&column.name)))
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+}
+
 fn open_store(config_path: Option<&std::path::PathBuf>) -> Result<VcStore, CliError> {
     let config = load_config(config_path)?;
     Ok(VcStore::open(&config.global.db_path)?)
@@ -3502,7 +4384,9 @@ fn print_output<T: Serialize>(value: &T, format: OutputFormat) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use duckdb::types::OrderedMap as DuckOrderedMap;
     use std::future::Future;
+    use tempfile::tempdir;
 
     fn run_async<F: Future<Output = ()>>(future: F) {
         futures::executor::block_on(future);
@@ -5683,6 +6567,297 @@ mod tests {
     // =============================================================================
     // Commands::Db Tests
     // =============================================================================
+
+    #[test]
+    fn test_migrate_db_parse() {
+        let cli = Cli::parse_from([
+            "vc",
+            "migrate-db",
+            "--from",
+            "/tmp/source.duckdb",
+            "--to",
+            "/tmp/target.sqlite",
+        ]);
+        if let Commands::MigrateDb { from, to } = cli.command {
+            assert_eq!(from, "/tmp/source.duckdb");
+            assert_eq!(to, "/tmp/target.sqlite");
+        } else {
+            panic!("Expected migrate-db command");
+        }
+    }
+
+    #[test]
+    fn duck_value_to_sqlite_value_converts_boolean_to_integer() {
+        let value = duck_value_to_sqlite_value(DuckValue::Boolean(true), "BOOLEAN").unwrap();
+        assert_eq!(value, SqliteValue::Integer(1));
+    }
+
+    #[test]
+    fn decode_duckdb_pragma_flag_accepts_boolean_values() {
+        assert_eq!(
+            decode_duckdb_pragma_flag(DuckValue::Boolean(true), "pk").unwrap(),
+            1
+        );
+        assert_eq!(
+            decode_duckdb_pragma_flag(DuckValue::Boolean(false), "notnull").unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn decode_duckdb_pragma_flag_accepts_integer_values() {
+        assert_eq!(
+            decode_duckdb_pragma_flag(DuckValue::Int(2), "pk").unwrap(),
+            2
+        );
+    }
+
+    #[test]
+    fn duck_value_to_sqlite_value_converts_timestamp_to_rfc3339_text() {
+        let micros = DateTime::parse_from_rfc3339("2026-01-02T03:04:05.123456Z")
+            .unwrap()
+            .timestamp_micros();
+        let value = duck_value_to_sqlite_value(
+            DuckValue::Timestamp(DuckTimeUnit::Microsecond, micros),
+            "TIMESTAMP",
+        )
+        .unwrap();
+        assert_eq!(
+            value,
+            SqliteValue::Text("2026-01-02T03:04:05.123456Z".to_string())
+        );
+    }
+
+    #[test]
+    fn translate_default_value_normalizes_temporal_now_functions() {
+        let expected = Some("(strftime('%Y-%m-%dT%H:%M:%f000Z', 'now'))".to_string());
+        assert_eq!(translate_default_value("NOW()", "TIMESTAMP"), expected);
+        assert_eq!(
+            translate_default_value("CURRENT_TIMESTAMP", "TIMESTAMP"),
+            expected
+        );
+    }
+
+    #[test]
+    fn sample_row_order_by_prefers_primary_key_columns() {
+        let plan = TableMigrationPlan {
+            table: "demo".to_string(),
+            columns: vec![
+                MigrationColumn {
+                    name: "payload".to_string(),
+                    source_type: "VARCHAR".to_string(),
+                    target_type: "TEXT".to_string(),
+                    not_null: false,
+                    default_value: None,
+                    pk_order: 0,
+                },
+                MigrationColumn {
+                    name: "tenant_id".to_string(),
+                    source_type: "BIGINT".to_string(),
+                    target_type: "INTEGER".to_string(),
+                    not_null: true,
+                    default_value: None,
+                    pk_order: 1,
+                },
+                MigrationColumn {
+                    name: "id".to_string(),
+                    source_type: "BIGINT".to_string(),
+                    target_type: "INTEGER".to_string(),
+                    not_null: true,
+                    default_value: None,
+                    pk_order: 2,
+                },
+            ],
+            foreign_keys: Vec::new(),
+        };
+
+        assert_eq!(sample_row_order_by(&plan), "\"tenant_id\", \"id\"");
+    }
+
+    #[test]
+    fn sample_row_order_by_falls_back_to_rowid_without_primary_key() {
+        let plan = TableMigrationPlan {
+            table: "demo".to_string(),
+            columns: vec![MigrationColumn {
+                name: "payload".to_string(),
+                source_type: "VARCHAR".to_string(),
+                target_type: "TEXT".to_string(),
+                not_null: false,
+                default_value: None,
+                pk_order: 0,
+            }],
+            foreign_keys: Vec::new(),
+        };
+
+        assert_eq!(sample_row_order_by(&plan), "rowid");
+    }
+
+    #[test]
+    fn duck_value_to_sqlite_value_converts_list_to_json_text() {
+        let value = duck_value_to_sqlite_value(
+            DuckValue::List(vec![
+                DuckValue::Text("alpha".to_string()),
+                DuckValue::Text("beta".to_string()),
+            ]),
+            "TEXT[]",
+        )
+        .unwrap();
+        assert_eq!(value, SqliteValue::Text(r#"["alpha","beta"]"#.to_string()));
+    }
+
+    #[test]
+    fn duck_value_to_sqlite_value_converts_struct_to_json_text() {
+        let value = duck_value_to_sqlite_value(
+            DuckValue::Struct(DuckOrderedMap::from(vec![
+                ("name".to_string(), DuckValue::Text("agent".to_string())),
+                ("level".to_string(), DuckValue::Int(3)),
+            ])),
+            "STRUCT(name VARCHAR, level INTEGER)",
+        )
+        .unwrap();
+        assert_eq!(
+            value,
+            SqliteValue::Text(r#"{"name":"agent","level":3}"#.to_string())
+        );
+    }
+
+    #[test]
+    fn duckdb_migration_rejects_existing_target_database() {
+        let dir = tempdir().unwrap();
+        let source_path = dir.path().join("source.duckdb");
+        let target_path = dir.path().join("target.sqlite");
+
+        let source = DuckConnection::open(&source_path).unwrap();
+        source
+            .execute("CREATE TABLE demo (id INTEGER)", [])
+            .unwrap();
+        std::fs::write(&target_path, "already exists").unwrap();
+
+        let error = run_duckdb_migration(&source_path, &target_path, OutputFormat::Json)
+            .expect_err("existing target should be rejected");
+        assert!(
+            error
+                .to_string()
+                .contains("Refusing to overwrite existing target database")
+        );
+    }
+
+    #[test]
+    fn duckdb_migration_rejects_missing_source_database() {
+        let dir = tempdir().unwrap();
+        let source_path = dir.path().join("missing.duckdb");
+        let target_path = dir.path().join("target.sqlite");
+
+        let error = run_duckdb_migration(&source_path, &target_path, OutputFormat::Json)
+            .expect_err("missing source should be rejected");
+        assert!(
+            error
+                .to_string()
+                .contains("Source DuckDB file does not exist")
+        );
+    }
+
+    #[test]
+    fn duckdb_migration_handles_empty_database() {
+        let dir = tempdir().unwrap();
+        let source_path = dir.path().join("source.duckdb");
+        let target_path = dir.path().join("target.sqlite");
+
+        DuckConnection::open(&source_path).unwrap();
+
+        run_duckdb_migration(&source_path, &target_path, OutputFormat::Json).unwrap();
+
+        let target = FrankenConnection::open(target_path.to_string_lossy().as_ref()).unwrap();
+        let rows = target
+            .query(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+            )
+            .unwrap();
+        assert!(rows.is_empty());
+    }
+
+    #[test]
+    fn duckdb_migration_copies_rows_and_converts_values() {
+        let dir = tempdir().unwrap();
+        let source_path = dir.path().join("source.duckdb");
+        let target_path = dir.path().join("target.sqlite");
+
+        let source = DuckConnection::open(&source_path).unwrap();
+        source
+            .execute_batch(
+                r"
+                CREATE TABLE accounts (
+                    id BIGINT PRIMARY KEY,
+                    enabled BOOLEAN NOT NULL DEFAULT FALSE,
+                    created_at TIMESTAMP,
+                    name VARCHAR,
+                    notes VARCHAR
+                );
+                INSERT INTO accounts VALUES
+                    (1, TRUE, TIMESTAMP '2026-01-02 03:04:05.123456', 'Zoë', NULL),
+                    (2, FALSE, NULL, '李雷', 'ok');
+
+                CREATE TABLE metrics (
+                    id BIGINT PRIMARY KEY,
+                    tags VARCHAR[],
+                    scores DOUBLE[]
+                );
+                INSERT INTO metrics VALUES
+                    (1, ['alpha', 'beta'], [1.25, 2.5]),
+                    (2, ['solo'], [9.0]);
+                ",
+            )
+            .unwrap();
+
+        run_duckdb_migration(&source_path, &target_path, OutputFormat::Json).unwrap();
+
+        let target = FrankenConnection::open(target_path.to_string_lossy().as_ref()).unwrap();
+        let account_rows = target
+            .query("SELECT id, enabled, created_at, name, notes FROM accounts ORDER BY id")
+            .unwrap();
+        assert_eq!(account_rows.len(), 2);
+        assert_eq!(account_rows[0].values()[0], SqliteValue::Integer(1));
+        assert_eq!(account_rows[0].values()[1], SqliteValue::Integer(1));
+        assert_eq!(
+            account_rows[0].values()[2],
+            SqliteValue::Text("2026-01-02T03:04:05.123456Z".to_string())
+        );
+        assert_eq!(
+            account_rows[0].values()[3],
+            SqliteValue::Text("Zoë".to_string())
+        );
+        assert_eq!(account_rows[0].values()[4], SqliteValue::Null);
+        assert_eq!(account_rows[1].values()[1], SqliteValue::Integer(0));
+        assert_eq!(
+            account_rows[1].values()[3],
+            SqliteValue::Text("李雷".to_string())
+        );
+        assert_eq!(
+            account_rows[1].values()[4],
+            SqliteValue::Text("ok".to_string())
+        );
+
+        let metric_rows = target
+            .query("SELECT tags, scores FROM metrics ORDER BY id")
+            .unwrap();
+        assert_eq!(metric_rows.len(), 2);
+        assert_eq!(
+            metric_rows[0].values()[0],
+            SqliteValue::Text(r#"["alpha","beta"]"#.to_string())
+        );
+        assert_eq!(
+            metric_rows[0].values()[1],
+            SqliteValue::Text("[1.25,2.5]".to_string())
+        );
+        assert_eq!(
+            metric_rows[1].values()[0],
+            SqliteValue::Text(r#"["solo"]"#.to_string())
+        );
+        assert_eq!(
+            metric_rows[1].values()[1],
+            SqliteValue::Text("[9.0]".to_string())
+        );
+    }
 
     #[test]
     fn test_db_export_parse() {

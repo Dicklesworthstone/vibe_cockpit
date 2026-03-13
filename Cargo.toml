@@ -130,6 +130,10 @@ path = "src/main.rs"
 name = "tui_rendering"
 path = "tests/e2e/tui_rendering.rs"
 
+[[test]]
+name = "migration_integrity"
+path = "tests/e2e/migration_integrity.rs"
+
 [dependencies]
 vc_cli.workspace = true
 vc_config.workspace = true
@@ -142,9 +146,13 @@ tracing-subscriber.workspace = true
 anyhow.workspace = true
 
 [dev-dependencies]
+chrono.workspace = true
+duckdb.workspace = true
+fsqlite.workspace = true
 ftui.workspace = true
 ftui-harness.workspace = true
 serde_json.workspace = true
+tempfile = "3"
 vc_tui.workspace = true
 
 [build-dependencies]
