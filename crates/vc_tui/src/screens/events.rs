@@ -2,6 +2,18 @@
 //!
 //! Displays DCG denies, RANO network anomalies, and PT process issues.
 
+use ftui::{
+    Frame as FtuiFrame, PackedRgba, Style as FtuiStyle,
+    layout::{Constraint as FtuiConstraint, Flex, Rect as FtuiRect},
+    text::{Line as FtuiLine, Span as FtuiSpan, Text as FtuiText},
+    widgets::{
+        Widget as FtuiWidget,
+        block::Block as FtuiBlock,
+        borders::Borders as FtuiBorders,
+        list::{List as FtuiList, ListItem as FtuiListItem},
+        paragraph::Paragraph as FtuiParagraph,
+    },
+};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
@@ -653,9 +665,533 @@ fn render_footer(f: &mut Frame, area: Rect, data: &EventsData, theme: &Theme) {
     f.render_widget(footer, area);
 }
 
+pub fn render_events_ftui(f: &mut FtuiFrame, data: &EventsData, theme: &Theme) {
+    let rows = Flex::vertical()
+        .constraints([
+            FtuiConstraint::Fixed(3),
+            FtuiConstraint::Fill,
+            FtuiConstraint::Fixed(3),
+        ])
+        .gap(1)
+        .split(ftui_full_area(f));
+
+    if rows.len() < 3 {
+        return;
+    }
+
+    render_events_ftui_header(f, rows[0], data, theme);
+    render_events_ftui_content(f, rows[1], data, theme);
+    render_events_ftui_footer(f, rows[2], data, theme);
+}
+
+fn render_events_ftui_header(f: &mut FtuiFrame, area: FtuiRect, data: &EventsData, theme: &Theme) {
+    let colors = theme.ftui_colors();
+    let filter_summary = filter_summary(&data.filter);
+    let spans = vec![
+        FtuiSpan::styled(
+            "  EVENTS  ",
+            FtuiStyle::new().fg(packed(colors.text)).bold(),
+        ),
+        FtuiSpan::styled(
+            format!("[{}]", data.selected_section.label()),
+            FtuiStyle::new()
+                .fg(packed(event_section_color(data.selected_section, theme)))
+                .bold(),
+        ),
+        FtuiSpan::raw(" "),
+        FtuiSpan::styled(
+            format!("[scope: {}]", data.time_range.label()),
+            FtuiStyle::new().fg(packed(colors.info)),
+        ),
+        FtuiSpan::raw(" "),
+        FtuiSpan::styled(
+            format!("[{} machines]", data.stats.machines_affected),
+            FtuiStyle::new().fg(packed(colors.muted)),
+        ),
+        FtuiSpan::raw(" "),
+        FtuiSpan::styled(
+            format!(
+                "[{} total]",
+                data.stats.dcg_total + data.stats.rano_total + data.stats.pt_total
+            ),
+            FtuiStyle::new().fg(packed(colors.warning)),
+        ),
+        FtuiSpan::raw(" "),
+        FtuiSpan::styled(filter_summary, FtuiStyle::new().fg(packed(colors.muted))),
+    ];
+
+    let header = FtuiParagraph::new(FtuiText::from_spans(spans))
+        .style(FtuiStyle::new().bg(packed(colors.bg_secondary)))
+        .block(ftui_block(None, colors.muted));
+    FtuiWidget::render(&header, area, f);
+}
+
+fn render_events_ftui_content(f: &mut FtuiFrame, area: FtuiRect, data: &EventsData, theme: &Theme) {
+    if area.height < 18 {
+        match data.selected_section {
+            EventSection::Dcg => render_events_ftui_dcg(f, area, data, theme),
+            EventSection::Rano => render_events_ftui_rano(f, area, data, theme),
+            EventSection::Pt => render_events_ftui_pt(f, area, data, theme),
+        }
+        return;
+    }
+
+    let rows = Flex::vertical()
+        .constraints([
+            FtuiConstraint::Percentage(34.0),
+            FtuiConstraint::Percentage(33.0),
+            FtuiConstraint::Percentage(33.0),
+        ])
+        .gap(1)
+        .split(area);
+
+    if rows.len() < 3 {
+        return;
+    }
+
+    render_events_ftui_dcg(f, rows[0], data, theme);
+    render_events_ftui_rano(f, rows[1], data, theme);
+    render_events_ftui_pt(f, rows[2], data, theme);
+}
+
+fn render_events_ftui_dcg(f: &mut FtuiFrame, area: FtuiRect, data: &EventsData, theme: &Theme) {
+    let colors = theme.ftui_colors();
+    let items = filtered_dcg_events(data);
+    let border_color = if data.selected_section == EventSection::Dcg {
+        colors.accent
+    } else {
+        colors.muted
+    };
+
+    if items.is_empty() {
+        let empty = FtuiParagraph::new(FtuiText::from_spans([FtuiSpan::styled(
+            "No DCG events in scope",
+            FtuiStyle::new().fg(packed(colors.muted)),
+        )]))
+        .block(ftui_block(Some(" DCG Denies "), border_color));
+        FtuiWidget::render(&empty, area, f);
+        return;
+    }
+
+    let clamped_selected = data.selected_index.min(items.len().saturating_sub(1));
+    let list_items: Vec<FtuiListItem> = items
+        .iter()
+        .enumerate()
+        .map(|(index, event)| {
+            let row_style =
+                if data.selected_section == EventSection::Dcg && index == clamped_selected {
+                    FtuiStyle::new().bg(packed(colors.bg_secondary))
+                } else {
+                    FtuiStyle::new()
+                };
+            let severity_color = severity_color(event.severity, theme);
+            let source = event.source.as_deref().unwrap_or("unknown source");
+
+            FtuiListItem::new(FtuiText::from_lines([
+                FtuiLine::from_spans([
+                    FtuiSpan::styled(
+                        format!("{} ", event.severity.symbol()),
+                        FtuiStyle::new().fg(packed(severity_color)).bold(),
+                    ),
+                    FtuiSpan::styled(
+                        event.severity.label().to_ascii_uppercase(),
+                        FtuiStyle::new().fg(packed(severity_color)).bold(),
+                    ),
+                    FtuiSpan::raw(" "),
+                    FtuiSpan::styled(&event.machine_id, FtuiStyle::new().fg(packed(colors.info))),
+                    FtuiSpan::raw(" "),
+                    FtuiSpan::styled(
+                        truncate_chars(&event.command, 54),
+                        FtuiStyle::new().fg(packed(colors.text)),
+                    ),
+                ]),
+                FtuiLine::from_spans([
+                    FtuiSpan::raw("    "),
+                    FtuiSpan::styled(
+                        format!("{} | {}", event.age, truncate_chars(&event.reason, 58)),
+                        FtuiStyle::new().fg(packed(colors.muted)),
+                    ),
+                ]),
+                FtuiLine::from_spans([
+                    FtuiSpan::raw("    "),
+                    FtuiSpan::styled(
+                        format!("source {source}"),
+                        FtuiStyle::new().fg(packed(colors.warning)),
+                    ),
+                ]),
+            ]))
+            .style(row_style)
+        })
+        .collect();
+
+    let list = FtuiList::new(list_items).block(ftui_block(Some(" DCG Denies "), border_color));
+    FtuiWidget::render(&list, area, f);
+}
+
+fn render_events_ftui_rano(f: &mut FtuiFrame, area: FtuiRect, data: &EventsData, theme: &Theme) {
+    let colors = theme.ftui_colors();
+    let items = filtered_rano_events(data);
+    let border_color = if data.selected_section == EventSection::Rano {
+        colors.accent
+    } else {
+        colors.muted
+    };
+
+    if items.is_empty() {
+        let empty = FtuiParagraph::new(FtuiText::from_spans([FtuiSpan::styled(
+            "No RANO events in scope",
+            FtuiStyle::new().fg(packed(colors.muted)),
+        )]))
+        .block(ftui_block(Some(" Network Anomalies "), border_color));
+        FtuiWidget::render(&empty, area, f);
+        return;
+    }
+
+    let clamped_selected = data.selected_index.min(items.len().saturating_sub(1));
+    let list_items: Vec<FtuiListItem> = items
+        .iter()
+        .enumerate()
+        .map(|(index, event)| {
+            let row_style =
+                if data.selected_section == EventSection::Rano && index == clamped_selected {
+                    FtuiStyle::new().bg(packed(colors.bg_secondary))
+                } else {
+                    FtuiStyle::new()
+                };
+            let severity_color = severity_color(event.severity, theme);
+
+            FtuiListItem::new(FtuiText::from_lines([
+                FtuiLine::from_spans([
+                    FtuiSpan::styled(
+                        format!("{} ", event.severity.symbol()),
+                        FtuiStyle::new().fg(packed(severity_color)).bold(),
+                    ),
+                    FtuiSpan::styled(
+                        event.event_type.label(),
+                        FtuiStyle::new().fg(packed(severity_color)).bold(),
+                    ),
+                    FtuiSpan::raw(" "),
+                    FtuiSpan::styled(
+                        truncate_chars(&event.remote_host, 34),
+                        FtuiStyle::new().fg(packed(colors.text)),
+                    ),
+                ]),
+                FtuiLine::from_spans([
+                    FtuiSpan::raw("    "),
+                    FtuiSpan::styled(
+                        format!(
+                            "{} | {} pid {} | {} conns | {}",
+                            event.machine_id,
+                            truncate_chars(&event.process, 18),
+                            event.pid,
+                            event.connection_count,
+                            event.age
+                        ),
+                        FtuiStyle::new().fg(packed(colors.muted)),
+                    ),
+                ]),
+                FtuiLine::from_spans([
+                    FtuiSpan::raw("    "),
+                    FtuiSpan::styled(
+                        event.details.as_deref().unwrap_or("No additional details"),
+                        FtuiStyle::new().fg(packed(colors.info)),
+                    ),
+                ]),
+            ]))
+            .style(row_style)
+        })
+        .collect();
+
+    let list =
+        FtuiList::new(list_items).block(ftui_block(Some(" Network Anomalies "), border_color));
+    FtuiWidget::render(&list, area, f);
+}
+
+fn render_events_ftui_pt(f: &mut FtuiFrame, area: FtuiRect, data: &EventsData, theme: &Theme) {
+    let colors = theme.ftui_colors();
+    let items = filtered_pt_findings(data);
+    let border_color = if data.selected_section == EventSection::Pt {
+        colors.accent
+    } else {
+        colors.muted
+    };
+
+    if items.is_empty() {
+        let empty = FtuiParagraph::new(FtuiText::from_spans([FtuiSpan::styled(
+            "No process findings in scope",
+            FtuiStyle::new().fg(packed(colors.muted)),
+        )]))
+        .block(ftui_block(Some(" Process Issues "), border_color));
+        FtuiWidget::render(&empty, area, f);
+        return;
+    }
+
+    let clamped_selected = data.selected_index.min(items.len().saturating_sub(1));
+    let list_items: Vec<FtuiListItem> = items
+        .iter()
+        .enumerate()
+        .map(|(index, finding)| {
+            let row_style =
+                if data.selected_section == EventSection::Pt && index == clamped_selected {
+                    FtuiStyle::new().bg(packed(colors.bg_secondary))
+                } else {
+                    FtuiStyle::new()
+                };
+            let severity_color = severity_color(finding.severity, theme);
+
+            FtuiListItem::new(FtuiText::from_lines([
+                FtuiLine::from_spans([
+                    FtuiSpan::styled(
+                        format!("{} ", finding.finding_type.symbol()),
+                        FtuiStyle::new().fg(packed(severity_color)).bold(),
+                    ),
+                    FtuiSpan::styled(
+                        finding.finding_type.label(),
+                        FtuiStyle::new().fg(packed(severity_color)).bold(),
+                    ),
+                    FtuiSpan::raw(" "),
+                    FtuiSpan::styled(
+                        truncate_chars(&finding.process_name, 26),
+                        FtuiStyle::new().fg(packed(colors.text)),
+                    ),
+                ]),
+                FtuiLine::from_spans([
+                    FtuiSpan::raw("    "),
+                    FtuiSpan::styled(
+                        format!(
+                            "{} pid {} | {}",
+                            finding.machine_id, finding.pid, finding.age
+                        ),
+                        FtuiStyle::new().fg(packed(colors.muted)),
+                    ),
+                ]),
+                FtuiLine::from_spans([
+                    FtuiSpan::raw("    "),
+                    FtuiSpan::styled(
+                        finding
+                            .metric_value
+                            .as_deref()
+                            .unwrap_or("No metric recorded"),
+                        FtuiStyle::new().fg(packed(colors.warning)),
+                    ),
+                ]),
+            ]))
+            .style(row_style)
+        })
+        .collect();
+
+    let list = FtuiList::new(list_items).block(ftui_block(Some(" Process Issues "), border_color));
+    FtuiWidget::render(&list, area, f);
+}
+
+fn render_events_ftui_footer(f: &mut FtuiFrame, area: FtuiRect, data: &EventsData, theme: &Theme) {
+    let colors = theme.ftui_colors();
+    let footer = FtuiParagraph::new(FtuiText::from_spans([
+        FtuiSpan::styled("Focus:", FtuiStyle::new().fg(packed(colors.muted))),
+        FtuiSpan::raw(" "),
+        FtuiSpan::styled(
+            "DCG",
+            FtuiStyle::new().fg(packed(event_section_color(EventSection::Dcg, theme))),
+        ),
+        FtuiSpan::raw(" / "),
+        FtuiSpan::styled(
+            "Network",
+            FtuiStyle::new().fg(packed(event_section_color(EventSection::Rano, theme))),
+        ),
+        FtuiSpan::raw(" / "),
+        FtuiSpan::styled(
+            "Processes",
+            FtuiStyle::new().fg(packed(event_section_color(EventSection::Pt, theme))),
+        ),
+        FtuiSpan::raw("  "),
+        FtuiSpan::styled(
+            format!("scope {}", data.time_range.label()),
+            FtuiStyle::new().fg(packed(colors.info)),
+        ),
+        FtuiSpan::raw("  "),
+        FtuiSpan::styled(
+            filter_summary(&data.filter),
+            FtuiStyle::new().fg(packed(colors.muted)),
+        ),
+    ]))
+    .style(FtuiStyle::new().bg(packed(colors.bg_secondary)))
+    .block(ftui_block(None, colors.muted));
+    FtuiWidget::render(&footer, area, f);
+}
+
+fn filtered_dcg_events(data: &EventsData) -> Vec<&DcgEvent> {
+    data.dcg_events
+        .iter()
+        .filter(|event| {
+            matches_filter(
+                &event.machine_id,
+                event.severity,
+                &[
+                    &event.command,
+                    &event.reason,
+                    event.source.as_deref().unwrap_or(""),
+                ],
+                &data.filter,
+            )
+        })
+        .collect()
+}
+
+fn filtered_rano_events(data: &EventsData) -> Vec<&RanoEvent> {
+    data.rano_events
+        .iter()
+        .filter(|event| {
+            matches_filter(
+                &event.machine_id,
+                event.severity,
+                &[
+                    event.event_type.label(),
+                    &event.remote_host,
+                    &event.process,
+                    event.details.as_deref().unwrap_or(""),
+                ],
+                &data.filter,
+            )
+        })
+        .collect()
+}
+
+fn filtered_pt_findings(data: &EventsData) -> Vec<&PtFinding> {
+    data.pt_findings
+        .iter()
+        .filter(|finding| {
+            matches_filter(
+                &finding.machine_id,
+                finding.severity,
+                &[
+                    finding.finding_type.label(),
+                    &finding.process_name,
+                    finding.metric_value.as_deref().unwrap_or(""),
+                ],
+                &data.filter,
+            )
+        })
+        .collect()
+}
+
+fn matches_filter(
+    machine_id: &str,
+    severity: EventSeverity,
+    fields: &[&str],
+    filter: &EventFilter,
+) -> bool {
+    if let Some(target_machine) = filter.machine_id.as_deref()
+        && !machine_id.eq_ignore_ascii_case(target_machine)
+    {
+        return false;
+    }
+
+    if let Some(min_severity) = filter.min_severity
+        && severity > min_severity
+    {
+        return false;
+    }
+
+    if let Some(search) = filter.search.as_deref() {
+        let needle = search.to_lowercase();
+        if !fields
+            .iter()
+            .any(|field| field.to_lowercase().contains(&needle))
+            && !machine_id.to_lowercase().contains(&needle)
+        {
+            return false;
+        }
+    }
+
+    true
+}
+
+fn filter_summary(filter: &EventFilter) -> String {
+    let mut parts = Vec::new();
+    if let Some(machine_id) = filter.machine_id.as_deref() {
+        parts.push(format!("machine {machine_id}"));
+    }
+    if let Some(min_severity) = filter.min_severity {
+        parts.push(format!("min {}", min_severity.label()));
+    }
+    if let Some(search) = filter.search.as_deref() {
+        parts.push(format!("search {search}"));
+    }
+
+    if parts.is_empty() {
+        "[no filter]".to_string()
+    } else {
+        format!("[{}]", parts.join(" | "))
+    }
+}
+
+fn event_section_color(section: EventSection, theme: &Theme) -> ftui::Color {
+    match section {
+        EventSection::Dcg => theme.ftui_colors().critical,
+        EventSection::Rano => theme.ftui_colors().info,
+        EventSection::Pt => theme.ftui_colors().warning,
+    }
+}
+
+fn severity_color(severity: EventSeverity, theme: &Theme) -> ftui::Color {
+    match severity {
+        EventSeverity::Critical => theme.ftui_colors().critical,
+        EventSeverity::High => theme.ftui_colors().warning,
+        EventSeverity::Medium => theme.ftui_colors().info,
+        EventSeverity::Low | EventSeverity::Info => theme.ftui_colors().muted,
+    }
+}
+
+fn truncate_chars(value: &str, max_chars: usize) -> String {
+    let char_count = value.chars().count();
+    if char_count <= max_chars {
+        value.to_string()
+    } else {
+        let truncated: String = value.chars().take(max_chars.saturating_sub(1)).collect();
+        format!("{truncated}…")
+    }
+}
+
+fn ftui_block(title: Option<&str>, border_color: ftui::Color) -> FtuiBlock<'_> {
+    let block = FtuiBlock::default()
+        .borders(FtuiBorders::ALL)
+        .border_style(FtuiStyle::new().fg(packed(border_color)));
+    if let Some(title) = title {
+        block.title(title)
+    } else {
+        block
+    }
+}
+
+fn ftui_full_area(frame: &FtuiFrame) -> FtuiRect {
+    FtuiRect::new(0, 0, frame.width(), frame.height())
+}
+
+fn packed(color: ftui::Color) -> PackedRgba {
+    let rgb = color.to_rgb();
+    PackedRgba::rgb(rgb.r, rgb.g, rgb.b)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ftui::{Buffer, GraphemePool};
+
+    fn buffer_contains(buffer: &Buffer, width: u16, height: u16, needle: &str) -> bool {
+        let mut rows = Vec::with_capacity(usize::from(height));
+        for y in 0..height {
+            let row: String = (0..width)
+                .map(|x| {
+                    buffer
+                        .get(x, y)
+                        .and_then(|cell| cell.content.as_char())
+                        .unwrap_or(' ')
+                })
+                .collect();
+            rows.push(row);
+        }
+        rows.join("\n").contains(needle)
+    }
 
     #[test]
     fn test_event_section_navigation() {
@@ -813,5 +1349,95 @@ mod tests {
         assert!(filter.machine_id.is_none());
         assert!(filter.min_severity.is_none());
         assert!(filter.search.is_none());
+    }
+
+    #[test]
+    fn test_render_events_ftui_renders_selected_section() {
+        let data = EventsData {
+            dcg_events: vec![DcgEvent {
+                id: 1,
+                machine_id: "orko".to_string(),
+                command: "rm -rf target".to_string(),
+                reason: "Dangerous command".to_string(),
+                severity: EventSeverity::Critical,
+                timestamp: "2026-03-13T10:00:00Z".to_string(),
+                age: "2m".to_string(),
+                source: Some("claude-code".to_string()),
+            }],
+            rano_events: vec![RanoEvent {
+                id: 2,
+                machine_id: "orko".to_string(),
+                event_type: RanoEventType::AuthLoop,
+                remote_host: "api.anthropic.com".to_string(),
+                process: "claude-code".to_string(),
+                pid: 4242,
+                connection_count: 9,
+                timestamp: "2026-03-13T10:01:00Z".to_string(),
+                age: "1m".to_string(),
+                severity: EventSeverity::High,
+                details: Some("Repeated login attempts".to_string()),
+            }],
+            pt_findings: vec![PtFinding {
+                id: 3,
+                machine_id: "orko".to_string(),
+                finding_type: PtFindingType::Runaway,
+                process_name: "cargo test".to_string(),
+                pid: 31337,
+                timestamp: "2026-03-13T10:02:00Z".to_string(),
+                age: "30s".to_string(),
+                severity: EventSeverity::Medium,
+                metric_value: Some("CPU 390%".to_string()),
+                details: String::new(),
+            }],
+            selected_section: EventSection::Rano,
+            selected_index: 0,
+            filter: EventFilter::default(),
+            time_range: TimeRange::Hour24,
+            stats: EventStats {
+                dcg_total: 1,
+                dcg_critical: 1,
+                rano_total: 1,
+                pt_total: 1,
+                machines_affected: 1,
+            },
+        };
+        let theme = Theme::default();
+        let mut pool = GraphemePool::new();
+        let mut frame = FtuiFrame::new(120, 28, &mut pool);
+
+        render_events_ftui(&mut frame, &data, &theme);
+
+        assert!(buffer_contains(&frame.buffer, 120, 28, "EVENTS"));
+        assert!(buffer_contains(
+            &frame.buffer,
+            120,
+            28,
+            "Auth loop detected"
+        ));
+    }
+
+    #[test]
+    fn test_render_events_ftui_renders_empty_filtered_state() {
+        let data = EventsData {
+            filter: EventFilter {
+                machine_id: Some("other".to_string()),
+                min_severity: None,
+                search: None,
+            },
+            ..EventsData::default()
+        };
+        let theme = Theme::default();
+        let mut pool = GraphemePool::new();
+        let mut frame = FtuiFrame::new(100, 24, &mut pool);
+
+        render_events_ftui(&mut frame, &data, &theme);
+
+        assert!(buffer_contains(&frame.buffer, 100, 24, "EVENTS"));
+        assert!(buffer_contains(
+            &frame.buffer,
+            100,
+            24,
+            "No DCG events in scope"
+        ));
     }
 }

@@ -2,6 +2,19 @@
 //!
 //! Displays active alerts, history, and rule management.
 
+use ftui::{
+    Frame as FtuiFrame, PackedRgba, Style as FtuiStyle,
+    layout::{Constraint as FtuiConstraint, Flex, Rect as FtuiRect},
+    text::{Line as FtuiLine, Span as FtuiSpan, Text as FtuiText},
+    widgets::{
+        Widget as FtuiWidget,
+        block::Block as FtuiBlock,
+        borders::Borders as FtuiBorders,
+        list::{List as FtuiList, ListItem as FtuiListItem},
+        paragraph::Paragraph as FtuiParagraph,
+        table::{Row as FtuiRow, Table as FtuiTable},
+    },
+};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
@@ -290,23 +303,32 @@ fn render_active_alerts(f: &mut Frame, area: Rect, data: &AlertsData, theme: &Th
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.border));
 
-    if data.active_alerts.is_empty() {
-        let empty = Paragraph::new("  ✓ No active alerts - all systems nominal")
-            .style(Style::default().fg(theme.healthy))
-            .block(block);
+    let filtered = filtered_alerts(&data.active_alerts, data.severity_filter);
+    if filtered.is_empty() {
+        let empty = Paragraph::new(if data.active_alerts.is_empty() {
+            "  ✓ No active alerts - all systems nominal"
+        } else {
+            "  No active alerts match the current filter"
+        })
+        .style(Style::default().fg(if data.active_alerts.is_empty() {
+            theme.healthy
+        } else {
+            theme.muted
+        }))
+        .block(block);
         f.render_widget(empty, area);
         return;
     }
 
     let inner = block.inner(area);
     f.render_widget(block, area);
+    let clamped_selected = data.selected_index.min(filtered.len().saturating_sub(1));
 
-    let items: Vec<ListItem> = data
-        .active_alerts
+    let items: Vec<ListItem> = filtered
         .iter()
         .enumerate()
         .map(|(i, alert)| {
-            let style = if i == data.selected_index {
+            let style = if i == clamped_selected {
                 Style::default()
                     .fg(theme.highlight)
                     .add_modifier(Modifier::BOLD)
@@ -316,8 +338,7 @@ fn render_active_alerts(f: &mut Frame, area: Rect, data: &AlertsData, theme: &Th
 
             let severity_style = match alert.severity {
                 Severity::Critical => Style::default().fg(theme.critical),
-                Severity::High => Style::default().fg(theme.warning),
-                Severity::Warning => Style::default().fg(theme.warning),
+                Severity::High | Severity::Warning => Style::default().fg(theme.warning),
                 Severity::Info => Style::default().fg(theme.info),
                 Severity::Low => Style::default().fg(theme.muted),
             };
@@ -364,23 +385,28 @@ fn render_history(f: &mut Frame, area: Rect, data: &AlertsData, theme: &Theme) {
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.border));
 
-    if data.recent_alerts.is_empty() {
-        let empty = Paragraph::new("  No recent alerts")
-            .style(Style::default().fg(theme.muted))
-            .block(block);
+    let filtered = filtered_alerts(&data.recent_alerts, data.severity_filter);
+    if filtered.is_empty() {
+        let empty = Paragraph::new(if data.recent_alerts.is_empty() {
+            "  No recent alerts"
+        } else {
+            "  No recent alerts match the current filter"
+        })
+        .style(Style::default().fg(theme.muted))
+        .block(block);
         f.render_widget(empty, area);
         return;
     }
 
     let inner = block.inner(area);
     f.render_widget(block, area);
+    let clamped_selected = data.selected_index.min(filtered.len().saturating_sub(1));
 
-    let items: Vec<ListItem> = data
-        .recent_alerts
+    let items: Vec<ListItem> = filtered
         .iter()
         .enumerate()
         .map(|(i, alert)| {
-            let style = if i == data.selected_index {
+            let style = if i == clamped_selected {
                 Style::default().fg(theme.highlight)
             } else {
                 Style::default().fg(theme.text)
@@ -417,13 +443,20 @@ fn render_rules(f: &mut Frame, area: Rect, data: &AlertsData, theme: &Theme) {
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.border));
 
-    if data.rules.is_empty() {
-        let empty = Paragraph::new("  No alert rules configured")
-            .style(Style::default().fg(theme.muted))
-            .block(block);
+    let filtered = filtered_rules(&data.rules, data.severity_filter);
+    if filtered.is_empty() {
+        let empty = Paragraph::new(if data.rules.is_empty() {
+            "  No alert rules configured"
+        } else {
+            "  No rules match the current filter"
+        })
+        .style(Style::default().fg(theme.muted))
+        .block(block);
         f.render_widget(empty, area);
         return;
     }
+
+    let clamped_selected = data.selected_index.min(filtered.len().saturating_sub(1));
 
     let header = Row::new(vec!["", "Rule", "Severity", "Interval", "24h Fires"]).style(
         Style::default()
@@ -431,12 +464,11 @@ fn render_rules(f: &mut Frame, area: Rect, data: &AlertsData, theme: &Theme) {
             .add_modifier(Modifier::BOLD),
     );
 
-    let rows: Vec<Row> = data
-        .rules
+    let rows: Vec<Row> = filtered
         .iter()
         .enumerate()
         .map(|(i, rule)| {
-            let style = if i == data.selected_index {
+            let style = if i == clamped_selected {
                 Style::default().fg(theme.highlight)
             } else if !rule.enabled {
                 Style::default().fg(theme.muted)
@@ -514,9 +546,464 @@ fn render_footer(f: &mut Frame, area: Rect, data: &AlertsData, theme: &Theme) {
     f.render_widget(footer, area);
 }
 
+pub fn render_alerts_ftui(f: &mut FtuiFrame, data: &AlertsData, theme: &Theme) {
+    let rows = Flex::vertical()
+        .constraints([
+            FtuiConstraint::Fixed(3),
+            FtuiConstraint::Fill,
+            FtuiConstraint::Fixed(3),
+        ])
+        .split(ftui_full_area(f));
+
+    if rows.len() < 3 {
+        return;
+    }
+
+    render_alerts_ftui_header(f, rows[0], data, theme);
+    render_alerts_ftui_content(f, rows[1], data, theme);
+    render_alerts_ftui_footer(f, rows[2], data, theme);
+}
+
+fn render_alerts_ftui_header(f: &mut FtuiFrame, area: FtuiRect, data: &AlertsData, theme: &Theme) {
+    let colors = theme.ftui_colors();
+    let active_count = data.active_alerts.len();
+    let critical_count = data
+        .active_alerts
+        .iter()
+        .filter(|alert| alert.severity == Severity::Critical)
+        .count();
+
+    let mut spans = vec![
+        FtuiSpan::styled(
+            "  ALERTS  ",
+            FtuiStyle::new().fg(packed(colors.text)).bold(),
+        ),
+        FtuiSpan::raw(" "),
+    ];
+
+    for view_mode in [
+        AlertViewMode::Active,
+        AlertViewMode::History,
+        AlertViewMode::Rules,
+    ] {
+        let style = if view_mode == data.view_mode {
+            FtuiStyle::new().fg(packed(colors.accent)).bold()
+        } else {
+            FtuiStyle::new().fg(packed(colors.muted))
+        };
+        spans.push(FtuiSpan::styled(format!("[{}]", view_mode.label()), style));
+        spans.push(FtuiSpan::raw(" "));
+    }
+
+    spans.push(FtuiSpan::styled(
+        if active_count > 0 {
+            format!("[{active_count} active]")
+        } else {
+            "[no active alerts]".to_string()
+        },
+        FtuiStyle::new().fg(packed(if active_count > 0 {
+            colors.warning
+        } else {
+            colors.healthy
+        })),
+    ));
+
+    if critical_count > 0 {
+        spans.push(FtuiSpan::raw(" "));
+        spans.push(FtuiSpan::styled(
+            format!("[{critical_count} critical]"),
+            FtuiStyle::new().fg(packed(colors.critical)),
+        ));
+    }
+
+    if let Some(filter) = data.severity_filter {
+        spans.push(FtuiSpan::raw(" "));
+        spans.push(FtuiSpan::styled(
+            format!("[Filter: {}]", filter.label()),
+            FtuiStyle::new().fg(packed(alert_severity_color(filter, theme))),
+        ));
+    }
+
+    let header = FtuiParagraph::new(FtuiText::from_spans(spans))
+        .style(FtuiStyle::new().bg(packed(colors.bg_secondary)))
+        .block(ftui_block(None, theme));
+
+    FtuiWidget::render(&header, area, f);
+}
+
+fn render_alerts_ftui_content(f: &mut FtuiFrame, area: FtuiRect, data: &AlertsData, theme: &Theme) {
+    match data.view_mode {
+        AlertViewMode::Active => render_alerts_ftui_active(f, area, data, theme),
+        AlertViewMode::History => render_alerts_ftui_history(f, area, data, theme),
+        AlertViewMode::Rules => render_alerts_ftui_rules(f, area, data, theme),
+    }
+}
+
+fn render_alerts_ftui_active(f: &mut FtuiFrame, area: FtuiRect, data: &AlertsData, theme: &Theme) {
+    let colors = theme.ftui_colors();
+    let filtered = filtered_alerts(&data.active_alerts, data.severity_filter);
+    if filtered.is_empty() {
+        let message = if data.active_alerts.is_empty() {
+            "No active alerts. All systems nominal."
+        } else {
+            "No active alerts match the current filter."
+        };
+        let empty = FtuiParagraph::new(FtuiText::from_spans([FtuiSpan::styled(
+            message,
+            FtuiStyle::new().fg(packed(if data.active_alerts.is_empty() {
+                colors.healthy
+            } else {
+                colors.muted
+            })),
+        )]))
+        .block(ftui_block(Some(" Active Alerts "), theme));
+        FtuiWidget::render(&empty, area, f);
+        return;
+    }
+
+    let clamped_selected = data.selected_index.min(filtered.len().saturating_sub(1));
+    let items: Vec<FtuiListItem> = filtered
+        .iter()
+        .enumerate()
+        .map(|(index, alert)| {
+            let severity_color = alert_severity_color(alert.severity, theme);
+            let row_style = if index == clamped_selected {
+                FtuiStyle::new().bg(packed(colors.bg_secondary))
+            } else {
+                FtuiStyle::new()
+            };
+
+            let ack_style = if alert.acknowledged {
+                FtuiStyle::new().fg(packed(colors.healthy))
+            } else {
+                FtuiStyle::new().fg(packed(colors.warning))
+            };
+
+            let mut details = vec![
+                FtuiSpan::styled(
+                    format!(
+                        "Machine: {} | Rule: {}",
+                        alert.machine_id.as_deref().unwrap_or("unknown"),
+                        alert.rule_id
+                    ),
+                    FtuiStyle::new().fg(packed(colors.muted)),
+                ),
+                FtuiSpan::raw(" "),
+                FtuiSpan::styled(
+                    if alert.acknowledged {
+                        "[ack]"
+                    } else {
+                        "[open]"
+                    },
+                    ack_style,
+                ),
+            ];
+
+            if let Some(context) = alert.context.as_deref() {
+                details.push(FtuiSpan::raw(" "));
+                details.push(FtuiSpan::styled(
+                    format!("| {context}"),
+                    FtuiStyle::new().fg(packed(colors.info)),
+                ));
+            }
+
+            FtuiListItem::new(FtuiText::from_lines([
+                FtuiLine::from_spans([
+                    FtuiSpan::styled(
+                        format!("{} ", alert.severity.symbol()),
+                        FtuiStyle::new().fg(packed(severity_color)).bold(),
+                    ),
+                    FtuiSpan::styled(
+                        format!("{:<8}", alert.severity.label()),
+                        FtuiStyle::new().fg(packed(severity_color)).bold(),
+                    ),
+                    FtuiSpan::styled(
+                        format!("{:>8} ago", alert.age),
+                        FtuiStyle::new().fg(packed(colors.muted)),
+                    ),
+                    FtuiSpan::raw(" "),
+                    FtuiSpan::styled(&alert.title, FtuiStyle::new().fg(packed(colors.text))),
+                ]),
+                FtuiLine::from_spans(details),
+            ]))
+            .style(row_style)
+        })
+        .collect();
+
+    let list = FtuiList::new(items).block(ftui_block(Some(" Active Alerts "), theme));
+    FtuiWidget::render(&list, area, f);
+}
+
+fn render_alerts_ftui_history(f: &mut FtuiFrame, area: FtuiRect, data: &AlertsData, theme: &Theme) {
+    let colors = theme.ftui_colors();
+    let filtered = filtered_alerts(&data.recent_alerts, data.severity_filter);
+    if filtered.is_empty() {
+        let message = if data.recent_alerts.is_empty() {
+            "No recent alerts."
+        } else {
+            "No recent alerts match the current filter."
+        };
+        let empty = FtuiParagraph::new(FtuiText::from_spans([FtuiSpan::styled(
+            message,
+            FtuiStyle::new().fg(packed(colors.muted)),
+        )]))
+        .block(ftui_block(Some(" Recent Alerts "), theme));
+        FtuiWidget::render(&empty, area, f);
+        return;
+    }
+
+    let clamped_selected = data.selected_index.min(filtered.len().saturating_sub(1));
+    let items: Vec<FtuiListItem> = filtered
+        .iter()
+        .enumerate()
+        .map(|(index, alert)| {
+            let severity_color = alert_severity_color(alert.severity, theme);
+            let row_style = if index == clamped_selected {
+                FtuiStyle::new().bg(packed(colors.bg_secondary))
+            } else {
+                FtuiStyle::new()
+            };
+
+            let resolved = alert.resolved_at.as_deref().unwrap_or("resolved");
+            let mut detail = vec![
+                FtuiSpan::styled("Resolved: ", FtuiStyle::new().fg(packed(colors.muted))),
+                FtuiSpan::styled(resolved, FtuiStyle::new().fg(packed(colors.healthy))),
+            ];
+
+            if let Some(context) = alert.context.as_deref() {
+                detail.push(FtuiSpan::raw(" "));
+                detail.push(FtuiSpan::styled(
+                    format!("| {context}"),
+                    FtuiStyle::new().fg(packed(colors.info)),
+                ));
+            }
+
+            FtuiListItem::new(FtuiText::from_lines([
+                FtuiLine::from_spans([
+                    FtuiSpan::styled("✓ ", FtuiStyle::new().fg(packed(colors.healthy)).bold()),
+                    FtuiSpan::styled(
+                        format!("{:>8} ago", alert.age),
+                        FtuiStyle::new().fg(packed(colors.muted)),
+                    ),
+                    FtuiSpan::raw(" "),
+                    FtuiSpan::styled(&alert.title, FtuiStyle::new().fg(packed(severity_color))),
+                ]),
+                FtuiLine::from_spans(detail),
+            ]))
+            .style(row_style)
+        })
+        .collect();
+
+    let list = FtuiList::new(items).block(ftui_block(Some(" Recent Alerts "), theme));
+    FtuiWidget::render(&list, area, f);
+}
+
+fn render_alerts_ftui_rules(f: &mut FtuiFrame, area: FtuiRect, data: &AlertsData, theme: &Theme) {
+    let colors = theme.ftui_colors();
+    let filtered = filtered_rules(&data.rules, data.severity_filter);
+    if filtered.is_empty() {
+        let message = if data.rules.is_empty() {
+            "No alert rules configured."
+        } else {
+            "No rules match the current filter."
+        };
+        let empty = FtuiParagraph::new(FtuiText::from_spans([FtuiSpan::styled(
+            message,
+            FtuiStyle::new().fg(packed(colors.muted)),
+        )]))
+        .block(ftui_block(Some(" Alert Rules "), theme));
+        FtuiWidget::render(&empty, area, f);
+        return;
+    }
+
+    let clamped_selected = data.selected_index.min(filtered.len().saturating_sub(1));
+    let header = FtuiRow::new([
+        FtuiText::from_spans([FtuiSpan::styled("", FtuiStyle::new())]),
+        FtuiText::from_spans([FtuiSpan::styled("Rule", FtuiStyle::new().bold())]),
+        FtuiText::from_spans([FtuiSpan::styled("Severity", FtuiStyle::new().bold())]),
+        FtuiText::from_spans([FtuiSpan::styled("Every", FtuiStyle::new().bold())]),
+        FtuiText::from_spans([FtuiSpan::styled("Cooldown", FtuiStyle::new().bold())]),
+        FtuiText::from_spans([FtuiSpan::styled("24h", FtuiStyle::new().bold())]),
+    ])
+    .style(FtuiStyle::new().fg(packed(colors.muted)))
+    .bottom_margin(1);
+
+    let rows: Vec<FtuiRow> = filtered
+        .iter()
+        .enumerate()
+        .map(|(index, rule)| {
+            let severity_color = alert_severity_color(rule.severity, theme);
+            let row_style = if index == clamped_selected {
+                FtuiStyle::new().bg(packed(colors.bg_secondary))
+            } else if !rule.enabled {
+                FtuiStyle::new().fg(packed(colors.muted))
+            } else {
+                FtuiStyle::new()
+            };
+            let status = if rule.muted {
+                "🔇"
+            } else if rule.enabled {
+                "✓"
+            } else {
+                "✗"
+            };
+
+            FtuiRow::new([
+                FtuiText::from_spans([FtuiSpan::styled(
+                    status,
+                    FtuiStyle::new().fg(packed(if rule.muted {
+                        colors.warning
+                    } else if rule.enabled {
+                        colors.healthy
+                    } else {
+                        colors.muted
+                    })),
+                )]),
+                FtuiText::from_spans([FtuiSpan::styled(
+                    &rule.name,
+                    FtuiStyle::new().fg(packed(colors.text)),
+                )]),
+                FtuiText::from_spans([FtuiSpan::styled(
+                    rule.severity.label(),
+                    FtuiStyle::new().fg(packed(severity_color)).bold(),
+                )]),
+                FtuiText::from_spans([FtuiSpan::styled(
+                    format!("{}s", rule.check_interval),
+                    FtuiStyle::new().fg(packed(colors.text)),
+                )]),
+                FtuiText::from_spans([FtuiSpan::styled(
+                    format!("{}s", rule.cooldown),
+                    FtuiStyle::new().fg(packed(colors.muted)),
+                )]),
+                FtuiText::from_spans([FtuiSpan::styled(
+                    rule.fired_24h.to_string(),
+                    FtuiStyle::new().fg(packed(colors.warning)),
+                )]),
+            ])
+            .style(row_style)
+        })
+        .collect();
+
+    let table = FtuiTable::new(
+        rows,
+        [
+            FtuiConstraint::Fixed(3),
+            FtuiConstraint::Min(24),
+            FtuiConstraint::Fixed(10),
+            FtuiConstraint::Fixed(8),
+            FtuiConstraint::Fixed(10),
+            FtuiConstraint::Fixed(6),
+        ],
+    )
+    .header(header)
+    .column_spacing(1)
+    .block(ftui_block(Some(" Alert Rules "), theme));
+
+    FtuiWidget::render(&table, area, f);
+}
+
+fn render_alerts_ftui_footer(f: &mut FtuiFrame, area: FtuiRect, data: &AlertsData, theme: &Theme) {
+    let colors = theme.ftui_colors();
+    let help_text = match data.view_mode {
+        AlertViewMode::Active => "[a]ck [m]ute [d]ismiss [Tab]view [/]search",
+        AlertViewMode::History => "[Enter]details [Tab]view [/]search [t]range",
+        AlertViewMode::Rules => "[e]nable [m]ute [Enter]edit [Tab]view",
+    };
+
+    let footer = FtuiParagraph::new(FtuiText::from_spans(vec![
+        FtuiSpan::styled(
+            format!("Rules: {} enabled", data.stats.rules_enabled),
+            FtuiStyle::new().fg(packed(colors.muted)),
+        ),
+        FtuiSpan::raw(" | "),
+        FtuiSpan::styled(
+            format!("{} muted", data.stats.rules_muted),
+            FtuiStyle::new().fg(packed(colors.muted)),
+        ),
+        FtuiSpan::raw(" | "),
+        FtuiSpan::styled(
+            format!("{} custom", data.stats.rules_custom),
+            FtuiStyle::new().fg(packed(colors.muted)),
+        ),
+        FtuiSpan::raw("    "),
+        FtuiSpan::styled(help_text, FtuiStyle::new().fg(packed(colors.muted))),
+    ]))
+    .style(FtuiStyle::new().bg(packed(colors.bg_secondary)))
+    .block(ftui_block(None, theme));
+
+    FtuiWidget::render(&footer, area, f);
+}
+
+fn filtered_alerts(alerts: &[AlertInfo], severity_filter: Option<Severity>) -> Vec<&AlertInfo> {
+    alerts
+        .iter()
+        .filter(|alert| matches_severity_filter(alert.severity, severity_filter))
+        .collect()
+}
+
+fn filtered_rules(
+    rules: &[AlertRuleInfo],
+    severity_filter: Option<Severity>,
+) -> Vec<&AlertRuleInfo> {
+    rules
+        .iter()
+        .filter(|rule| matches_severity_filter(rule.severity, severity_filter))
+        .collect()
+}
+
+fn matches_severity_filter(severity: Severity, severity_filter: Option<Severity>) -> bool {
+    match severity_filter {
+        Some(filter) => severity == filter,
+        None => true,
+    }
+}
+
+fn alert_severity_color(severity: Severity, theme: &Theme) -> ftui::Color {
+    match severity {
+        Severity::Critical => theme.ftui_colors().critical,
+        Severity::High | Severity::Warning => theme.ftui_colors().warning,
+        Severity::Info => theme.ftui_colors().info,
+        Severity::Low => theme.ftui_colors().muted,
+    }
+}
+
+fn ftui_block<'a>(title: Option<&'a str>, theme: &Theme) -> FtuiBlock<'a> {
+    let mut block = FtuiBlock::new()
+        .borders(FtuiBorders::ALL)
+        .border_style(FtuiStyle::new().fg(packed(theme.ftui_colors().muted)));
+    if let Some(title) = title {
+        block = block.title(title);
+    }
+    block
+}
+
+fn ftui_full_area(frame: &FtuiFrame) -> FtuiRect {
+    FtuiRect::new(0, 0, frame.width(), frame.height())
+}
+
+fn packed(color: ftui::Color) -> PackedRgba {
+    let rgb = color.to_rgb();
+    PackedRgba::rgb(rgb.r, rgb.g, rgb.b)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ftui::{Buffer, GraphemePool};
+
+    fn buffer_contains(buffer: &Buffer, width: u16, height: u16, needle: &str) -> bool {
+        (0..height).any(|y| {
+            let row: String = (0..width)
+                .map(|x| {
+                    buffer
+                        .get(x, y)
+                        .and_then(|cell| cell.content.as_char())
+                        .unwrap_or(' ')
+                })
+                .collect();
+            row.contains(needle)
+        })
+    }
 
     #[test]
     fn test_severity_symbols() {
@@ -639,5 +1126,99 @@ mod tests {
         assert_eq!(stats.rules_enabled, 0);
         assert_eq!(stats.rules_muted, 0);
         assert_eq!(stats.critical_active, 0);
+    }
+
+    #[test]
+    fn test_render_alerts_ftui_renders_active_alerts() {
+        let data = AlertsData {
+            active_alerts: vec![AlertInfo {
+                id: 1,
+                rule_id: "rate-limit-warning".to_string(),
+                title: "Claude usage is climbing".to_string(),
+                message: "Usage hit 87%".to_string(),
+                severity: Severity::Warning,
+                fired_at: "2026-03-13T10:00:00Z".to_string(),
+                age: "5m".to_string(),
+                machine_id: Some("orko".to_string()),
+                acknowledged: false,
+                resolved_at: None,
+                context: Some("Switch soon".to_string()),
+            }],
+            stats: AlertStats {
+                rules_enabled: 4,
+                rules_muted: 1,
+                rules_custom: 2,
+                alerts_24h: 6,
+                critical_active: 0,
+            },
+            ..AlertsData::default()
+        };
+        let theme = Theme::default();
+        let mut pool = GraphemePool::new();
+        let mut frame = FtuiFrame::new(100, 18, &mut pool);
+
+        render_alerts_ftui(&mut frame, &data, &theme);
+
+        assert!(buffer_contains(&frame.buffer, 100, 18, "ALERTS"));
+        assert!(buffer_contains(
+            &frame.buffer,
+            100,
+            18,
+            "Claude usage is climbing"
+        ));
+    }
+
+    #[test]
+    fn test_render_alerts_ftui_renders_rules_view() {
+        let data = AlertsData {
+            rules: vec![AlertRuleInfo {
+                rule_id: "disk-near-full".to_string(),
+                name: "Disk Near Full".to_string(),
+                description: "Detect disk exhaustion".to_string(),
+                severity: Severity::Critical,
+                enabled: true,
+                muted: false,
+                check_interval: 60,
+                cooldown: 300,
+                fired_24h: 5,
+            }],
+            view_mode: AlertViewMode::Rules,
+            selected_index: 0,
+            severity_filter: Some(Severity::Critical),
+            stats: AlertStats {
+                rules_enabled: 5,
+                rules_muted: 0,
+                rules_custom: 1,
+                alerts_24h: 9,
+                critical_active: 1,
+            },
+            ..AlertsData::default()
+        };
+        let theme = Theme::default();
+        let mut pool = GraphemePool::new();
+        let mut frame = FtuiFrame::new(100, 18, &mut pool);
+
+        render_alerts_ftui(&mut frame, &data, &theme);
+
+        assert!(buffer_contains(&frame.buffer, 100, 18, "Disk Near Full"));
+        assert!(buffer_contains(&frame.buffer, 100, 18, "CRITICAL"));
+        assert!(buffer_contains(&frame.buffer, 100, 18, "Filter: CRITICAL"));
+    }
+
+    #[test]
+    fn test_render_alerts_ftui_renders_empty_state() {
+        let data = AlertsData::default();
+        let theme = Theme::default();
+        let mut pool = GraphemePool::new();
+        let mut frame = FtuiFrame::new(80, 16, &mut pool);
+
+        render_alerts_ftui(&mut frame, &data, &theme);
+
+        assert!(buffer_contains(
+            &frame.buffer,
+            80,
+            16,
+            "No active alerts. All systems nominal."
+        ));
     }
 }
