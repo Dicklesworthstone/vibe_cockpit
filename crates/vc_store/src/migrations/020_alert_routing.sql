@@ -1,8 +1,9 @@
 -- Alert routing events: audit trail of routing decisions
+-- Translated from DuckDB to SQLite-compatible SQL (bd-h6y)
 CREATE TABLE IF NOT EXISTS alert_routing_events (
     id INTEGER PRIMARY KEY,
     alert_id TEXT NOT NULL,
-    routed_at TIMESTAMP DEFAULT current_timestamp,
+    routed_at TEXT DEFAULT (datetime('now')),
     rule_id TEXT,
     channel TEXT NOT NULL,
     action TEXT NOT NULL,

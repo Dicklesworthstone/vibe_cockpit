@@ -2,11 +2,12 @@
 --
 -- Tables needed by the beads, process_triage (pt), and GitHub collectors
 -- that were referenced in collector code but never created in schema.
+-- Translated from DuckDB to SQLite-compatible SQL (bd-h6y)
 
 -- Beads triage snapshots (from bv --robot-triage)
 CREATE TABLE IF NOT EXISTS beads_triage_snapshots (
     machine_id TEXT NOT NULL,
-    collected_at TIMESTAMP NOT NULL,
+    collected_at TEXT NOT NULL,
     repo_id TEXT NOT NULL,
     quick_ref_json TEXT,
     recommendations_json TEXT,
@@ -18,21 +19,21 @@ CREATE TABLE IF NOT EXISTS beads_triage_snapshots (
 -- Beads graph metrics (from bv graph analysis)
 CREATE TABLE IF NOT EXISTS beads_graph_metrics (
     repo_id TEXT NOT NULL,
-    collected_at TIMESTAMP NOT NULL,
+    collected_at TEXT NOT NULL,
     pagerank_json TEXT,
     betweenness_json TEXT,
     critical_path_json TEXT,
     node_count INTEGER,
     edge_count INTEGER,
     density REAL,
-    has_cycles BOOLEAN,
+    has_cycles INTEGER,
     PRIMARY KEY (repo_id, collected_at)
 );
 
 -- Process triage: individual process inventory
 CREATE TABLE IF NOT EXISTS pt_processes (
     machine_id TEXT NOT NULL,
-    collected_at TIMESTAMP NOT NULL,
+    collected_at TEXT NOT NULL,
     pid INTEGER NOT NULL,
     name TEXT,
     cmdline TEXT,
@@ -51,23 +52,23 @@ CREATE TABLE IF NOT EXISTS pt_processes (
 -- Process triage: resource usage snapshots
 CREATE TABLE IF NOT EXISTS pt_snapshots (
     machine_id TEXT NOT NULL,
-    collected_at TIMESTAMP NOT NULL,
+    collected_at TEXT NOT NULL,
     pid INTEGER NOT NULL,
-    snapshot_at TIMESTAMP,
+    snapshot_at TEXT,
     cpu_percent REAL,
     memory_mb REAL,
     memory_percent REAL,
     threads INTEGER,
     open_files INTEGER,
-    io_read_bytes BIGINT,
-    io_write_bytes BIGINT,
+    io_read_bytes INTEGER,
+    io_write_bytes INTEGER,
     PRIMARY KEY (machine_id, collected_at, pid)
 );
 
 -- GitHub repo issue/PR snapshots
 CREATE TABLE IF NOT EXISTS gh_repo_issue_pr_snapshot (
     repo_id TEXT NOT NULL,
-    collected_at TIMESTAMP NOT NULL,
+    collected_at TEXT NOT NULL,
     open_issues INTEGER DEFAULT 0,
     open_prs INTEGER DEFAULT 0,
     triage_json TEXT,

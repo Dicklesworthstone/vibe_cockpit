@@ -1,4 +1,5 @@
 -- Playbook auto-generation tables
+-- Translated from DuckDB to SQLite-compatible SQL (bd-phr)
 
 -- Captured resolutions: operator actions that resolved alerts
 CREATE TABLE IF NOT EXISTS resolutions (
@@ -8,7 +9,7 @@ CREATE TABLE IF NOT EXISTS resolutions (
     trigger_context TEXT,
     actions TEXT NOT NULL,
     outcome TEXT NOT NULL DEFAULT 'unknown',
-    captured_at TIMESTAMP DEFAULT current_timestamp,
+    captured_at TEXT DEFAULT (datetime('now')),
     machine_id TEXT,
     operator TEXT
 );
@@ -25,12 +26,12 @@ CREATE TABLE IF NOT EXISTS playbook_drafts (
     alert_type TEXT NOT NULL,
     trigger_json TEXT NOT NULL,
     steps_json TEXT NOT NULL,
-    confidence DOUBLE NOT NULL DEFAULT 0.0,
+    confidence REAL NOT NULL DEFAULT 0.0,
     sample_count INTEGER NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'pending_review',
     approved_by TEXT,
-    approved_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT current_timestamp,
+    approved_at TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
     source_pattern_json TEXT
 );
 

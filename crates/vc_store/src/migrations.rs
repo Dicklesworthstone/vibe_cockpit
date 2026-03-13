@@ -65,8 +65,9 @@
 //! - **004_agent_dna.sql**: 1 `DOUBLE[]` column (dna_embedding) — convert to
 //!   `TEXT` storing JSON float array.
 
-use crate::StoreError;
-use duckdb::Connection;
+#![allow(clippy::doc_markdown)]
+
+use crate::{StoreConnectionGuard, StoreError};
 use tracing::{debug, info};
 
 /// Migration definition
@@ -215,7 +216,7 @@ const MIGRATIONS: &[Migration] = &[
 /// # Errors
 ///
 /// Returns [`StoreError`] if migration bookkeeping or any migration SQL fails.
-pub fn run_all(conn: &Connection) -> Result<(), StoreError> {
+pub(crate) fn run_all(conn: &StoreConnectionGuard<'_>) -> Result<(), StoreError> {
     // Create migrations table if not exists
     conn.execute_batch(
         r"

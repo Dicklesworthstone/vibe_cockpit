@@ -1,9 +1,10 @@
 -- Poll schedule decisions: audit trail for adaptive polling decisions
+-- Translated from DuckDB to SQLite-compatible SQL (bd-h6y)
 CREATE TABLE IF NOT EXISTS poll_schedule_decisions (
     id INTEGER PRIMARY KEY,
     machine_id TEXT NOT NULL,
     collector TEXT NOT NULL,
-    decided_at TIMESTAMP DEFAULT current_timestamp,
+    decided_at TEXT DEFAULT (datetime('now')),
     next_interval_seconds INTEGER NOT NULL,
     reason_json TEXT
 );
@@ -15,7 +16,7 @@ CREATE INDEX IF NOT EXISTS idx_poll_schedule_machine
 CREATE TABLE IF NOT EXISTS sys_profile_samples (
     id INTEGER PRIMARY KEY,
     machine_id TEXT NOT NULL,
-    collected_at TIMESTAMP DEFAULT current_timestamp,
+    collected_at TEXT DEFAULT (datetime('now')),
     profile_id TEXT NOT NULL,
     metrics_json TEXT,
     raw_json TEXT

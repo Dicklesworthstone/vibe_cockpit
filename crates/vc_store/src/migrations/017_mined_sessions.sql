@@ -1,10 +1,11 @@
 -- Track which agent sessions have been mined for solutions
 -- Prevents re-mining the same session and stores mining metadata
+-- Translated from DuckDB to SQLite-compatible SQL (bd-phr)
 
 CREATE TABLE IF NOT EXISTS mined_sessions (
     session_id TEXT PRIMARY KEY,
     machine_id TEXT,
-    mined_at TIMESTAMP DEFAULT current_timestamp,
+    mined_at TEXT DEFAULT (datetime('now')),
     solutions_extracted INTEGER DEFAULT 0,
     patterns_extracted INTEGER DEFAULT 0,
     quality_avg REAL,

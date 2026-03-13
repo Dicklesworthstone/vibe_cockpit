@@ -2,5 +2,9 @@
 --
 -- The MachineStatus enum (online/offline/unknown) is distinct from the
 -- enabled boolean. A machine can be enabled but currently offline.
-
-ALTER TABLE machines ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'unknown';
+-- Translated from DuckDB to SQLite-compatible SQL (bd-h6y)
+--
+-- NOTE: migration 002_machine_registry.sql already adds this column in the
+-- translated SQLite chain, so keeping the later ALTER would fail with
+-- "duplicate column name: status". This migration is therefore a deliberate
+-- no-op after translation.

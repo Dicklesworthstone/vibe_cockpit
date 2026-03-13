@@ -9,9 +9,11 @@
 use chrono::{DateTime, Utc};
 use duckdb::Connection;
 use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
 use std::fmt::Write as _;
-use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, MutexGuard};
+use tempfile::TempDir;
 use thiserror::Error;
 use tracing::{info, instrument};
 
@@ -35,6 +37,166 @@ pub enum StoreError {
 
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
+}
+
+const DUCKDB_SESSION_PRAGMAS: &str = r"
+    PRAGMA threads=4;
+    PRAGMA memory_limit='512MB';
+";
+
+enum ConnectionSource {
+    File(PathBuf),
+    Temporary { path: PathBuf, _temp_dir: TempDir },
+}
+
+struct StoreConnectionShared {
+    source: ConnectionSource,
+    gate: Mutex<()>,
+}
+
+#[derive(Clone)]
+pub struct StoreConnectionFactory {
+    shared: Arc<StoreConnectionShared>,
+}
+
+pub struct StoreConnectionLockResult<'a>(StoreConnectionGuard<'a>);
+
+pub struct StoreConnectionGuard<'a> {
+    _gate: MutexGuard<'a, ()>,
+    conn: Option<Connection>,
+    connection_error: RefCell<Option<duckdb::Error>>,
+}
+
+impl StoreConnectionFactory {
+    fn file(path: PathBuf) -> Self {
+        Self {
+            shared: Arc::new(StoreConnectionShared {
+                source: ConnectionSource::File(path),
+                gate: Mutex::new(()),
+            }),
+        }
+    }
+
+    fn temporary(temp_dir: TempDir, path: PathBuf) -> Self {
+        Self {
+            shared: Arc::new(StoreConnectionShared {
+                source: ConnectionSource::Temporary {
+                    path,
+                    _temp_dir: temp_dir,
+                },
+                gate: Mutex::new(()),
+            }),
+        }
+    }
+
+    fn open_connection(&self) -> Result<Connection, duckdb::Error> {
+        let path = match &self.shared.source {
+            ConnectionSource::File(path) | ConnectionSource::Temporary { path, .. } => path,
+        };
+        let conn = Connection::open(path)?;
+        conn.execute_batch(DUCKDB_SESSION_PRAGMAS)?;
+        Ok(conn)
+    }
+
+    #[allow(clippy::missing_panics_doc)]
+    #[must_use]
+    pub fn lock(&self) -> StoreConnectionLockResult<'_> {
+        let gate = self.shared.gate.lock().unwrap();
+        let (conn, connection_error) = match self.open_connection() {
+            Ok(conn) => (Some(conn), None),
+            Err(err) => (None, Some(err)),
+        };
+        StoreConnectionLockResult(StoreConnectionGuard {
+            _gate: gate,
+            conn,
+            connection_error: RefCell::new(connection_error),
+        })
+    }
+}
+
+impl<'a> StoreConnectionLockResult<'a> {
+    #[must_use]
+    pub fn unwrap(self) -> StoreConnectionGuard<'a> {
+        self.0
+    }
+
+    #[allow(clippy::missing_errors_doc)]
+    pub fn map_err<E, F>(self, op: F) -> Result<StoreConnectionGuard<'a>, E>
+    where
+        F: FnOnce(StoreError) -> E,
+    {
+        self.0.into_result().map_err(op)
+    }
+}
+
+#[allow(clippy::elidable_lifetime_names)]
+impl<'a> StoreConnectionGuard<'a> {
+    fn into_result(self) -> Result<Self, StoreError> {
+        if self.conn.is_some() {
+            Ok(self)
+        } else {
+            let error = self.connection_error.into_inner().unwrap_or_else(|| {
+                duckdb::Error::InvalidParameterName(
+                    "database connection could not be opened".to_string(),
+                )
+            });
+            Err(StoreError::DatabaseError(error))
+        }
+    }
+
+    fn take_connection_error(&self) -> duckdb::Error {
+        self.connection_error
+            .borrow_mut()
+            .take()
+            .unwrap_or_else(|| {
+                duckdb::Error::InvalidParameterName(
+                    "database connection could not be opened".to_string(),
+                )
+            })
+    }
+
+    pub(crate) fn execute<P>(&self, sql: &str, params: P) -> Result<usize, duckdb::Error>
+    where
+        P: duckdb::Params,
+    {
+        if let Some(conn) = self.conn.as_ref() {
+            conn.execute(sql, params)
+        } else {
+            Err(self.take_connection_error())
+        }
+    }
+
+    pub(crate) fn execute_batch(&self, sql: &str) -> Result<(), duckdb::Error> {
+        if let Some(conn) = self.conn.as_ref() {
+            conn.execute_batch(sql)
+        } else {
+            Err(self.take_connection_error())
+        }
+    }
+
+    pub(crate) fn prepare<'conn>(
+        &'conn self,
+        sql: &str,
+    ) -> Result<duckdb::Statement<'conn>, duckdb::Error> {
+        if let Some(conn) = self.conn.as_ref() {
+            conn.prepare(sql)
+        } else {
+            Err(self.take_connection_error())
+        }
+    }
+
+    #[allow(clippy::missing_errors_doc)]
+    pub fn query_row<T, P, F>(&self, sql: &str, params: P, f: F) -> Result<T, duckdb::Error>
+    where
+        P: duckdb::Params,
+        F: FnOnce(&duckdb::Row<'_>) -> Result<T, duckdb::Error>,
+    {
+        if let Some(conn) = self.conn.as_ref() {
+            conn.query_row(sql, params, f)
+        } else {
+            Err(self.take_connection_error())
+        }
+    }
 }
 
 /// Audit event categories
@@ -284,7 +446,7 @@ pub struct FreshnessSummary {
 
 /// Main storage handle
 pub struct VcStore {
-    conn: Arc<Mutex<Connection>>,
+    conn: StoreConnectionFactory,
     db_path: String,
 }
 
@@ -304,18 +466,8 @@ impl VcStore {
             std::fs::create_dir_all(parent)?;
         }
 
-        let conn = Connection::open(path)?;
-
-        // Set pragmas for performance
-        conn.execute_batch(
-            r"
-            PRAGMA threads=4;
-            PRAGMA memory_limit='512MB';
-        ",
-        )?;
-
         let store = Self {
-            conn: Arc::new(Mutex::new(conn)),
+            conn: StoreConnectionFactory::file(path.to_path_buf()),
             db_path: path.to_string_lossy().to_string(),
         };
 
@@ -331,10 +483,11 @@ impl VcStore {
     ///
     /// Returns [`StoreError`] if in-memory database setup or migrations fail.
     pub fn open_memory() -> Result<Self, StoreError> {
-        let conn = Connection::open_in_memory()?;
+        let temp_dir = TempDir::new()?;
+        let path = temp_dir.path().join("vc_store.duckdb");
 
         let store = Self {
-            conn: Arc::new(Mutex::new(conn)),
+            conn: StoreConnectionFactory::temporary(temp_dir, path),
             db_path: ":memory:".to_string(),
         };
 
@@ -352,8 +505,8 @@ impl VcStore {
 
     /// Get access to the underlying connection
     #[must_use]
-    pub fn connection(&self) -> Arc<Mutex<Connection>> {
-        Arc::clone(&self.conn)
+    pub fn connection(&self) -> StoreConnectionFactory {
+        self.conn.clone()
     }
 
     /// Execute a query that returns no results
@@ -493,8 +646,6 @@ impl VcStore {
                     return Err(e.into());
                 }
                 count += 1;
-            } else {
-                continue;
             }
         }
 
@@ -949,7 +1100,10 @@ impl VcStore {
     }
 
     /// Detect the timestamp column for a table
-    fn detect_timestamp_column(conn: &Connection, table_name: &str) -> Result<String, StoreError> {
+    fn detect_timestamp_column(
+        conn: &StoreConnectionGuard<'_>,
+        table_name: &str,
+    ) -> Result<String, StoreError> {
         // Common timestamp column names in order of preference
         let candidates = ["collected_at", "ts", "created_at", "timestamp", "time"];
 
@@ -970,7 +1124,7 @@ impl VcStore {
 
     /// Log a vacuum operation to `retention_log`
     fn log_vacuum_result(
-        conn: &Connection,
+        conn: &StoreConnectionGuard<'_>,
         policy: &RetentionPolicy,
         rows_deleted: i64,
         rows_aggregated: i64,
@@ -1741,8 +1895,6 @@ impl VcStore {
                     return Err(e.into());
                 }
                 count += 1;
-            } else {
-                continue;
             }
         }
 
@@ -3461,6 +3613,28 @@ mod tests {
     fn test_open_memory() {
         let store = VcStore::open_memory().unwrap();
         assert_eq!(store.db_path(), ":memory:");
+    }
+
+    #[test]
+    fn test_open_memory_reuses_backing_store_across_connections() {
+        let store = VcStore::open_memory().unwrap();
+
+        let conn = store.connection();
+        conn.lock()
+            .unwrap()
+            .execute("CREATE TABLE shared_state (id INTEGER)", [])
+            .unwrap();
+        conn.lock()
+            .unwrap()
+            .execute("INSERT INTO shared_state VALUES (1)", [])
+            .unwrap();
+
+        let count: i64 = conn
+            .lock()
+            .unwrap()
+            .query_row("SELECT COUNT(*) FROM shared_state", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 1);
     }
 
     #[test]

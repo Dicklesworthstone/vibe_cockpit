@@ -22,6 +22,7 @@ thiserror.workspace = true
 tracing.workspace = true
 chrono.workspace = true
 anyhow.workspace = true
+tempfile = "3"
 
 [dev-dependencies]
 proptest.workspace = true

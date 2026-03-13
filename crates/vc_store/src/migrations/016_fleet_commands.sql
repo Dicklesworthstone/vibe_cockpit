@@ -1,13 +1,14 @@
 -- Fleet orchestration command history
 -- Tracks spawn, rebalance, emergency-stop, and migrate operations
+-- Translated from DuckDB to SQLite-compatible SQL (bd-phr)
 
 CREATE TABLE IF NOT EXISTS fleet_commands (
     command_id TEXT PRIMARY KEY,
     command_type TEXT NOT NULL,        -- spawn, rebalance, emergency_stop, migrate
     params_json TEXT NOT NULL,         -- JSON of command parameters
     status TEXT NOT NULL DEFAULT 'pending',  -- pending, running, completed, failed
-    started_at TIMESTAMP DEFAULT current_timestamp,
-    completed_at TIMESTAMP,
+    started_at TEXT DEFAULT (datetime('now')),
+    completed_at TEXT,
     result_json TEXT,                  -- JSON of command results
     error_message TEXT,
     initiated_by TEXT                  -- agent name or 'user'
