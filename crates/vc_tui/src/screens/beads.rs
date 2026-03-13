@@ -3,6 +3,7 @@
 //! Shows bv triage output, blockers, and recommended next picks.
 //! Data is sourced from `beads_triage_snapshots`, `beads_issues`, and `beads_graph_metrics` tables.
 
+use crate::theme::Theme;
 use ftui::{
     Frame as FtuiFrame, PackedRgba, Style as FtuiStyle,
     layout::{Constraint as FtuiConstraint, Flex, Rect as FtuiRect},
@@ -15,15 +16,6 @@ use ftui::{
         paragraph::Paragraph as FtuiParagraph,
     },
 };
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
-};
-
-use crate::theme::Theme;
 
 /// Data needed to render the beads screen
 #[derive(Debug, Clone, Default)]
@@ -133,351 +125,6 @@ pub struct GraphHealthData {
 }
 
 /// Render the beads screen
-pub fn render_beads(f: &mut Frame, data: &BeadsData, theme: &Theme) {
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(3), // Header
-            Constraint::Length(7), // Quick reference
-            Constraint::Min(10),   // Recommendations + Blockers (split horizontal)
-            Constraint::Length(5), // Graph health
-        ])
-        .split(f.area());
-
-    render_header(f, chunks[0], data, theme);
-    render_quick_ref(
-        f,
-        chunks[1],
-        &data.quick_ref,
-        data.selected_section == 0,
-        theme,
-    );
-
-    // Split middle section into recommendations and blockers
-    let middle_chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
-        .split(chunks[2]);
-
-    render_recommendations(
-        f,
-        middle_chunks[0],
-        &data.recommendations,
-        data.selected_section == 1,
-        data.selected_recommendation,
-        theme,
-    );
-    render_blockers(
-        f,
-        middle_chunks[1],
-        &data.blockers,
-        data.selected_section == 2,
-        data.selected_blocker,
-        theme,
-    );
-
-    render_graph_health(
-        f,
-        chunks[3],
-        &data.graph_health,
-        data.selected_section == 3,
-        theme,
-    );
-}
-
-fn render_header(f: &mut Frame, area: Rect, data: &BeadsData, theme: &Theme) {
-    let refresh_text = if data.refresh_age_secs < 60 {
-        format!("{}s ago", data.refresh_age_secs)
-    } else {
-        format!("{}m ago", data.refresh_age_secs / 60)
-    };
-
-    let header = Paragraph::new(Line::from(vec![
-        Span::styled(
-            "BEADS TRIAGE",
-            Style::default()
-                .fg(theme.accent)
-                .add_modifier(Modifier::BOLD),
-        ),
-        Span::raw("  "),
-        Span::styled(
-            format!("[{refresh_text}]"),
-            Style::default().fg(theme.muted),
-        ),
-        Span::raw("  "),
-        Span::styled(
-            "[Tab] switch section  [j/k] navigate  [Enter] details  [r] refresh",
-            Style::default().fg(theme.muted),
-        ),
-    ]))
-    .block(
-        Block::default()
-            .borders(Borders::BOTTOM)
-            .border_style(Style::default().fg(theme.muted)),
-    );
-
-    f.render_widget(header, area);
-}
-
-fn render_quick_ref(f: &mut Frame, area: Rect, data: &QuickRefData, selected: bool, theme: &Theme) {
-    let border_color = if selected { theme.accent } else { theme.muted };
-
-    let block = Block::default()
-        .title(Span::styled(
-            " Quick Reference ",
-            Style::default().fg(theme.text),
-        ))
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(border_color));
-
-    let inner = block.inner(area);
-    f.render_widget(block, area);
-
-    // Split into two rows
-    let rows = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Length(2), Constraint::Length(2)])
-        .split(inner);
-
-    // First row: counts
-    let counts = Paragraph::new(Line::from(vec![
-        Span::styled(
-            format!(" Ready: {} ", data.actionable_count),
-            Style::default().fg(theme.healthy),
-        ),
-        Span::raw("│"),
-        Span::styled(
-            format!(" Blocked: {} ", data.blocked_count),
-            Style::default().fg(theme.warning),
-        ),
-        Span::raw("│"),
-        Span::styled(
-            format!(" In Progress: {} ", data.in_progress_count),
-            Style::default().fg(theme.info),
-        ),
-        Span::raw("│"),
-        Span::styled(
-            format!(" Open: {} ", data.open_count),
-            Style::default().fg(theme.text),
-        ),
-    ]));
-    f.render_widget(counts, rows[0]);
-
-    // Second row: priority breakdown and epics
-    let priority = Paragraph::new(Line::from(vec![
-        Span::styled(
-            format!(" P0:{}", data.by_priority[0]),
-            Style::default().fg(theme.critical),
-        ),
-        Span::raw(" "),
-        Span::styled(
-            format!("P1:{}", data.by_priority[1]),
-            Style::default().fg(theme.warning),
-        ),
-        Span::raw(" "),
-        Span::styled(
-            format!("P2:{}", data.by_priority[2]),
-            Style::default().fg(theme.info),
-        ),
-        Span::raw(" "),
-        Span::styled(
-            format!("P3:{}", data.by_priority[3]),
-            Style::default().fg(theme.muted),
-        ),
-        Span::raw(" │ "),
-        Span::styled(
-            format!(
-                "Epics: {}/{} with ready work",
-                data.epics_with_ready, data.total_epics
-            ),
-            Style::default().fg(theme.text),
-        ),
-    ]));
-    f.render_widget(priority, rows[1]);
-}
-
-fn render_recommendations(
-    f: &mut Frame,
-    area: Rect,
-    items: &[RecommendationItem],
-    selected: bool,
-    selected_idx: usize,
-    theme: &Theme,
-) {
-    let border_color = if selected { theme.accent } else { theme.muted };
-
-    let block = Block::default()
-        .title(Span::styled(
-            " Recommended Next ",
-            Style::default().fg(theme.text),
-        ))
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(border_color));
-
-    let list_items: Vec<ListItem> = items
-        .iter()
-        .enumerate()
-        .map(|(i, item)| {
-            let priority_style = priority_style(item.priority, theme);
-            let status_indicator = if item.status == "in_progress" {
-                "◐"
-            } else {
-                "○"
-            };
-
-            let content = Line::from(vec![
-                Span::styled(status_indicator, priority_style),
-                Span::raw(" "),
-                Span::styled(format!("[P{}]", item.priority), priority_style),
-                Span::raw(" "),
-                Span::styled(&item.id, Style::default().fg(theme.accent)),
-                Span::raw(": "),
-                Span::styled(truncate(&item.title, 40), Style::default().fg(theme.text)),
-            ]);
-
-            let style = if selected && i == selected_idx {
-                Style::default()
-                    .bg(theme.bg_secondary)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default()
-            };
-
-            ListItem::new(content).style(style)
-        })
-        .collect();
-
-    let list = List::new(list_items).block(block);
-    f.render_widget(list, area);
-}
-
-fn render_blockers(
-    f: &mut Frame,
-    area: Rect,
-    items: &[BlockerItem],
-    selected: bool,
-    selected_idx: usize,
-    theme: &Theme,
-) {
-    let border_color = if selected { theme.accent } else { theme.muted };
-
-    let block = Block::default()
-        .title(Span::styled(
-            " Blockers to Clear ",
-            Style::default().fg(theme.text),
-        ))
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(border_color));
-
-    let list_items: Vec<ListItem> = items
-        .iter()
-        .enumerate()
-        .map(|(i, item)| {
-            let actionable_indicator = if item.is_actionable { "✓" } else { "⏳" };
-            let actionable_color = if item.is_actionable {
-                theme.healthy
-            } else {
-                theme.warning
-            };
-
-            let content = Line::from(vec![
-                Span::styled(actionable_indicator, Style::default().fg(actionable_color)),
-                Span::raw(" "),
-                Span::styled(&item.id, Style::default().fg(theme.accent)),
-                Span::raw(" "),
-                Span::styled(
-                    format!("(unblocks {})", item.unblocks_count),
-                    Style::default().fg(theme.info),
-                ),
-            ]);
-
-            let style = if selected && i == selected_idx {
-                Style::default()
-                    .bg(theme.bg_secondary)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default()
-            };
-
-            ListItem::new(content).style(style)
-        })
-        .collect();
-
-    let list = List::new(list_items).block(block);
-    f.render_widget(list, area);
-}
-
-fn render_graph_health(
-    f: &mut Frame,
-    area: Rect,
-    data: &GraphHealthData,
-    selected: bool,
-    theme: &Theme,
-) {
-    let border_color = if selected { theme.accent } else { theme.muted };
-
-    let block = Block::default()
-        .title(Span::styled(
-            " Graph Health ",
-            Style::default().fg(theme.text),
-        ))
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(border_color));
-
-    let inner = block.inner(area);
-    f.render_widget(block, area);
-
-    let cycle_indicator = if data.has_cycles {
-        "⚠ Cycles detected"
-    } else {
-        "✓ No cycles"
-    };
-    let cycle_color = if data.has_cycles {
-        theme.critical
-    } else {
-        theme.healthy
-    };
-
-    let content = Paragraph::new(Line::from(vec![
-        Span::styled(
-            format!("Nodes: {} ", data.node_count),
-            Style::default().fg(theme.text),
-        ),
-        Span::raw("│ "),
-        Span::styled(
-            format!("Edges: {} ", data.edge_count),
-            Style::default().fg(theme.text),
-        ),
-        Span::raw("│ "),
-        Span::styled(
-            format!("Density: {:.1}% ", data.density * 100.0),
-            Style::default().fg(theme.text),
-        ),
-        Span::raw("│ "),
-        Span::styled(cycle_indicator, Style::default().fg(cycle_color)),
-        Span::raw(" │ "),
-        Span::styled(
-            format!(
-                "Velocity: {} (7d) {} (30d)",
-                data.closed_last_7d, data.closed_last_30d
-            ),
-            Style::default().fg(theme.info),
-        ),
-    ]));
-
-    f.render_widget(content, inner);
-}
-
-/// Get style for a priority level
-fn priority_style(priority: u32, theme: &Theme) -> Style {
-    match priority {
-        0 => Style::default().fg(theme.critical),
-        1 => Style::default().fg(theme.warning),
-        2 => Style::default().fg(theme.info),
-        _ => Style::default().fg(theme.muted),
-    }
-}
-
 /// Truncate a string to a maximum number of characters (not bytes)
 fn truncate(s: &str, max_chars: usize) -> String {
     let char_count = s.chars().count();
@@ -1009,32 +656,27 @@ mod tests {
     }
 
     #[test]
-    fn test_priority_style_p0() {
+    fn test_priority_color_ftui_p0() {
         let theme = Theme::default();
-        let style = priority_style(0, &theme);
-        // P0 should use critical color
-        assert_eq!(style.fg, Some(theme.critical));
+        assert_eq!(priority_color_ftui(0, &theme), theme.ftui_colors().critical);
     }
 
     #[test]
-    fn test_priority_style_p1() {
+    fn test_priority_color_ftui_p1() {
         let theme = Theme::default();
-        let style = priority_style(1, &theme);
-        assert_eq!(style.fg, Some(theme.warning));
+        assert_eq!(priority_color_ftui(1, &theme), theme.ftui_colors().warning);
     }
 
     #[test]
-    fn test_priority_style_p2() {
+    fn test_priority_color_ftui_p2() {
         let theme = Theme::default();
-        let style = priority_style(2, &theme);
-        assert_eq!(style.fg, Some(theme.info));
+        assert_eq!(priority_color_ftui(2, &theme), theme.ftui_colors().info);
     }
 
     #[test]
-    fn test_priority_style_p3() {
+    fn test_priority_color_ftui_p3() {
         let theme = Theme::default();
-        let style = priority_style(3, &theme);
-        assert_eq!(style.fg, Some(theme.muted));
+        assert_eq!(priority_color_ftui(3, &theme), theme.ftui_colors().muted);
     }
 
     #[test]

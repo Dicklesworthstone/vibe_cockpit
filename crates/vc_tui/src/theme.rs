@@ -1,14 +1,11 @@
 //! Theme and color definitions for the TUI.
 //!
-//! The current screen renderers still use `ratatui`, but `ftui-style` is now
-//! the canonical source of truth so later migration beads can consume the same
-//! palette without re-defining colors.
+//! `ftui` is the canonical source of truth for palette and resolved theme data.
 
 use ftui::{
     AdaptiveColor, Color as FtuiColor, ResolvedTheme as FtuiResolvedTheme, Theme as FtuiTheme,
     ThemeBuilder,
 };
-use ratatui::style::Color as RatatuiColor;
 
 /// `ftui-style` palette values used by `vc_tui`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,35 +47,6 @@ pub struct Theme {
     resolved: FtuiResolvedTheme,
     ftui_colors: ThemeColors,
     is_dark_mode: bool,
-
-    /// Primary background color.
-    pub bg_primary: RatatuiColor,
-    /// Secondary background color.
-    pub bg_secondary: RatatuiColor,
-    /// Healthy/good status color.
-    pub healthy: RatatuiColor,
-    /// Warning status color.
-    pub warning: RatatuiColor,
-    /// Critical/error status color.
-    pub critical: RatatuiColor,
-    /// Info status color.
-    pub info: RatatuiColor,
-    /// Muted/dim text color.
-    pub muted: RatatuiColor,
-    /// Text color.
-    pub text: RatatuiColor,
-    /// Accent color for highlights.
-    pub accent: RatatuiColor,
-    /// Highlight color for selected items.
-    pub highlight: RatatuiColor,
-    /// Border color.
-    pub border: RatatuiColor,
-    /// Claude provider color.
-    pub claude: RatatuiColor,
-    /// Codex provider color.
-    pub codex: RatatuiColor,
-    /// Gemini provider color.
-    pub gemini: RatatuiColor,
 }
 
 impl Default for Theme {
@@ -115,20 +83,6 @@ impl Theme {
             resolved,
             ftui_colors,
             is_dark_mode,
-            bg_primary: legacy_color(ftui_colors.bg_primary),
-            bg_secondary: legacy_color(ftui_colors.bg_secondary),
-            healthy: legacy_color(ftui_colors.healthy),
-            warning: legacy_color(ftui_colors.warning),
-            critical: legacy_color(ftui_colors.critical),
-            info: legacy_color(ftui_colors.info),
-            muted: legacy_color(ftui_colors.muted),
-            text: legacy_color(ftui_colors.text),
-            accent: legacy_color(ftui_colors.accent),
-            highlight: legacy_color(ftui_colors.highlight),
-            border: legacy_color(ftui_colors.border),
-            claude: legacy_color(ftui_colors.claude),
-            codex: legacy_color(ftui_colors.codex),
-            gemini: legacy_color(ftui_colors.gemini),
         }
     }
 
@@ -174,12 +128,6 @@ impl Theme {
         }
     }
 
-    /// Get the legacy `ratatui` color for a health score.
-    #[must_use]
-    pub fn health_color_ratatui(&self, score: f64) -> RatatuiColor {
-        legacy_color(self.health_color(score))
-    }
-
     /// Get health indicator character for a score.
     #[must_use]
     pub fn health_indicator(&self, score: f64) -> &'static str {
@@ -206,12 +154,6 @@ impl Theme {
         } else {
             self.ftui_colors.muted
         }
-    }
-
-    /// Get the legacy `ratatui` color for a provider name.
-    #[must_use]
-    pub fn provider_color_ratatui(&self, provider: &str) -> RatatuiColor {
-        legacy_color(self.provider_color(provider))
     }
 }
 
@@ -259,11 +201,6 @@ const fn provider_gemini() -> FtuiColor {
     rgb(66, 133, 244)
 }
 
-fn legacy_color(color: FtuiColor) -> RatatuiColor {
-    let rgb = color.to_rgb();
-    RatatuiColor::Rgb(rgb.r, rgb.g, rgb.b)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -272,10 +209,6 @@ mod tests {
         assert_eq!(color.to_rgb().r, r);
         assert_eq!(color.to_rgb().g, g);
         assert_eq!(color.to_rgb().b, b);
-    }
-
-    fn assert_ratatui_rgb(color: RatatuiColor, r: u8, g: u8, b: u8) {
-        assert_eq!(color, RatatuiColor::Rgb(r, g, b));
     }
 
     #[test]
@@ -287,26 +220,6 @@ mod tests {
         assert_ftui_rgb(theme.resolved_theme().background, 13, 17, 23);
         assert_ftui_rgb(theme.resolved_theme().text, 230, 237, 243);
         assert_ftui_rgb(theme.resolved_theme().border, 48, 54, 61);
-    }
-
-    #[test]
-    fn test_theme_default_legacy_palette_matches_dark_defaults() {
-        let theme = Theme::default();
-
-        assert_ratatui_rgb(theme.bg_primary, 13, 17, 23);
-        assert_ratatui_rgb(theme.bg_secondary, 22, 27, 34);
-        assert_ratatui_rgb(theme.healthy, 63, 185, 80);
-        assert_ratatui_rgb(theme.warning, 210, 153, 34);
-        assert_ratatui_rgb(theme.critical, 248, 81, 73);
-        assert_ratatui_rgb(theme.info, 88, 166, 255);
-        assert_ratatui_rgb(theme.muted, 139, 148, 158);
-        assert_ratatui_rgb(theme.text, 230, 237, 243);
-        assert_ratatui_rgb(theme.accent, 136, 87, 229);
-        assert_ratatui_rgb(theme.highlight, 88, 166, 255);
-        assert_ratatui_rgb(theme.border, 48, 54, 61);
-        assert_ratatui_rgb(theme.claude, 217, 119, 87);
-        assert_ratatui_rgb(theme.codex, 16, 163, 127);
-        assert_ratatui_rgb(theme.gemini, 66, 133, 244);
     }
 
     #[test]
@@ -341,8 +254,6 @@ mod tests {
         assert_ftui_rgb(colors.text, 31, 35, 40);
         assert_ftui_rgb(colors.border, 208, 215, 222);
         assert_ftui_rgb(colors.accent, 130, 80, 223);
-        assert_ratatui_rgb(theme.bg_primary, 255, 255, 255);
-        assert_ratatui_rgb(theme.text, 31, 35, 40);
     }
 
     #[test]
@@ -371,15 +282,6 @@ mod tests {
     }
 
     #[test]
-    fn test_health_color_ratatui_matches_legacy_palette() {
-        let theme = Theme::default();
-
-        assert_eq!(theme.health_color_ratatui(0.95), theme.healthy);
-        assert_eq!(theme.health_color_ratatui(0.65), theme.warning);
-        assert_eq!(theme.health_color_ratatui(0.3), theme.critical);
-    }
-
-    #[test]
     fn test_health_indicator() {
         let theme = Theme::default();
 
@@ -401,15 +303,5 @@ mod tests {
         assert_eq!(theme.provider_color("gemini"), theme.ftui_colors().gemini);
         assert_eq!(theme.provider_color("google"), theme.ftui_colors().gemini);
         assert_eq!(theme.provider_color("unknown"), theme.ftui_colors().muted);
-    }
-
-    #[test]
-    fn test_provider_color_ratatui_matches_legacy_palette() {
-        let theme = Theme::default();
-
-        assert_eq!(theme.provider_color_ratatui("claude"), theme.claude);
-        assert_eq!(theme.provider_color_ratatui("codex"), theme.codex);
-        assert_eq!(theme.provider_color_ratatui("gemini"), theme.gemini);
-        assert_eq!(theme.provider_color_ratatui("unknown"), theme.muted);
     }
 }

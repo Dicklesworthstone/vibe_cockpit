@@ -18,33 +18,26 @@ pub mod rch;
 pub mod sessions;
 pub mod settings;
 
-pub use accounts::{AccountSortField, AccountStatus, AccountsData, render_accounts};
-pub use alerts::{
-    AlertInfo, AlertRuleInfo, AlertStats, AlertViewMode, AlertsData, Severity, render_alerts,
-};
-pub use beads::{
-    BeadsData, BlockerItem, GraphHealthData, QuickRefData, RecommendationItem, render_beads,
-};
+pub use accounts::{AccountSortField, AccountStatus, AccountsData};
+pub use alerts::{AlertInfo, AlertRuleInfo, AlertStats, AlertViewMode, AlertsData, Severity};
+pub use beads::{BeadsData, BlockerItem, GraphHealthData, QuickRefData, RecommendationItem};
 pub use events::{
     DcgEvent, EventFilter, EventSection, EventSeverity, EventStats, EventsData, PtFinding,
-    PtFindingType, RanoEvent, RanoEventType, TimeRange, render_events,
+    PtFindingType, RanoEvent, RanoEventType, TimeRange,
 };
 pub use guardian::{
     ActiveProtocol, GuardianData, GuardianMode, GuardianRun, GuardianSection, GuardianStatus,
-    PendingApproval, ProtocolStatus, RunResult, render_guardian,
+    PendingApproval, ProtocolStatus, RunResult,
 };
 pub use machines::{
     CollectionEvent, MachineDetail, MachineOnlineStatus, MachineRow, MachineSortField,
-    MachinesData, MachinesViewMode, SystemStats, ToolInfoRow, render_machines,
+    MachinesData, MachinesViewMode, SystemStats, ToolInfoRow,
 };
-pub use mail::{MailData, MailPane, MessageInfo, ThreadSummary, render_mail};
+pub use mail::{MailData, MailPane, MessageInfo, ThreadSummary};
 pub use oracle::{
     CostTrajectory, FailureRisk, OracleData, OracleSection, RateForecast, ResourceForecast,
-    render_oracle,
 };
-pub use overview::{AlertSummary, MachineStatus, OverviewData, RepoStatus, render_overview};
-pub use rch::{
-    CacheStatus, CrateStats, RchBuild, RchData, RchSection, WorkerState, WorkerStatus, render_rch,
-};
-pub use sessions::{SessionGroupBy, SessionInfo, SessionsData, render_sessions};
-pub use settings::{SettingsData, render_settings};
+pub use overview::{AlertSummary, MachineStatus, OverviewData, RepoStatus};
+pub use rch::{CacheStatus, CrateStats, RchBuild, RchData, RchSection, WorkerState, WorkerStatus};
+pub use sessions::{SessionGroupBy, SessionInfo, SessionsData};
+pub use settings::SettingsData;

@@ -2,13 +2,10 @@
 //!
 //! This crate provides:
 //! - `FrankenTUI` Elm-architecture terminal interface (`Model` trait)
-//! - Legacy ratatui render path (migrating per-screen to ftui)
 //! - Multiple screens (overview, machines, repos, alerts, etc.)
 //! - Real-time updates via tick subscriptions
 //! - Keyboard navigation
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui::Frame;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use thiserror::Error;
@@ -19,9 +16,7 @@ pub mod widgets;
 
 pub use screens::{
     AccountsData, AlertsData, BeadsData, EventsData, GuardianData, MachinesData, MailData,
-    OracleData, OverviewData, RchData, SessionsData, SettingsData, render_accounts, render_alerts,
-    render_beads, render_events, render_guardian, render_machines, render_mail, render_oracle,
-    render_overview, render_rch, render_sessions, render_settings,
+    OracleData, OverviewData, RchData, SessionsData, SettingsData,
 };
 pub use theme::Theme;
 
@@ -299,90 +294,6 @@ impl App {
             beads_data: BeadsData::default(),
             rch_data: RchData::default(),
             settings_data: SettingsData::default(),
-        }
-    }
-
-    /// Render the current screen (legacy ratatui path).
-    ///
-    /// Kept during migration — screen port beads (bd-0di, bd-1l8, bd-rq9, bd-1l1)
-    /// will replace each arm with ftui equivalents.
-    pub fn render(&self, f: &mut Frame) {
-        match self.current_screen {
-            Screen::Overview => {
-                render_overview(f, &self.overview_data, &self.theme);
-            }
-            Screen::Machines => {
-                render_machines(f, &self.machines_data, &self.theme);
-            }
-            Screen::Accounts => {
-                render_accounts(f, &self.accounts_data, &self.theme);
-            }
-            Screen::Sessions => {
-                render_sessions(f, &self.sessions_data, &self.theme);
-            }
-            Screen::Mail => {
-                render_mail(f, &self.mail_data, &self.theme);
-            }
-            Screen::Alerts => {
-                render_alerts(f, &self.alerts_data, &self.theme);
-            }
-            Screen::Guardian => {
-                render_guardian(f, &self.guardian_data, &self.theme);
-            }
-            Screen::Oracle => {
-                render_oracle(f, &self.oracle_data, &self.theme);
-            }
-            Screen::Events => {
-                render_events(f, &self.events_data, &self.theme);
-            }
-            Screen::Beads => {
-                render_beads(f, &self.beads_data, &self.theme);
-            }
-            Screen::Rch => {
-                render_rch(f, &self.rch_data, &self.theme);
-            }
-            Screen::Settings => {
-                render_settings(f, &self.settings_data, &self.theme);
-            }
-            _ => {
-                // Repos, Help — render placeholder
-                use ratatui::widgets::{Block, Borders, Paragraph};
-                let text = Paragraph::new(format!(
-                    "Screen: {} - Press '1' for Overview",
-                    self.current_screen.title()
-                ))
-                .block(Block::default().title("Vibe Cockpit").borders(Borders::ALL));
-                f.render_widget(text, f.area());
-            }
-        }
-    }
-
-    /// Handle keyboard input (legacy crossterm path).
-    ///
-    /// Kept during migration, but mirrors the ftui binding map so both code
-    /// paths behave consistently.
-    pub fn handle_key(&mut self, key: KeyEvent) {
-        // Global shortcuts
-        if key.modifiers.contains(KeyModifiers::CONTROL)
-            && let KeyCode::Char('c' | 'C' | 'q' | 'Q') = key.code
-        {
-            self.should_quit = true;
-            return;
-        }
-
-        match key.code {
-            KeyCode::Char('q') => self.should_quit = true,
-            KeyCode::Char(c) => {
-                if let Some(screen) = Screen::from_binding(c) {
-                    self.current_screen = screen;
-                }
-            }
-            KeyCode::Tab => {
-                self.current_screen = self.current_screen.next();
-            }
-            KeyCode::BackTab => self.current_screen = self.current_screen.previous(),
-            KeyCode::Esc => self.current_screen = Screen::Overview,
-            _ => {}
         }
     }
 
@@ -742,7 +653,7 @@ mod tests {
     }
 
     // ==========================================================================
-    // App Tests (legacy crossterm path)
+    // App State Tests
     // ==========================================================================
 
     #[test]
@@ -765,121 +676,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_app_quit() {
-        let mut app = App::new();
-        assert!(!app.should_quit);
-        app.handle_key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE));
-        assert!(app.should_quit);
-    }
-
-    #[test]
-    fn test_app_quit_ctrl_c() {
-        let mut app = App::new();
-        assert!(!app.should_quit);
-        app.handle_key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL));
-        assert!(app.should_quit);
-    }
-
-    #[test]
-    fn test_app_quit_ctrl_q() {
-        let mut app = App::new();
-        assert!(!app.should_quit);
-        app.handle_key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::CONTROL));
-        assert!(app.should_quit);
-    }
-
-    #[test]
-    fn test_app_screen_navigation_shortcuts() {
-        let mut app = App::new();
-
-        // Navigate to Machines with '2'
-        app.handle_key(KeyEvent::new(KeyCode::Char('2'), KeyModifiers::NONE));
-        assert_eq!(app.current_screen, Screen::Machines);
-
-        // Navigate to Repos with '3'
-        app.handle_key(KeyEvent::new(KeyCode::Char('3'), KeyModifiers::NONE));
-        assert_eq!(app.current_screen, Screen::Repos);
-
-        // Navigate to Settings with 's'
-        app.handle_key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::NONE));
-        assert_eq!(app.current_screen, Screen::Settings);
-
-        // Navigate to Help with '?'
-        app.handle_key(KeyEvent::new(KeyCode::Char('?'), KeyModifiers::NONE));
-        assert_eq!(app.current_screen, Screen::Help);
-    }
-
-    #[test]
-    fn test_app_tab_navigation() {
-        let mut app = App::new();
-        assert_eq!(app.current_screen, Screen::Overview);
-
-        // Tab should move to next screen
-        app.handle_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
-        assert_eq!(app.current_screen, Screen::Machines);
-
-        // Tab again
-        app.handle_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
-        assert_eq!(app.current_screen, Screen::Repos);
-    }
-
-    #[test]
-    fn test_app_tab_wraps_around() {
-        let mut app = App::new();
-        let screens = Screen::all();
-
-        // Navigate to last screen
-        app.current_screen = screens[screens.len() - 1];
-        assert_eq!(app.current_screen, Screen::Help);
-
-        // Tab should wrap to first screen
-        app.handle_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
-        assert_eq!(app.current_screen, Screen::Overview);
-    }
-
-    #[test]
-    fn test_app_backtab_cycles_backward() {
-        let mut app = App::new();
-        app.handle_key(KeyEvent::new(KeyCode::BackTab, KeyModifiers::SHIFT));
-        assert_eq!(app.current_screen, Screen::Help);
-    }
-
-    #[test]
-    fn test_app_escape_returns_overview() {
-        let mut app = App::new();
-        app.current_screen = Screen::Guardian;
-        app.handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
-        assert_eq!(app.current_screen, Screen::Overview);
-    }
-
-    #[test]
-    fn test_app_unknown_key_no_effect() {
-        let mut app = App::new();
-        let initial_screen = app.current_screen;
-
-        // Random key should not change state
-        app.handle_key(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::NONE));
-        assert_eq!(app.current_screen, initial_screen);
-        assert!(!app.should_quit);
-    }
-
-    #[test]
-    fn test_app_all_screen_shortcuts_work() {
-        for screen in Screen::all() {
-            if let Some(shortcut) = screen.shortcut() {
-                let mut app = App::new();
-                app.handle_key(KeyEvent::new(KeyCode::Char(shortcut), KeyModifiers::NONE));
-                assert_eq!(
-                    app.current_screen, *screen,
-                    "Shortcut '{shortcut}' should navigate to {screen:?}"
-                );
-            }
-        }
-    }
-
     // ==========================================================================
-    // Elm Model Tests
+    // Model Tests
     // ==========================================================================
 
     #[test]

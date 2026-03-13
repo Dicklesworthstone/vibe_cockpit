@@ -49,9 +49,7 @@ toml = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 
 # TUI
-ratatui = "0.30"
-crossterm = "0.29"
-# FrankenTUI – Elm-architecture TUI framework (replaces ratatui once all screens ported)
+# FrankenTUI – Elm-architecture TUI framework
 ftui = { path = "../frankentui/crates/ftui" }
 
 # Web

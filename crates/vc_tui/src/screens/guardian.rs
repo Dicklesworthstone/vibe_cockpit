@@ -2,6 +2,7 @@
 //!
 //! Displays self-healing status, active protocols, pending approvals, and history.
 
+use crate::theme::Theme;
 use ftui::{
     Frame as FtuiFrame, PackedRgba, Style as FtuiStyle,
     layout::{Constraint as FtuiConstraint, Flex, Rect as FtuiRect},
@@ -14,15 +15,6 @@ use ftui::{
         paragraph::Paragraph as FtuiParagraph,
     },
 };
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
-};
-
-use crate::theme::Theme;
 
 /// Data needed to render the guardian screen
 #[derive(Debug, Clone, Default)]
@@ -259,336 +251,6 @@ impl RunResult {
             Self::Escalated => "ESCALATED",
         }
     }
-}
-
-/// Render the guardian screen
-pub fn render_guardian(f: &mut Frame, data: &GuardianData, theme: &Theme) {
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(3), // Header
-            Constraint::Length(6), // Status
-            Constraint::Length(8), // Active protocols
-            Constraint::Length(6), // Pending approvals
-            Constraint::Min(6),    // History
-            Constraint::Length(3), // Footer
-        ])
-        .split(f.area());
-
-    render_header(f, chunks[0], data, theme);
-    render_status(f, chunks[1], data, theme);
-    render_active(f, chunks[2], data, theme);
-    render_pending(f, chunks[3], data, theme);
-    render_history(f, chunks[4], data, theme);
-    render_footer(f, chunks[5], data, theme);
-}
-
-fn render_header(f: &mut Frame, area: Rect, data: &GuardianData, theme: &Theme) {
-    let mode_color = guardian_mode_color_ratatui(data.status.mode, theme);
-
-    let title = Line::from(vec![
-        Span::styled(
-            "  G U A R D I A N  ",
-            Style::default().fg(theme.text).add_modifier(Modifier::BOLD),
-        ),
-        Span::styled("Self-Healing  ", Style::default().fg(theme.muted)),
-        Span::styled(
-            format!("[{}]", data.status.mode.label()),
-            Style::default().fg(mode_color),
-        ),
-        Span::raw("    "),
-        Span::styled("[t]oggle mode", Style::default().fg(theme.muted)),
-    ]);
-
-    let header = Paragraph::new(title).block(
-        Block::default()
-            .borders(Borders::BOTTOM)
-            .border_style(Style::default().fg(theme.border)),
-    );
-
-    f.render_widget(header, area);
-}
-
-fn render_status(f: &mut Frame, area: Rect, data: &GuardianData, theme: &Theme) {
-    let is_selected = data.selected_section == GuardianSection::Status;
-
-    let block = Block::default()
-        .title(" Status ")
-        .borders(Borders::ALL)
-        .border_style(if is_selected {
-            Style::default().fg(theme.highlight)
-        } else {
-            Style::default().fg(theme.border)
-        });
-
-    let inner = block.inner(area);
-    f.render_widget(block, area);
-
-    let success_color = success_rate_color_ratatui(data.status.success_rate_7d, theme);
-
-    let lines = vec![
-        Line::from(vec![
-            Span::styled("├─ Mode: ", Style::default().fg(theme.muted)),
-            Span::styled(
-                format!(
-                    "{} ({})",
-                    data.status.mode.label(),
-                    data.status.mode.description()
-                ),
-                Style::default().fg(theme.text),
-            ),
-        ]),
-        Line::from(vec![
-            Span::styled("├─ Patterns detected: ", Style::default().fg(theme.muted)),
-            Span::styled(
-                format!("{} active", data.status.active_patterns),
-                Style::default().fg(theme.text),
-            ),
-        ]),
-        Line::from(vec![
-            Span::styled("├─ Last action: ", Style::default().fg(theme.muted)),
-            Span::styled(
-                data.status.last_action.as_deref().unwrap_or("never"),
-                Style::default().fg(theme.text),
-            ),
-        ]),
-        Line::from(vec![
-            Span::styled("└─ Success rate: ", Style::default().fg(theme.muted)),
-            Span::styled(
-                format!(
-                    "{:.0}% ({}/{} last week)",
-                    data.status.success_rate_7d,
-                    data.status.successful_runs,
-                    data.status.total_runs
-                ),
-                Style::default().fg(success_color),
-            ),
-        ]),
-    ];
-
-    let status_para = Paragraph::new(lines);
-    f.render_widget(status_para, inner);
-}
-
-fn render_active(f: &mut Frame, area: Rect, data: &GuardianData, theme: &Theme) {
-    let is_selected = data.selected_section == GuardianSection::Active;
-
-    let block = Block::default()
-        .title(format!(
-            " Active Protocols ({}) ",
-            data.active_protocols.len()
-        ))
-        .borders(Borders::ALL)
-        .border_style(if is_selected {
-            Style::default().fg(theme.highlight)
-        } else {
-            Style::default().fg(theme.border)
-        });
-
-    if data.active_protocols.is_empty() {
-        let empty = Paragraph::new("  No active protocols")
-            .style(Style::default().fg(theme.muted))
-            .block(block);
-        f.render_widget(empty, area);
-        return;
-    }
-
-    let inner = block.inner(area);
-    f.render_widget(block, area);
-
-    let items: Vec<ListItem> = data
-        .active_protocols
-        .iter()
-        .enumerate()
-        .map(|(i, proto)| {
-            let style = if is_selected && i == data.selected_index {
-                Style::default().fg(theme.highlight)
-            } else {
-                Style::default().fg(theme.text)
-            };
-
-            let status_style =
-                Style::default().fg(protocol_status_color_ratatui(proto.status, theme));
-
-            let lines = vec![
-                Line::from(vec![
-                    Span::styled(format!("{} ", proto.status.symbol()), status_style),
-                    Span::styled(&proto.name, style),
-                    Span::styled(
-                        format!(" on {}", proto.machine_id),
-                        Style::default().fg(theme.muted),
-                    ),
-                ]),
-                Line::from(vec![
-                    Span::raw("   └─ "),
-                    Span::styled(
-                        format!(
-                            "Step {}/{}: {}",
-                            proto.current_step, proto.total_steps, proto.step_description
-                        ),
-                        Style::default().fg(theme.muted),
-                    ),
-                ]),
-                Line::from(vec![
-                    Span::raw("   └─ "),
-                    Span::styled(
-                        format!("Started: {}", proto.started_ago),
-                        Style::default().fg(theme.muted),
-                    ),
-                ]),
-            ];
-
-            ListItem::new(lines)
-        })
-        .collect();
-
-    let list = List::new(items);
-    f.render_widget(list, inner);
-}
-
-fn render_pending(f: &mut Frame, area: Rect, data: &GuardianData, theme: &Theme) {
-    let is_selected = data.selected_section == GuardianSection::Pending;
-
-    let block = Block::default()
-        .title(format!(
-            " Pending Interventions ({}) ",
-            data.pending_approvals.len()
-        ))
-        .borders(Borders::ALL)
-        .border_style(if is_selected {
-            Style::default().fg(theme.highlight)
-        } else {
-            Style::default().fg(theme.border)
-        });
-
-    if data.pending_approvals.is_empty() {
-        let empty = Paragraph::new("  No pending approvals")
-            .style(Style::default().fg(theme.muted))
-            .block(block);
-        f.render_widget(empty, area);
-        return;
-    }
-
-    let inner = block.inner(area);
-    f.render_widget(block, area);
-
-    let items: Vec<ListItem> = data
-        .pending_approvals
-        .iter()
-        .enumerate()
-        .map(|(i, pending)| {
-            let style = if is_selected && i == data.selected_index {
-                Style::default()
-                    .fg(theme.highlight)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(theme.text)
-            };
-
-            let lines = vec![
-                Line::from(vec![
-                    Span::styled("├─ ", Style::default().fg(theme.muted)),
-                    Span::styled(&pending.playbook_name, style),
-                ]),
-                Line::from(vec![
-                    Span::raw("│  └─ "),
-                    Span::styled("Waiting for: ", Style::default().fg(theme.muted)),
-                    Span::styled("manual approval", Style::default().fg(theme.warning)),
-                ]),
-                Line::from(vec![
-                    Span::raw("│  └─ "),
-                    Span::styled("Actions: ", Style::default().fg(theme.muted)),
-                    Span::styled(&pending.action_description, Style::default().fg(theme.text)),
-                ]),
-            ];
-
-            ListItem::new(lines)
-        })
-        .collect();
-
-    let list = List::new(items);
-    f.render_widget(list, inner);
-}
-
-fn render_history(f: &mut Frame, area: Rect, data: &GuardianData, theme: &Theme) {
-    let is_selected = data.selected_section == GuardianSection::History;
-
-    let block = Block::default()
-        .title(" History (last 24h) ")
-        .borders(Borders::ALL)
-        .border_style(if is_selected {
-            Style::default().fg(theme.highlight)
-        } else {
-            Style::default().fg(theme.border)
-        });
-
-    if data.recent_runs.is_empty() {
-        let empty = Paragraph::new("  No recent runs")
-            .style(Style::default().fg(theme.muted))
-            .block(block);
-        f.render_widget(empty, area);
-        return;
-    }
-
-    let inner = block.inner(area);
-    f.render_widget(block, area);
-
-    let items: Vec<ListItem> = data
-        .recent_runs
-        .iter()
-        .enumerate()
-        .map(|(i, run)| {
-            let style = if is_selected && i == data.selected_index {
-                Style::default().fg(theme.highlight)
-            } else {
-                Style::default().fg(theme.text)
-            };
-
-            let result_style = Style::default().fg(run_result_color_ratatui(run.result, theme));
-
-            let lines = vec![
-                Line::from(vec![
-                    Span::styled(format!("[{}] ", run.result.label()), result_style),
-                    Span::styled(&run.playbook_name, style),
-                    Span::styled(
-                        format!(" ({}) - {}", run.machine_id, run.completed_ago),
-                        Style::default().fg(theme.muted),
-                    ),
-                ]),
-                Line::from(vec![
-                    Span::raw("   └─ "),
-                    Span::styled(&run.summary, Style::default().fg(theme.muted)),
-                ]),
-            ];
-
-            ListItem::new(lines)
-        })
-        .collect();
-
-    let list = List::new(items);
-    f.render_widget(list, inner);
-}
-
-fn render_footer(f: &mut Frame, area: Rect, data: &GuardianData, theme: &Theme) {
-    let help_text = match data.selected_section {
-        GuardianSection::Status => "[t]oggle mode  [Tab]section  [p]ause  [r]esume",
-        GuardianSection::Active => "[p]ause  [c]ancel  [Tab]section  [Enter]details",
-        GuardianSection::Pending => "[y]approve  [n]reject  [Tab]section  [Enter]details",
-        GuardianSection::History => "[Enter]details  [Tab]section  [h]full history",
-    };
-
-    let content = Line::from(vec![
-        Span::styled(" ", Style::default()),
-        Span::styled(help_text, Style::default().fg(theme.muted)),
-    ]);
-
-    let footer = Paragraph::new(content).block(
-        Block::default()
-            .borders(Borders::TOP)
-            .border_style(Style::default().fg(theme.border)),
-    );
-
-    f.render_widget(footer, area);
 }
 
 pub fn render_guardian_ftui(f: &mut FtuiFrame, data: &GuardianData, theme: &Theme) {
@@ -968,15 +630,6 @@ fn guardian_mode_color(mode: GuardianMode, theme: &Theme) -> ftui::Color {
     }
 }
 
-fn guardian_mode_color_ratatui(mode: GuardianMode, theme: &Theme) -> ratatui::style::Color {
-    match mode {
-        GuardianMode::Off => theme.critical,
-        GuardianMode::Suggest => theme.info,
-        GuardianMode::ExecuteSafe => theme.healthy,
-        GuardianMode::WithApproval => theme.warning,
-    }
-}
-
 fn success_rate_color(success_rate: f64, theme: &Theme) -> ftui::Color {
     if success_rate >= 90.0 {
         theme.ftui_colors().healthy
@@ -984,16 +637,6 @@ fn success_rate_color(success_rate: f64, theme: &Theme) -> ftui::Color {
         theme.ftui_colors().warning
     } else {
         theme.ftui_colors().critical
-    }
-}
-
-fn success_rate_color_ratatui(success_rate: f64, theme: &Theme) -> ratatui::style::Color {
-    if success_rate >= 90.0 {
-        theme.healthy
-    } else if success_rate >= 70.0 {
-        theme.warning
-    } else {
-        theme.critical
     }
 }
 
@@ -1005,27 +648,11 @@ fn protocol_status_color(status: ProtocolStatus, theme: &Theme) -> ftui::Color {
     }
 }
 
-fn protocol_status_color_ratatui(status: ProtocolStatus, theme: &Theme) -> ratatui::style::Color {
-    match status {
-        ProtocolStatus::Running => theme.healthy,
-        ProtocolStatus::Paused | ProtocolStatus::WaitingApproval => theme.warning,
-        ProtocolStatus::WaitingCondition => theme.info,
-    }
-}
-
 fn run_result_color(result: RunResult, theme: &Theme) -> ftui::Color {
     match result {
         RunResult::Success => theme.ftui_colors().healthy,
         RunResult::Failed => theme.ftui_colors().critical,
         RunResult::Aborted | RunResult::Escalated => theme.ftui_colors().warning,
-    }
-}
-
-fn run_result_color_ratatui(result: RunResult, theme: &Theme) -> ratatui::style::Color {
-    match result {
-        RunResult::Success => theme.healthy,
-        RunResult::Failed => theme.critical,
-        RunResult::Aborted | RunResult::Escalated => theme.warning,
     }
 }
 

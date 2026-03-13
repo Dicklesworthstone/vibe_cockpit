@@ -2,6 +2,7 @@
 //!
 //! Displays account usage and rate limit status from caut and caam collectors.
 
+use crate::theme::Theme;
 use ftui::{
     Frame as FtuiFrame, PackedRgba, Style as FtuiStyle,
     layout::{Constraint as FtuiConstraint, Flex, Rect as FtuiRect},
@@ -14,15 +15,6 @@ use ftui::{
         table::{Row as FtuiRow, Table as FtuiTable},
     },
 };
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Row, Table},
-};
-
-use crate::theme::Theme;
 
 /// Data needed to render the accounts screen
 #[derive(Debug, Clone, Default)]
@@ -108,178 +100,6 @@ impl AccountStatus {
             })
             .collect()
     }
-}
-
-/// Render the accounts screen
-pub fn render_accounts(f: &mut Frame, data: &AccountsData, theme: &Theme) {
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(3), // Header
-            Constraint::Min(10),   // Main content
-            Constraint::Length(3), // Footer
-        ])
-        .split(f.area());
-
-    render_header(f, chunks[0], data, theme);
-    render_accounts_table(f, chunks[1], data, theme);
-    render_footer(f, chunks[2], theme);
-}
-
-fn render_header(f: &mut Frame, area: Rect, data: &AccountsData, theme: &Theme) {
-    let total_accounts = data.accounts.len();
-    let active_count = data.accounts.iter().filter(|a| a.is_active).count();
-    let red_count = data
-        .accounts
-        .iter()
-        .filter(|a| a.rate_status == "red")
-        .count();
-
-    let title = Line::from(vec![
-        Span::styled(
-            "  A C C O U N T S  ",
-            Style::default().fg(theme.text).add_modifier(Modifier::BOLD),
-        ),
-        Span::raw("  "),
-        Span::styled(
-            format!("[{total_accounts} accounts]"),
-            Style::default().fg(theme.muted),
-        ),
-        Span::raw("  "),
-        Span::styled(
-            format!("[{active_count} active]"),
-            Style::default().fg(theme.healthy),
-        ),
-        if red_count > 0 {
-            Span::styled(
-                format!("  [{red_count} rate-limited]"),
-                Style::default().fg(theme.critical),
-            )
-        } else {
-            Span::raw("")
-        },
-    ]);
-
-    let header = Paragraph::new(title)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(theme.muted)),
-        )
-        .style(Style::default().bg(theme.bg_secondary));
-
-    f.render_widget(header, area);
-}
-
-fn render_accounts_table(f: &mut Frame, area: Rect, data: &AccountsData, theme: &Theme) {
-    if data.accounts.is_empty() {
-        let empty = Paragraph::new(Span::styled(
-            "  No accounts tracked. Run collectors to populate data.",
-            Style::default().fg(theme.muted),
-        ))
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(theme.muted)),
-        );
-        f.render_widget(empty, area);
-        return;
-    }
-
-    let filtered = filtered_accounts(data);
-    if filtered.is_empty() {
-        let empty = Paragraph::new(Span::styled(
-            "  No accounts match the current filter.",
-            Style::default().fg(theme.muted),
-        ))
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(theme.muted)),
-        );
-        f.render_widget(empty, area);
-        return;
-    }
-
-    // Clamp selection to filtered list bounds to prevent index mismatch
-    let clamped_selected = data.selected.min(filtered.len().saturating_sub(1));
-
-    // Create table rows
-    let rows: Vec<Row> = filtered
-        .iter()
-        .enumerate()
-        .map(|(index, account)| render_account_row(account, index == clamped_selected, theme))
-        .collect();
-
-    let header_style = Style::default()
-        .fg(theme.accent)
-        .add_modifier(Modifier::BOLD);
-
-    let table = Table::new(
-        rows,
-        [
-            Constraint::Length(1),  // Active marker
-            Constraint::Length(12), // Program
-            Constraint::Length(20), // Account
-            Constraint::Length(10), // Usage
-            Constraint::Length(7),  // %
-            Constraint::Length(7),  // Status
-            Constraint::Length(10), // Sparkline
-            Constraint::Min(10),    // Last Switch
-        ],
-    )
-    .header(
-        Row::new(vec![
-            Line::from(Span::styled(" ", header_style)),
-            Line::from(Span::styled("Program", header_style)),
-            Line::from(Span::styled("Account", header_style)),
-            Line::from(Span::styled("Usage", header_style)),
-            Line::from(Span::styled("%", header_style)),
-            Line::from(Span::styled("Status", header_style)),
-            Line::from(Span::styled("24h Trend", header_style)),
-            Line::from(Span::styled("Last Switch", header_style)),
-        ])
-        .bottom_margin(1),
-    )
-    .block(
-        Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(theme.muted)),
-    );
-
-    f.render_widget(table, area);
-}
-
-fn render_footer(f: &mut Frame, area: Rect, theme: &Theme) {
-    let shortcuts = vec![
-        ("[Tab]", "Overview"),
-        ("[j/k]", "Navigate"),
-        ("[/]", "Filter"),
-        ("[s]", "Sort"),
-        ("[Enter]", "Details"),
-        ("[q]", "Back"),
-    ];
-
-    let spans: Vec<Span> = shortcuts
-        .into_iter()
-        .flat_map(|(key, action)| {
-            vec![
-                Span::styled(key, Style::default().fg(theme.accent)),
-                Span::styled(action, Style::default().fg(theme.muted)),
-                Span::raw(" "),
-            ]
-        })
-        .collect();
-
-    let footer = Paragraph::new(Line::from(spans))
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(theme.muted)),
-        )
-        .style(Style::default().bg(theme.bg_secondary));
-
-    f.render_widget(footer, area);
 }
 
 pub fn render_accounts_ftui(f: &mut FtuiFrame, data: &AccountsData, theme: &Theme) {
@@ -476,59 +296,6 @@ fn accounts_sort_label(sort_by: AccountSortField) -> &'static str {
         AccountSortField::Usage => "Usage",
         AccountSortField::Status => "Status",
     }
-}
-
-fn render_account_row<'a>(account: &'a AccountStatus, is_selected: bool, theme: &Theme) -> Row<'a> {
-    let row_style = if is_selected {
-        Style::default().bg(theme.bg_secondary)
-    } else {
-        Style::default()
-    };
-    let active_marker = if account.is_active { "●" } else { " " };
-    let active_style = if account.is_active {
-        Style::default().fg(theme.healthy)
-    } else {
-        Style::default().fg(theme.muted)
-    };
-    let status_color = match account.rate_status.as_str() {
-        "green" => theme.healthy,
-        "yellow" => theme.warning,
-        "red" => theme.critical,
-        _ => theme.muted,
-    };
-
-    Row::new(vec![
-        Line::from(Span::styled(active_marker, active_style)),
-        Line::from(Span::styled(
-            &account.program,
-            Style::default().fg(theme.provider_color_ratatui(&account.program)),
-        )),
-        Line::from(Span::styled(
-            &account.account,
-            Style::default().fg(theme.text),
-        )),
-        Line::from(Span::styled(
-            account_usage_text(account),
-            Style::default().fg(theme.text),
-        )),
-        Line::from(Span::styled(
-            account_pct_text(account),
-            Style::default().fg(status_color),
-        )),
-        Line::from(Span::styled(
-            account.rate_status.to_uppercase(),
-            Style::default().fg(status_color),
-        )),
-        Line::from(Span::styled(
-            account.sparkline(),
-            Style::default().fg(theme.info),
-        )),
-        Line::from(Span::styled(
-            account_last_switch_text(account),
-            Style::default().fg(theme.muted),
-        )),
-    ])
-    .style(row_style)
 }
 
 fn render_account_ftui_row(account: &AccountStatus, is_selected: bool, theme: &Theme) -> FtuiRow {

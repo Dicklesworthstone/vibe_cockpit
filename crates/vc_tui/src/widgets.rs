@@ -1,7 +1,7 @@
 //! Reusable widget helpers for the TUI.
 //!
-//! These helpers now target `ftui` primitives directly so future screen ports
-//! can reuse them without translating through `ratatui`.
+//! These helpers target `ftui` primitives directly so screen modules can share
+//! a single native widget vocabulary.
 
 use ftui::{
     Frame, PackedRgba, Style,
