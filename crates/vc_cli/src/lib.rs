@@ -6,6 +6,9 @@
 //! - TOON output support
 //! - All subcommands (status, tui, daemon, robot, etc.)
 
+use asupersync::signal::{ShutdownController, ShutdownReceiver};
+use asupersync::time::BudgetTimeExt;
+use asupersync::{Budget, CancelKind, Cx};
 use chrono::{DateTime, Duration as ChronoDuration, SecondsFormat, Utc};
 use clap::{Parser, Subcommand, ValueEnum};
 use duckdb::{
@@ -13,6 +16,7 @@ use duckdb::{
     types::{TimeUnit as DuckTimeUnit, Value as DuckValue},
 };
 use fsqlite::{Connection as FrankenConnection, FrankenError, SqliteValue};
+use futures::future::{self, Either};
 use serde::{Deserialize, Serialize};
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
@@ -1194,6 +1198,12 @@ pub enum MachineCommands {
 impl Cli {
     /// Run the CLI
     pub async fn run(self) -> Result<(), CliError> {
+        let cx = Cx::for_request();
+        self.run_with_cx(&cx).await
+    }
+
+    /// Run the CLI using an explicit Asupersync capability context.
+    pub async fn run_with_cx(self, cx: &Cx) -> Result<(), CliError> {
         match self.command {
             Commands::Tui { inline } => {
                 if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
@@ -1205,6 +1215,17 @@ impl Cli {
                 let config = load_config(self.config.as_ref())?;
                 let options = resolve_tui_options(&config, inline);
                 vc_tui::run_with_options(options)?;
+            }
+            Commands::Daemon { foreground } => {
+                let controller = ShutdownController::new();
+                let receiver = controller.subscribe();
+                run_with_shutdown_budget(
+                    cx,
+                    "daemon",
+                    controller,
+                    run_daemon(self.config.as_ref(), foreground, cx, receiver),
+                )
+                .await?;
             }
             Commands::Status { machine } => {
                 println!(
@@ -2553,98 +2574,26 @@ impl Cli {
                 min_severity,
                 buffer,
             } => {
-                let filter = watch::WatchFilter {
-                    event_types: events
-                        .as_deref()
-                        .and_then(watch::WatchFilter::parse_event_types),
-                    machines: machines
-                        .as_deref()
-                        .and_then(watch::WatchFilter::parse_machines),
-                    min_severity: min_severity
-                        .as_deref()
-                        .and_then(watch::WatchSeverity::from_str_loose),
-                };
-                let interval_secs = interval.unwrap_or(30);
-                let buffer_size = buffer.unwrap_or(1);
-                let use_toon = matches!(self.format, OutputFormat::Toon);
-
-                // Emit startup event
-                let start_event = serde_json::json!({
-                    "type": "watch_start",
-                    "ts": Utc::now().to_rfc3339(),
-                    "interval_secs": interval_secs,
-                    "changes_only": changes_only,
-                    "buffer_size": buffer_size,
-                    "filters": {
-                        "events": events,
-                        "machines": machines,
-                        "min_severity": min_severity,
-                    }
-                });
-                if use_toon {
-                    println!("W|START,i{interval_secs},b{buffer_size}");
-                } else {
-                    println!(
-                        "{}",
-                        serde_json::to_string(&start_event).unwrap_or_else(|_| "{}".to_string())
-                    );
-                }
-
-                // Streaming loop: poll store for new events at the configured interval
-                let store = open_store(self.config.as_ref())?;
-                let mut event_buffer: Vec<watch::WatchEvent> = Vec::new();
-                let mut last_check = Utc::now();
-                let tick = Duration::from_secs(interval_secs);
-
-                loop {
-                    asupersync::time::sleep(asupersync::time::wall_now(), tick).await;
-                    let now = Utc::now();
-
-                    // Check for new alerts since last_check
-                    let ts = escape_sql_literal(&last_check.to_rfc3339());
-                    let sql = format!(
-                        "SELECT id, severity, machine_id, message FROM alert_history WHERE fired_at > '{ts}' ORDER BY fired_at"
-                    );
-                    if let Ok(rows) = store.query_json(&sql) {
-                        for row in rows {
-                            let severity = row
-                                .get("severity")
-                                .and_then(|v| v.as_str())
-                                .and_then(watch::WatchSeverity::from_str_loose)
-                                .unwrap_or(watch::WatchSeverity::Medium);
-                            let event = watch::WatchEvent::alert(
-                                row.get("machine_id")
-                                    .and_then(|v| v.as_str())
-                                    .unwrap_or("unknown"),
-                                severity,
-                                row.get("id").and_then(|v| v.as_str()).unwrap_or(""),
-                                row.get("message").and_then(|v| v.as_str()).unwrap_or(""),
-                            );
-                            if filter.matches(&event) {
-                                event_buffer.push(event);
-                            }
-                        }
-                    }
-
-                    // Emit heartbeat if no events and not changes_only
-                    if event_buffer.is_empty() && !changes_only {
-                        let hb = watch::WatchEvent::heartbeat();
-                        event_buffer.push(hb);
-                    }
-
-                    // Flush buffer when it reaches buffer_size or at each tick
-                    if !event_buffer.is_empty() && event_buffer.len() >= buffer_size {
-                        for event in event_buffer.drain(..) {
-                            if use_toon {
-                                println!("{}", event.to_toon());
-                            } else {
-                                println!("{}", event.to_jsonl());
-                            }
-                        }
-                    }
-
-                    last_check = now;
-                }
+                let controller = ShutdownController::new();
+                let receiver = controller.subscribe();
+                run_with_shutdown_budget(
+                    cx,
+                    "watch",
+                    controller,
+                    run_watch(
+                        self.config.as_ref(),
+                        self.format,
+                        cx,
+                        receiver,
+                        events,
+                        changes_only,
+                        interval,
+                        machines,
+                        min_severity,
+                        buffer,
+                    ),
+                )
+                .await?;
             }
             Commands::Guardian { command } => {
                 let store = Arc::new(open_store(self.config.as_ref())?);
@@ -2925,6 +2874,17 @@ impl Cli {
                         }
                     }
                 }
+            }
+            Commands::Web { port, bind } => {
+                let controller = ShutdownController::new();
+                let receiver = controller.subscribe();
+                run_with_shutdown_budget(
+                    cx,
+                    "web",
+                    controller,
+                    run_web_server(self.config.as_ref(), port, bind, receiver),
+                )
+                .await?;
             }
             Commands::Mcp { command } => {
                 let store = open_store(self.config.as_ref())?;
@@ -3368,12 +3328,359 @@ impl Cli {
                     );
                 }
             },
-            _ => {
-                println!("Command not yet implemented: {:?}", self.command);
+            command => {
+                println!("Command not yet implemented: {:?}", command);
             }
         }
         Ok(())
     }
+}
+
+const DEFAULT_SHUTDOWN_GRACE_SECS: u64 = 30;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ShutdownSignal {
+    Interrupt,
+    Terminate,
+}
+
+impl ShutdownSignal {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Interrupt => "SIGINT",
+            Self::Terminate => "SIGTERM",
+        }
+    }
+
+    fn cancel_kind(self) -> CancelKind {
+        match self {
+            Self::Interrupt => CancelKind::User,
+            Self::Terminate => CancelKind::Shutdown,
+        }
+    }
+}
+
+fn parse_shutdown_grace_period(raw: Option<&str>) -> Option<Duration> {
+    raw.and_then(|value| value.parse::<u64>().ok())
+        .filter(|secs| *secs > 0)
+        .map(Duration::from_secs)
+}
+
+fn resolve_shutdown_grace_period() -> Duration {
+    match std::env::var("VC_SHUTDOWN_GRACE_SECS") {
+        Ok(value) => match parse_shutdown_grace_period(Some(&value)) {
+            Some(duration) => duration,
+            None => {
+                tracing::warn!(
+                    value,
+                    default_secs = DEFAULT_SHUTDOWN_GRACE_SECS,
+                    "Invalid VC_SHUTDOWN_GRACE_SECS; using default shutdown budget"
+                );
+                Duration::from_secs(DEFAULT_SHUTDOWN_GRACE_SECS)
+            }
+        },
+        Err(_) => Duration::from_secs(DEFAULT_SHUTDOWN_GRACE_SECS),
+    }
+}
+
+async fn wait_for_shutdown_signal() -> Result<ShutdownSignal, CliError> {
+    #[cfg(unix)]
+    {
+        let mut sigint = asupersync::signal::sigint()?;
+        let mut sigterm = asupersync::signal::sigterm()?;
+
+        let sigint_wait = Box::pin(sigint.recv());
+        let sigterm_wait = Box::pin(sigterm.recv());
+
+        return match future::select(sigint_wait, sigterm_wait).await {
+            Either::Left((Some(()), _)) => Ok(ShutdownSignal::Interrupt),
+            Either::Right((Some(()), _)) => Ok(ShutdownSignal::Terminate),
+            Either::Left((None, _)) => Err(CliError::CommandFailed(
+                "SIGINT stream closed unexpectedly".to_string(),
+            )),
+            Either::Right((None, _)) => Err(CliError::CommandFailed(
+                "SIGTERM stream closed unexpectedly".to_string(),
+            )),
+        };
+    }
+
+    #[cfg(not(unix))]
+    {
+        asupersync::signal::ctrl_c().await?;
+        Ok(ShutdownSignal::Interrupt)
+    }
+}
+
+async fn run_with_shutdown_budget<F>(
+    cx: &Cx,
+    command: &'static str,
+    controller: ShutdownController,
+    command_future: F,
+) -> Result<(), CliError>
+where
+    F: std::future::Future<Output = Result<(), CliError>>,
+{
+    let command_future = Box::pin(command_future);
+    let signal_future = Box::pin(wait_for_shutdown_signal());
+
+    match future::select(command_future, signal_future).await {
+        Either::Left((result, _)) => result,
+        Either::Right((signal_result, command_future)) => {
+            let signal = signal_result?;
+            let shutdown_budget =
+                Budget::new().with_deadline(asupersync::time::wall_now() + resolve_shutdown_grace_period());
+
+            controller.shutdown();
+            cx.cancel_with(signal.cancel_kind(), Some("process shutdown requested"));
+
+            tracing::info!(
+                command,
+                signal = signal.as_str(),
+                total_children = 1_u32,
+                drained_children = 0_u32,
+                budget_deadline_ns = shutdown_budget.deadline.map(|deadline| deadline.as_nanos()),
+                "Shutdown requested; draining command"
+            );
+
+            let deadline_sleep = Box::pin(
+                shutdown_budget
+                    .deadline_sleep()
+                    .expect("shutdown budget must have a deadline"),
+            );
+            let drain_started = Instant::now();
+
+            match future::select(command_future, deadline_sleep).await {
+                Either::Left((result, _)) => {
+                    let remaining = shutdown_budget
+                        .remaining_duration(asupersync::time::wall_now())
+                        .unwrap_or(Duration::ZERO);
+                    tracing::info!(
+                        command,
+                        signal = signal.as_str(),
+                        total_children = 1_u32,
+                        drained_children = 1_u32,
+                        drain_elapsed_ms = drain_started.elapsed().as_millis() as u64,
+                        budget_remaining_ms = remaining.as_millis() as u64,
+                        "Shutdown drain completed"
+                    );
+                    result
+                }
+                Either::Right((_, _)) => {
+                    tracing::error!(
+                        command,
+                        signal = signal.as_str(),
+                        total_children = 1_u32,
+                        drained_children = 0_u32,
+                        drain_elapsed_ms = drain_started.elapsed().as_millis() as u64,
+                        "Shutdown deadline expired before command drained"
+                    );
+                    Err(CliError::CommandFailed(format!(
+                        "{command} did not drain within {} seconds after {}",
+                        resolve_shutdown_grace_period().as_secs(),
+                        signal.as_str()
+                    )))
+                }
+            }
+        }
+    }
+}
+
+async fn wait_for_interval_or_shutdown(tick: Duration, shutdown: &mut ShutdownReceiver) -> bool {
+    let sleep = Box::pin(asupersync::time::sleep(asupersync::time::wall_now(), tick));
+    let shutdown_wait = Box::pin(shutdown.wait());
+
+    matches!(future::select(sleep, shutdown_wait).await, Either::Right((_shutdown, _sleep)))
+}
+
+async fn run_daemon(
+    config_path: Option<&PathBuf>,
+    foreground: bool,
+    cx: &Cx,
+    mut shutdown: ShutdownReceiver,
+) -> Result<(), CliError> {
+    let config = load_config(config_path)?;
+    let _store = VcStore::open(&config.global.db_path)?;
+    let tick = config.poll_interval();
+    let mut ticks = 0_u64;
+
+    if !foreground {
+        tracing::warn!("Background daemonization is not implemented yet; running in foreground");
+    }
+
+    tracing::info!(
+        foreground,
+        poll_interval_secs = tick.as_secs(),
+        "Starting daemon loop"
+    );
+
+    loop {
+        if cx.checkpoint().is_err() {
+            break;
+        }
+
+        if wait_for_interval_or_shutdown(tick, &mut shutdown).await {
+            tracing::info!(ticks, "Daemon shutdown requested");
+            break;
+        }
+
+        if cx.checkpoint().is_err() {
+            break;
+        }
+
+        ticks += 1;
+        tracing::debug!(ticks, "Daemon poll tick");
+    }
+
+    tracing::info!(ticks, total_children = 1_u32, drained_children = 1_u32, "Daemon drained");
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn run_watch(
+    config_path: Option<&PathBuf>,
+    format: OutputFormat,
+    cx: &Cx,
+    mut shutdown: ShutdownReceiver,
+    events: Option<Vec<String>>,
+    changes_only: bool,
+    interval: Option<u64>,
+    machines: Option<Vec<String>>,
+    min_severity: Option<String>,
+    buffer: Option<usize>,
+) -> Result<(), CliError> {
+    let filter = watch::WatchFilter {
+        event_types: events
+            .as_deref()
+            .and_then(watch::WatchFilter::parse_event_types),
+        machines: machines
+            .as_deref()
+            .and_then(watch::WatchFilter::parse_machines),
+        min_severity: min_severity
+            .as_deref()
+            .and_then(watch::WatchSeverity::from_str_loose),
+    };
+    let interval_secs = interval.unwrap_or(30);
+    let buffer_size = buffer.unwrap_or(1).max(1);
+    let use_toon = matches!(format, OutputFormat::Toon);
+
+    let start_event = serde_json::json!({
+        "type": "watch_start",
+        "ts": Utc::now().to_rfc3339(),
+        "interval_secs": interval_secs,
+        "changes_only": changes_only,
+        "buffer_size": buffer_size,
+        "filters": {
+            "events": events,
+            "machines": machines,
+            "min_severity": min_severity,
+        }
+    });
+    if use_toon {
+        println!("W|START,i{interval_secs},b{buffer_size}");
+    } else {
+        println!(
+            "{}",
+            serde_json::to_string(&start_event).unwrap_or_else(|_| "{}".to_string())
+        );
+    }
+
+    let store = open_store(config_path)?;
+    let mut event_buffer: Vec<watch::WatchEvent> = Vec::new();
+    let mut last_check = Utc::now();
+    let tick = Duration::from_secs(interval_secs);
+    let mut ticks = 0_u64;
+
+    loop {
+        if cx.checkpoint().is_err() {
+            break;
+        }
+
+        if wait_for_interval_or_shutdown(tick, &mut shutdown).await {
+            tracing::info!(ticks, buffered_events = event_buffer.len(), "Watch shutdown requested");
+            break;
+        }
+
+        if cx.checkpoint().is_err() {
+            break;
+        }
+
+        ticks += 1;
+        let now = Utc::now();
+
+        let ts = escape_sql_literal(&last_check.to_rfc3339());
+        let sql = format!(
+            "SELECT id, severity, machine_id, message FROM alert_history WHERE fired_at > '{ts}' ORDER BY fired_at"
+        );
+        if let Ok(rows) = store.query_json(&sql) {
+            for row in rows {
+                let severity = row
+                    .get("severity")
+                    .and_then(|v| v.as_str())
+                    .and_then(watch::WatchSeverity::from_str_loose)
+                    .unwrap_or(watch::WatchSeverity::Medium);
+                let event = watch::WatchEvent::alert(
+                    row.get("machine_id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown"),
+                    severity,
+                    row.get("id").and_then(|v| v.as_str()).unwrap_or(""),
+                    row.get("message").and_then(|v| v.as_str()).unwrap_or(""),
+                );
+                if filter.matches(&event) {
+                    event_buffer.push(event);
+                }
+            }
+        }
+
+        if event_buffer.is_empty() && !changes_only {
+            event_buffer.push(watch::WatchEvent::heartbeat());
+        }
+
+        if !event_buffer.is_empty() && event_buffer.len() >= buffer_size {
+            flush_watch_events(&mut event_buffer, use_toon);
+        }
+
+        last_check = now;
+    }
+
+    if !event_buffer.is_empty() {
+        flush_watch_events(&mut event_buffer, use_toon);
+    }
+
+    tracing::info!(ticks, total_children = 1_u32, drained_children = 1_u32, "Watch drained");
+    Ok(())
+}
+
+fn flush_watch_events(event_buffer: &mut Vec<watch::WatchEvent>, use_toon: bool) {
+    for event in event_buffer.drain(..) {
+        if use_toon {
+            println!("{}", event.to_toon());
+        } else {
+            println!("{}", event.to_jsonl());
+        }
+    }
+}
+
+async fn run_web_server(
+    config_path: Option<&PathBuf>,
+    port: u16,
+    bind: String,
+    mut shutdown: ShutdownReceiver,
+) -> Result<(), CliError> {
+    let config = load_config(config_path)?;
+    let store = VcStore::open(&config.global.db_path)?;
+    let mut web_config = config.web;
+    web_config.port = port;
+    web_config.bind_address = bind;
+
+    let server = vc_web::WebServer::new(store, web_config);
+    server
+        .run_with_shutdown(async move {
+            shutdown.wait().await;
+        })
+        .await
+        .map_err(|err| CliError::CommandFailed(format!("Web server error: {err}")))?;
+    Ok(())
 }
 
 fn load_config(config_path: Option<&std::path::PathBuf>) -> Result<VcConfig, CliError> {
@@ -4432,6 +4739,32 @@ mod tests {
         let format = OutputFormat::Text;
         let json = serde_json::to_string(&format).unwrap();
         assert!(json.contains("Text") || json.contains("text"));
+    }
+
+    #[test]
+    fn parse_shutdown_grace_period_accepts_positive_values() {
+        assert_eq!(
+            parse_shutdown_grace_period(Some("45")),
+            Some(Duration::from_secs(45))
+        );
+    }
+
+    #[test]
+    fn parse_shutdown_grace_period_rejects_zero_and_garbage() {
+        assert!(parse_shutdown_grace_period(Some("0")).is_none());
+        assert!(parse_shutdown_grace_period(Some("abc")).is_none());
+    }
+
+    #[test]
+    fn wait_for_interval_or_shutdown_returns_immediately_for_signaled_shutdown() {
+        run_async(async {
+            let controller = ShutdownController::new();
+            let mut receiver = controller.subscribe();
+            controller.shutdown();
+
+            let requested = wait_for_interval_or_shutdown(Duration::from_secs(60), &mut receiver).await;
+            assert!(requested);
+        });
     }
 
     #[test]

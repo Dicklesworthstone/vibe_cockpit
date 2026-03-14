@@ -35,9 +35,12 @@ use std::fmt::Write as _;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use asupersync::sync::{AcquireError, Semaphore};
+use dashmap::DashMap;
 use futures::stream::{self, StreamExt};
 use thiserror::Error;
 use tracing::{debug, info, instrument, warn};
+use vc_config::CollectorConfig as VcCollectorConfig;
 
 use crate::machine::{Machine, MachineFilter, MachineRegistry};
 use crate::ssh::{SshError, SshRunner};
@@ -181,8 +184,10 @@ impl CollectionSummary {
 pub struct RemoteCollectorConfig {
     /// Command timeout
     pub timeout: Duration,
-    /// Maximum concurrent machines
-    pub max_concurrent: usize,
+    /// Maximum concurrent collector operations across the fleet
+    pub max_concurrent_collectors: usize,
+    /// Maximum concurrent collector operations against one machine
+    pub max_concurrent_per_machine: usize,
     /// Whether to skip offline machines
     pub skip_offline: bool,
     /// Whether to check tool availability before collecting
@@ -195,11 +200,43 @@ impl Default for RemoteCollectorConfig {
     fn default() -> Self {
         Self {
             timeout: Duration::from_mins(1),
-            max_concurrent: 4,
+            max_concurrent_collectors: 8,
+            max_concurrent_per_machine: 4,
             skip_offline: true,
             check_tools: true,
             poll_window: Duration::from_mins(10),
         }
+    }
+}
+
+impl From<&VcCollectorConfig> for RemoteCollectorConfig {
+    fn from(config: &VcCollectorConfig) -> Self {
+        Self {
+            timeout: Duration::from_secs(config.timeout_secs),
+            max_concurrent_collectors: usize::try_from(config.max_concurrent_collectors)
+                .unwrap_or(usize::MAX),
+            max_concurrent_per_machine: usize::try_from(config.max_concurrent_per_machine)
+                .unwrap_or(usize::MAX),
+            skip_offline: true,
+            check_tools: true,
+            poll_window: Duration::from_mins(10),
+        }
+    }
+}
+
+fn backpressure_outcome(
+    cx: &asupersync::Cx,
+    scope: &'static str,
+    error: AcquireError,
+) -> RemoteCollectOutcome {
+    match error {
+        AcquireError::Cancelled => asupersync::Outcome::Cancelled(
+            cx.cancel_reason()
+                .unwrap_or_else(asupersync::CancelReason::parent_cancelled),
+        ),
+        other => asupersync::Outcome::Err(RemoteCollectError::CollectError(CollectError::Other(
+            format!("failed to acquire {scope} collector permit: {other}"),
+        ))),
     }
 }
 
@@ -367,6 +404,8 @@ pub struct MultiMachineCollector {
     ssh: Arc<SshRunner>,
     registry: Arc<MachineRegistry>,
     config: RemoteCollectorConfig,
+    global_limiter: Arc<Semaphore>,
+    machine_limiters: DashMap<String, Arc<Semaphore>>,
     /// Cursor state per (collector, machine) pair
     cursors: HashMap<(String, String), Cursor>,
 }
@@ -375,10 +414,13 @@ impl MultiMachineCollector {
     /// Create a new multi-machine collector
     #[must_use]
     pub fn new(ssh: Arc<SshRunner>, registry: Arc<MachineRegistry>) -> Self {
+        let config = RemoteCollectorConfig::default();
         Self {
             ssh,
             registry,
-            config: RemoteCollectorConfig::default(),
+            global_limiter: Arc::new(Semaphore::new(config.max_concurrent_collectors)),
+            machine_limiters: DashMap::new(),
+            config,
             cursors: HashMap::new(),
         }
     }
@@ -390,12 +432,22 @@ impl MultiMachineCollector {
         registry: Arc<MachineRegistry>,
         config: RemoteCollectorConfig,
     ) -> Self {
+        let global_limiter = Arc::new(Semaphore::new(config.max_concurrent_collectors));
         Self {
             ssh,
             registry,
+            global_limiter,
+            machine_limiters: DashMap::new(),
             config,
             cursors: HashMap::new(),
         }
+    }
+
+    fn machine_limiter(&self, machine_id: &str) -> Arc<Semaphore> {
+        self.machine_limiters
+            .entry(machine_id.to_string())
+            .or_insert_with(|| Arc::new(Semaphore::new(self.config.max_concurrent_per_machine)))
+            .clone()
     }
 
     /// Set cursor for a specific (collector, machine) pair
@@ -442,7 +494,8 @@ impl MultiMachineCollector {
         info!(
             collector = %collector_name,
             machine_count,
-            max_concurrent = self.config.max_concurrent,
+            max_concurrent_collectors = self.config.max_concurrent_collectors,
+            max_concurrent_per_machine = self.config.max_concurrent_per_machine,
             cancel_requested = cx.is_cancel_requested(),
             "Collection region: spawning collector tasks"
         );
@@ -451,54 +504,18 @@ impl MultiMachineCollector {
         // Each task gets a cloned Cx for structured cancellation support.
         // TODO(bd-qdp): Wrap in asupersync region with budget deadline for
         // graceful drain when the high-level region API is available.
+        let this = self;
         let results: Vec<MachineCollectResult> = stream::iter(machines)
             .map(|machine| {
                 let cx = cx.clone();
                 let collector = collector.clone();
-                let ssh = self.ssh.clone();
-                let config = self.config.clone();
-                let cursor = self
+                let cursor = this
                     .get_cursor(&collector_name, &machine.machine_id)
                     .cloned();
 
-                async move {
-                    let machine_id = machine.machine_id.clone();
-                    let machine_start = Instant::now();
-
-                    // Check if machine is local
-                    if machine.is_local {
-                        return self
-                            .collect_local(&cx, &collector, &machine, cursor.as_ref())
-                            .await;
-                    }
-
-                    // Check if SSH config exists
-                    if machine.ssh_config().is_none() {
-                        return MachineCollectResult {
-                            machine_id,
-                            result: asupersync::Outcome::Err(RemoteCollectError::NoSshConfig(
-                                machine.machine_id.clone(),
-                            )),
-                            duration: machine_start.elapsed(),
-                            was_online: false,
-                        };
-                    }
-
-                    // Create remote collector wrapper
-                    let remote = RemoteCollector::with_config(collector, ssh, config);
-
-                    // Execute collection
-                    let result = remote.collect_remote(&cx, &machine, cursor.as_ref()).await;
-
-                    MachineCollectResult {
-                        machine_id,
-                        result,
-                        duration: machine_start.elapsed(),
-                        was_online: true,
-                    }
-                }
+                async move { this.collect_machine(&cx, collector, machine, cursor).await }
             })
-            .buffer_unordered(self.config.max_concurrent)
+            .buffer_unordered(self.config.max_concurrent_collectors)
             .collect()
             .await;
 
@@ -553,6 +570,87 @@ impl MultiMachineCollector {
         }
     }
 
+    async fn collect_machine<C: Collector + 'static>(
+        &self,
+        cx: &asupersync::Cx,
+        collector: C,
+        machine: Machine,
+        cursor: Option<Cursor>,
+    ) -> MachineCollectResult {
+        let machine_id = machine.machine_id.clone();
+        let machine_start = Instant::now();
+
+        if !machine.is_local && machine.ssh_config().is_none() {
+            return MachineCollectResult {
+                machine_id,
+                result: asupersync::Outcome::Err(RemoteCollectError::NoSshConfig(
+                    machine.machine_id.clone(),
+                )),
+                duration: machine_start.elapsed(),
+                was_online: false,
+            };
+        }
+
+        let machine_limiter = self.machine_limiter(&machine.machine_id);
+        let machine_wait_start = Instant::now();
+        let _machine_permit = match machine_limiter.acquire(cx, 1).await {
+            Ok(permit) => {
+                debug!(
+                    collector = %collector.name(),
+                    machine_id = %machine.machine_id,
+                    wait_ms = machine_wait_start.elapsed().as_millis(),
+                    "Acquired per-machine collector permit"
+                );
+                permit
+            }
+            Err(error) => {
+                return MachineCollectResult {
+                    machine_id,
+                    result: backpressure_outcome(cx, "per-machine", error),
+                    duration: machine_start.elapsed(),
+                    was_online: true,
+                };
+            }
+        };
+
+        let global_wait_start = Instant::now();
+        let _global_permit = match self.global_limiter.acquire(cx, 1).await {
+            Ok(permit) => {
+                debug!(
+                    collector = %collector.name(),
+                    machine_id = %machine.machine_id,
+                    wait_ms = global_wait_start.elapsed().as_millis(),
+                    "Acquired global collector permit"
+                );
+                permit
+            }
+            Err(error) => {
+                return MachineCollectResult {
+                    machine_id,
+                    result: backpressure_outcome(cx, "global", error),
+                    duration: machine_start.elapsed(),
+                    was_online: true,
+                };
+            }
+        };
+
+        if machine.is_local {
+            return self
+                .collect_local(cx, &collector, &machine, cursor.as_ref())
+                .await;
+        }
+
+        let remote = RemoteCollector::with_config(collector, self.ssh.clone(), self.config.clone());
+        let result = remote.collect_remote(cx, &machine, cursor.as_ref()).await;
+
+        MachineCollectResult {
+            machine_id,
+            result,
+            duration: machine_start.elapsed(),
+            was_online: true,
+        }
+    }
+
     /// Collect from specific machines only
     #[instrument(skip(self, cx, collector, machine_ids), fields(collector = %collector.name()))]
     pub async fn collect_from<C: Collector + Clone + 'static>(
@@ -589,49 +687,18 @@ impl MultiMachineCollector {
         );
 
         // Collect from machines in parallel
+        let this = self;
         let results: Vec<MachineCollectResult> = stream::iter(machines)
             .map(|machine| {
                 let cx = cx.clone();
                 let collector = collector.clone();
-                let ssh = self.ssh.clone();
-                let config = self.config.clone();
-                let cursor = self
+                let cursor = this
                     .get_cursor(&collector_name, &machine.machine_id)
                     .cloned();
 
-                async move {
-                    let machine_id = machine.machine_id.clone();
-                    let machine_start = Instant::now();
-
-                    if machine.is_local {
-                        return self
-                            .collect_local(&cx, &collector, &machine, cursor.as_ref())
-                            .await;
-                    }
-
-                    if machine.ssh_config().is_none() {
-                        return MachineCollectResult {
-                            machine_id,
-                            result: asupersync::Outcome::Err(RemoteCollectError::NoSshConfig(
-                                machine.machine_id.clone(),
-                            )),
-                            duration: machine_start.elapsed(),
-                            was_online: false,
-                        };
-                    }
-
-                    let remote = RemoteCollector::with_config(collector, ssh, config);
-                    let result = remote.collect_remote(&cx, &machine, cursor.as_ref()).await;
-
-                    MachineCollectResult {
-                        machine_id,
-                        result,
-                        duration: machine_start.elapsed(),
-                        was_online: true,
-                    }
-                }
+                async move { this.collect_machine(&cx, collector, machine, cursor).await }
             })
-            .buffer_unordered(self.config.max_concurrent)
+            .buffer_unordered(self.config.max_concurrent_collectors)
             .collect()
             .await;
 
@@ -722,16 +789,38 @@ impl MultiMachineCollector {
 mod tests {
     use super::*;
     use crate::collectors::DummyCollector;
+    use crate::{CollectOutcome, collect_checkpoint};
     use chrono::Utc;
+    use std::collections::HashMap as StdHashMap;
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use vc_store::VcStore;
 
     #[test]
     fn test_remote_collector_config_default() {
         let config = RemoteCollectorConfig::default();
         assert_eq!(config.timeout, Duration::from_mins(1));
-        assert_eq!(config.max_concurrent, 4);
+        assert_eq!(config.max_concurrent_collectors, 8);
+        assert_eq!(config.max_concurrent_per_machine, 4);
         assert!(config.skip_offline);
         assert!(config.check_tools);
+    }
+
+    #[test]
+    fn test_remote_collector_config_from_vc_config() {
+        let collector_config = VcCollectorConfig {
+            timeout_secs: 45,
+            max_concurrent_collectors: 6,
+            max_concurrent_per_machine: 2,
+            ..VcCollectorConfig::default()
+        };
+
+        let remote_config = RemoteCollectorConfig::from(&collector_config);
+
+        assert_eq!(remote_config.timeout, Duration::from_secs(45));
+        assert_eq!(remote_config.max_concurrent_collectors, 6);
+        assert_eq!(remote_config.max_concurrent_per_machine, 2);
+        assert!(remote_config.skip_offline);
+        assert!(remote_config.check_tools);
     }
 
     #[test]
@@ -979,7 +1068,9 @@ mod tests {
         let ssh = Arc::new(SshRunner::new());
 
         let mmc = MultiMachineCollector::new(ssh, registry);
-        assert_eq!(mmc.config.max_concurrent, 4);
+        assert_eq!(mmc.config.max_concurrent_collectors, 8);
+        assert_eq!(mmc.config.max_concurrent_per_machine, 4);
+        assert_eq!(mmc.global_limiter.available_permits(), 8);
     }
 
     #[test]
@@ -1001,5 +1092,346 @@ mod tests {
         // Non-existent cursor
         let none = mmc.get_cursor("sysmoni", "other");
         assert!(none.is_none());
+    }
+
+    #[derive(Clone)]
+    struct BlockingCollector {
+        name: &'static str,
+        active: Arc<AtomicUsize>,
+        max_active: Arc<AtomicUsize>,
+        sleep: Duration,
+    }
+
+    impl BlockingCollector {
+        fn new(name: &'static str, active: Arc<AtomicUsize>, max_active: Arc<AtomicUsize>) -> Self {
+            Self::with_sleep(name, active, max_active, Duration::from_millis(25))
+        }
+
+        fn with_sleep(
+            name: &'static str,
+            active: Arc<AtomicUsize>,
+            max_active: Arc<AtomicUsize>,
+            sleep: Duration,
+        ) -> Self {
+            Self {
+                name,
+                active,
+                max_active,
+                sleep,
+            }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl Collector for BlockingCollector {
+        fn name(&self) -> &'static str {
+            self.name
+        }
+
+        async fn collect(&self, cx: &asupersync::Cx, ctx: &CollectContext) -> CollectOutcome {
+            collect_checkpoint!(cx, "blocking_collector:start");
+
+            let current = self.active.fetch_add(1, Ordering::SeqCst) + 1;
+            let _ = self.max_active.fetch_max(current, Ordering::SeqCst);
+
+            asupersync::time::sleep(asupersync::time::wall_now(), self.sleep).await;
+
+            self.active.fetch_sub(1, Ordering::SeqCst);
+            asupersync::Outcome::Ok(CollectResult::with_rows(vec![RowBatch {
+                table: "collector_test".to_string(),
+                rows: vec![serde_json::json!({
+                    "machine_id": &ctx.machine_id,
+                    "collector": self.name,
+                })],
+            }]))
+        }
+    }
+
+    fn machine_config(name: &str) -> vc_config::MachineConfig {
+        vc_config::MachineConfig {
+            name: name.to_string(),
+            ssh_host: None,
+            ssh_user: None,
+            ssh_key: None,
+            ssh_port: 22,
+            enabled: true,
+            collectors: StdHashMap::new(),
+            tags: vec![],
+        }
+    }
+
+    fn registry_with_machines(machine_ids: &[&str]) -> Arc<MachineRegistry> {
+        let store = Arc::new(VcStore::open_memory().unwrap());
+        let registry = Arc::new(MachineRegistry::new(store));
+        let mut config = vc_config::VcConfig::default();
+
+        for machine_id in machine_ids {
+            config
+                .machines
+                .insert((*machine_id).to_string(), machine_config(machine_id));
+        }
+
+        registry.load_from_config(&config).unwrap();
+        registry
+    }
+
+    #[test]
+    fn test_global_backpressure_serializes_collectors() {
+        crate::run_async_test(async {
+            let registry = registry_with_machines(&["machine-a", "machine-b"]);
+            let ssh = Arc::new(SshRunner::new());
+            let mmc = MultiMachineCollector::with_config(
+                ssh,
+                registry,
+                RemoteCollectorConfig {
+                    max_concurrent_collectors: 1,
+                    max_concurrent_per_machine: 4,
+                    ..RemoteCollectorConfig::default()
+                },
+            );
+
+            let active = Arc::new(AtomicUsize::new(0));
+            let max_active = Arc::new(AtomicUsize::new(0));
+            let collector = BlockingCollector::new("global-limit", active, max_active.clone());
+            let cx = asupersync::Cx::for_testing();
+
+            let machine_a = vec!["machine-a".to_string()];
+            let machine_b = vec!["machine-b".to_string()];
+
+            let (_left, _right) = futures::future::join(
+                mmc.collect_from(&cx, collector.clone(), &machine_a),
+                mmc.collect_from(&cx, collector, &machine_b),
+            )
+            .await;
+
+            assert_eq!(max_active.load(Ordering::SeqCst), 1);
+        });
+    }
+
+    #[test]
+    fn test_per_machine_backpressure_serializes_same_machine() {
+        crate::run_async_test(async {
+            let registry = registry_with_machines(&["machine-a"]);
+            let ssh = Arc::new(SshRunner::new());
+            let mmc = MultiMachineCollector::with_config(
+                ssh,
+                registry,
+                RemoteCollectorConfig {
+                    max_concurrent_collectors: 4,
+                    max_concurrent_per_machine: 1,
+                    ..RemoteCollectorConfig::default()
+                },
+            );
+
+            let active = Arc::new(AtomicUsize::new(0));
+            let max_active = Arc::new(AtomicUsize::new(0));
+            let collector = BlockingCollector::new("machine-limit", active, max_active.clone());
+            let cx = asupersync::Cx::for_testing();
+            let machine = vec!["machine-a".to_string()];
+
+            let (_left, _right) = futures::future::join(
+                mmc.collect_from(&cx, collector.clone(), &machine),
+                mmc.collect_from(&cx, collector, &machine),
+            )
+            .await;
+
+            assert_eq!(max_active.load(Ordering::SeqCst), 1);
+        });
+    }
+
+    #[test]
+    fn test_global_backpressure_cancel_is_leak_free() {
+        crate::run_async_test(async {
+            let registry = registry_with_machines(&["machine-a"]);
+            let ssh = Arc::new(SshRunner::new());
+            let mmc = MultiMachineCollector::with_config(
+                ssh,
+                registry,
+                RemoteCollectorConfig {
+                    max_concurrent_collectors: 1,
+                    max_concurrent_per_machine: 1,
+                    ..RemoteCollectorConfig::default()
+                },
+            );
+
+            let holder_cx = asupersync::Cx::for_testing();
+            let held = mmc
+                .global_limiter
+                .acquire(&holder_cx, 1)
+                .await
+                .expect("holder should acquire permit");
+
+            let active = Arc::new(AtomicUsize::new(0));
+            let max_active = Arc::new(AtomicUsize::new(0));
+            let collector = BlockingCollector::new("cancelled-limit", active, max_active.clone());
+            let cancel_cx = asupersync::Cx::for_testing();
+            let cancel_trigger = cancel_cx.clone();
+            let machine = vec!["machine-a".to_string()];
+
+            let (summary, ()) = futures::future::join(
+                mmc.collect_from(&cancel_cx, collector, &machine),
+                async move {
+                    asupersync::time::sleep(
+                        asupersync::time::wall_now(),
+                        Duration::from_millis(10),
+                    )
+                    .await;
+                    cancel_trigger.set_cancel_requested(true);
+                    asupersync::time::sleep(
+                        asupersync::time::wall_now(),
+                        Duration::from_millis(10),
+                    )
+                    .await;
+                    drop(held);
+                },
+            )
+            .await;
+
+            assert_eq!(summary.machines_cancelled, 1);
+            assert_eq!(summary.machines_failed, 0);
+            assert_eq!(summary.results.len(), 1);
+            assert!(summary.results[0].cancelled());
+
+            assert_eq!(mmc.global_limiter.available_permits(), 1);
+            assert_eq!(mmc.machine_limiter("machine-a").available_permits(), 1);
+            assert_eq!(max_active.load(Ordering::SeqCst), 0);
+        });
+    }
+
+    #[test]
+    fn test_per_machine_waiters_do_not_consume_global_capacity() {
+        crate::run_async_test(async {
+            let registry = registry_with_machines(&["machine-a", "machine-b"]);
+            let ssh = Arc::new(SshRunner::new());
+            let mmc = MultiMachineCollector::with_config(
+                ssh,
+                registry,
+                RemoteCollectorConfig {
+                    max_concurrent_collectors: 2,
+                    max_concurrent_per_machine: 1,
+                    ..RemoteCollectorConfig::default()
+                },
+            );
+
+            let active = Arc::new(AtomicUsize::new(0));
+            let max_active = Arc::new(AtomicUsize::new(0));
+            let collector = BlockingCollector::with_sleep(
+                "global-capacity",
+                active,
+                max_active.clone(),
+                Duration::from_millis(50),
+            );
+            let cx = asupersync::Cx::for_testing();
+            let machine_a = vec!["machine-a".to_string()];
+            let machine_b = vec!["machine-b".to_string()];
+
+            let _results = futures::future::join3(
+                mmc.collect_from(&cx, collector.clone(), &machine_a),
+                mmc.collect_from(&cx, collector.clone(), &machine_a),
+                mmc.collect_from(&cx, collector, &machine_b),
+            )
+            .await;
+
+            assert_eq!(max_active.load(Ordering::SeqCst), 2);
+            assert_eq!(mmc.global_limiter.available_permits(), 2);
+            assert_eq!(mmc.machine_limiter("machine-a").available_permits(), 1);
+            assert_eq!(mmc.machine_limiter("machine-b").available_permits(), 1);
+        });
+    }
+
+    #[test]
+    fn test_global_backpressure_caps_large_workload_and_returns_permits() {
+        crate::run_async_test(async {
+            let machine_ids = [
+                "local",
+                "machine-00",
+                "machine-01",
+                "machine-02",
+                "machine-03",
+                "machine-04",
+                "machine-05",
+                "machine-06",
+                "machine-07",
+                "machine-08",
+                "machine-09",
+                "machine-10",
+                "machine-11",
+                "machine-12",
+            ];
+            let registry = registry_with_machines(&machine_ids);
+            let ssh = Arc::new(SshRunner::new());
+            let mmc = MultiMachineCollector::with_config(
+                ssh,
+                registry,
+                RemoteCollectorConfig {
+                    max_concurrent_collectors: 8,
+                    max_concurrent_per_machine: 4,
+                    ..RemoteCollectorConfig::default()
+                },
+            );
+
+            let active = Arc::new(AtomicUsize::new(0));
+            let max_active = Arc::new(AtomicUsize::new(0));
+            let collector = BlockingCollector::with_sleep(
+                "large-workload",
+                active,
+                max_active.clone(),
+                Duration::from_millis(50),
+            );
+            let cx = asupersync::Cx::for_testing();
+
+            let summary = mmc.collect_all(&cx, collector).await;
+
+            assert_eq!(summary.machines_attempted, machine_ids.len());
+            assert_eq!(summary.machines_succeeded, machine_ids.len());
+            assert_eq!(max_active.load(Ordering::SeqCst), 8);
+            assert_eq!(mmc.global_limiter.available_permits(), 8);
+
+            for machine_id in machine_ids {
+                assert_eq!(mmc.machine_limiter(machine_id).available_permits(), 4);
+            }
+        });
+    }
+
+    #[test]
+    fn test_per_machine_backpressure_respects_configured_limit_and_returns_permits() {
+        crate::run_async_test(async {
+            let registry = registry_with_machines(&["machine-a"]);
+            let ssh = Arc::new(SshRunner::new());
+            let mmc = MultiMachineCollector::with_config(
+                ssh,
+                registry,
+                RemoteCollectorConfig {
+                    max_concurrent_collectors: 8,
+                    max_concurrent_per_machine: 4,
+                    ..RemoteCollectorConfig::default()
+                },
+            );
+
+            let active = Arc::new(AtomicUsize::new(0));
+            let max_active = Arc::new(AtomicUsize::new(0));
+            let collector = BlockingCollector::with_sleep(
+                "per-machine-cap",
+                active,
+                max_active.clone(),
+                Duration::from_millis(50),
+            );
+            let cx = asupersync::Cx::for_testing();
+            let machine = vec!["machine-a".to_string()];
+
+            let results = futures::future::join_all(
+                (0..6).map(|_| mmc.collect_from(&cx, collector.clone(), &machine)),
+            )
+            .await;
+
+            assert!(
+                results
+                    .iter()
+                    .all(|summary| summary.machines_succeeded == 1)
+            );
+            assert_eq!(max_active.load(Ordering::SeqCst), 4);
+            assert_eq!(mmc.global_limiter.available_permits(), 8);
+            assert_eq!(mmc.machine_limiter("machine-a").available_permits(), 4);
+        });
     }
 }

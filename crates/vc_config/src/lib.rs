@@ -347,6 +347,12 @@ pub struct CollectorConfig {
 
     /// Collector timeout in seconds
     pub timeout_secs: u64,
+
+    /// Maximum concurrent collector operations across the fleet
+    pub max_concurrent_collectors: u32,
+
+    /// Maximum concurrent collector operations allowed against one machine
+    pub max_concurrent_per_machine: u32,
 }
 
 impl Default for CollectorConfig {
@@ -367,6 +373,8 @@ impl Default for CollectorConfig {
             afsc: false,
             cloud_benchmarker: false,
             timeout_secs: 30,
+            max_concurrent_collectors: 8,
+            max_concurrent_per_machine: 4,
         }
     }
 }
@@ -644,6 +652,18 @@ impl VcConfig {
             ));
         }
 
+        if self.collectors.max_concurrent_collectors == 0 {
+            return Err(ConfigError::ValidationError(
+                "collector max_concurrent_collectors must be > 0".to_string(),
+            ));
+        }
+
+        if self.collectors.max_concurrent_per_machine == 0 {
+            return Err(ConfigError::ValidationError(
+                "collector max_concurrent_per_machine must be > 0".to_string(),
+            ));
+        }
+
         // Validate log level
         if !VALID_LOG_LEVELS.contains(&self.global.log_level.to_lowercase().as_str()) {
             return Err(ConfigError::ValidationError(format!(
@@ -773,6 +793,34 @@ impl VcConfig {
                     description: "Set a reasonable timeout (e.g., 30 seconds)".to_string(),
                     path: "collectors.timeout_secs".to_string(),
                     suggested_value: Some("30".to_string()),
+                }),
+            );
+        }
+
+        if self.collectors.max_concurrent_collectors == 0 {
+            result.add(
+                LintIssue::error(
+                    "collectors.max_concurrent_collectors",
+                    "Global collector concurrency must be greater than 0",
+                )
+                .with_suggestion(LintSuggestion {
+                    description: "Allow at least one collector to run".to_string(),
+                    path: "collectors.max_concurrent_collectors".to_string(),
+                    suggested_value: Some("8".to_string()),
+                }),
+            );
+        }
+
+        if self.collectors.max_concurrent_per_machine == 0 {
+            result.add(
+                LintIssue::error(
+                    "collectors.max_concurrent_per_machine",
+                    "Per-machine collector concurrency must be greater than 0",
+                )
+                .with_suggestion(LintSuggestion {
+                    description: "Allow at least one concurrent collector per machine".to_string(),
+                    path: "collectors.max_concurrent_per_machine".to_string(),
+                    suggested_value: Some("4".to_string()),
                 }),
             );
         }
@@ -995,6 +1043,10 @@ bv_br = true            # Beads (issue tracker)
 # Collector timeout in seconds
 timeout_secs = 30
 
+# Shared collector backpressure limits
+max_concurrent_collectors = 8
+max_concurrent_per_machine = 4
+
 [alerts]
 enabled = true
 default_cooldown_secs = 300
@@ -1061,6 +1113,8 @@ mod tests {
         assert!(config.collectors.sysmoni);
         assert_eq!(config.global.poll_interval_secs, 120);
         assert_eq!(config.global.log_level, "info");
+        assert_eq!(config.collectors.max_concurrent_collectors, 8);
+        assert_eq!(config.collectors.max_concurrent_per_machine, 4);
     }
 
     #[test]
@@ -1084,6 +1138,31 @@ mod tests {
         let result = config.validate();
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("timeout_secs"));
+    }
+
+    #[test]
+    fn test_config_validation_collector_concurrency() {
+        let mut config = VcConfig::default();
+        config.collectors.max_concurrent_collectors = 0;
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("max_concurrent_collectors")
+        );
+
+        let mut config = VcConfig::default();
+        config.collectors.max_concurrent_per_machine = 0;
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("max_concurrent_per_machine")
+        );
     }
 
     #[test]
@@ -1161,6 +1240,8 @@ log_level = "debug"
 [collectors]
 sysmoni = false
 timeout_secs = 15
+max_concurrent_collectors = 6
+max_concurrent_per_machine = 2
 
 [machines.test-machine]
 name = "Test"
@@ -1177,6 +1258,8 @@ enabled = true
         assert_eq!(config.global.log_level, "debug");
         assert!(!config.collectors.sysmoni);
         assert_eq!(config.collectors.timeout_secs, 15);
+        assert_eq!(config.collectors.max_concurrent_collectors, 6);
+        assert_eq!(config.collectors.max_concurrent_per_machine, 2);
 
         std::fs::remove_file(&path).ok();
     }
@@ -1342,6 +1425,27 @@ enabled = true
     }
 
     #[test]
+    fn test_lint_collector_concurrency_zero() {
+        let mut config = VcConfig::default();
+        config.collectors.max_concurrent_collectors = 0;
+        config.collectors.max_concurrent_per_machine = 0;
+        let result = config.lint();
+        assert!(result.has_errors());
+        assert!(
+            result
+                .issues
+                .iter()
+                .any(|i| i.path == "collectors.max_concurrent_collectors")
+        );
+        assert!(
+            result
+                .issues
+                .iter()
+                .any(|i| i.path == "collectors.max_concurrent_per_machine")
+        );
+    }
+
+    #[test]
     fn test_lint_poll_interval_too_short() {
         let mut config = VcConfig::default();
         config.global.poll_interval_secs = 10;
@@ -1462,6 +1566,8 @@ enabled = true
         assert!(toml.contains("poll_interval_secs"));
         assert!(toml.contains("inline_mode = false"));
         assert!(toml.contains("inline_height = 20"));
+        assert!(toml.contains("max_concurrent_collectors = 8"));
+        assert!(toml.contains("max_concurrent_per_machine = 4"));
     }
 
     #[test]
@@ -1472,6 +1578,8 @@ enabled = true
         assert!(toml.contains("poll_interval_secs = 120"));
         assert!(toml.contains("inline_mode = false"));
         assert!(toml.contains("inline_height = 20"));
+        assert!(toml.contains("max_concurrent_collectors = 8"));
+        assert!(toml.contains("max_concurrent_per_machine = 4"));
     }
 
     #[test]

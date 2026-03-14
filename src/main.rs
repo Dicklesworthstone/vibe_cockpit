@@ -55,8 +55,10 @@ fn main() -> Result<()> {
 
     // ── Run the CLI ──────────────────────────────────────────────────────
     tracing::info!("starting CLI execution");
-    let cli_result = asupersync_rt
-        .block_on(async { with_tokio_context(&root_cx, || async move { cli.run().await }).await });
+    let cli_cx = root_cx.clone();
+    let cli_result = asupersync_rt.block_on(async {
+        with_tokio_context(&root_cx, || async move { cli.run_with_cx(&cli_cx).await }).await
+    });
     let Some(cli_result) = cli_result else {
         tracing::warn!("CLI execution was cancelled before completion");
         anyhow::bail!("CLI execution was cancelled before completion");

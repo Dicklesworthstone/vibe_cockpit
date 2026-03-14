@@ -17,7 +17,9 @@ use axum::{
     response::{IntoResponse, Json, Response},
     routing::get,
 };
+use futures::future::{self, Either};
 use serde::{Deserialize, Serialize};
+use std::future::Future;
 use std::path::Path as FsPath;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -26,7 +28,7 @@ use tokio::net::TcpListener;
 use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
-use tracing::warn;
+use tracing::{info, warn};
 use vc_config::WebConfig;
 use vc_query::{FleetOverview, QueryBuilder};
 use vc_store::{VcStore, escape_sql_literal};
@@ -142,6 +144,18 @@ impl WebServer {
     ///
     /// Returns an error if binding the TCP listener fails or if serving fails.
     pub async fn run(&self) -> Result<(), WebError> {
+        self.run_with_shutdown(shutdown_signal()).await
+    }
+
+    /// Run the web server until the provided shutdown future resolves.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if binding the TCP listener fails or if serving fails.
+    pub async fn run_with_shutdown<F>(&self, shutdown: F) -> Result<(), WebError>
+    where
+        F: Future<Output = ()> + Send + 'static,
+    {
         let addr = format!("{}:{}", self.config.bind_address, self.config.port);
         let listener = TcpListener::bind(&addr)
             .await
@@ -152,7 +166,7 @@ impl WebServer {
             self.router()
                 .into_make_service_with_connect_info::<std::net::SocketAddr>(),
         )
-        .with_graceful_shutdown(shutdown_signal())
+        .with_graceful_shutdown(shutdown)
         .await
         .map_err(|err| WebError::ServerError(err.to_string()))?;
         Ok(())
@@ -160,8 +174,38 @@ impl WebServer {
 }
 
 async fn shutdown_signal() {
+    #[cfg(unix)]
+    {
+        let mut sigint = asupersync::signal::sigint().ok();
+        let mut sigterm = asupersync::signal::sigterm().ok();
+
+        match (sigint.as_mut(), sigterm.as_mut()) {
+            (Some(sigint), Some(sigterm)) => {
+                let sigint_wait = Box::pin(sigint.recv());
+                let sigterm_wait = Box::pin(sigterm.recv());
+
+                match future::select(sigint_wait, sigterm_wait).await {
+                    Either::Left((Some(()), _)) => {
+                        info!("vc_web shutdown requested by SIGINT");
+                        return;
+                    }
+                    Either::Right((Some(()), _)) => {
+                        info!("vc_web shutdown requested by SIGTERM");
+                        return;
+                    }
+                    Either::Left((None, _)) | Either::Right((None, _)) => {
+                        warn!("vc_web signal stream closed unexpectedly; falling back to ctrl_c");
+                    }
+                }
+            }
+            _ => {
+                warn!("vc_web could not register SIGINT/SIGTERM streams; falling back to ctrl_c");
+            }
+        }
+    }
+
     if asupersync::signal::ctrl_c().await.is_ok() {
-        tracing::info!("Shutdown signal received");
+        info!("vc_web shutdown requested by ctrl_c");
     }
 }
 
