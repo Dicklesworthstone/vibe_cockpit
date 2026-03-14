@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use chrono::Utc;
+use serde::de::{self, Deserializer};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use vc_config::{MachineConfig, VcConfig};
@@ -56,7 +57,7 @@ pub struct Machine {
     pub ssh_key_path: Option<String>,
     #[serde(default = "default_ssh_port")]
     pub ssh_port: u16,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_boolish")]
     pub is_local: bool,
     #[serde(default)]
     pub os_type: Option<String>,
@@ -70,11 +71,11 @@ pub struct Machine {
     pub last_probe_at: Option<String>,
     #[serde(default)]
     pub status: MachineStatus,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_tags")]
     pub tags: Vec<String>,
     #[serde(default)]
     pub metadata: Option<serde_json::Value>,
-    #[serde(default = "default_true")]
+    #[serde(default = "default_true", deserialize_with = "deserialize_enabled")]
     pub enabled: bool,
 }
 
@@ -423,6 +424,76 @@ fn default_true() -> bool {
     true
 }
 
+fn deserialize_boolish<'de, D>(deserializer: D) -> Result<bool, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_boolish_with_default(deserializer, false)
+}
+
+fn deserialize_enabled<'de, D>(deserializer: D) -> Result<bool, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_boolish_with_default(deserializer, true)
+}
+
+fn deserialize_boolish_with_default<'de, D>(
+    deserializer: D,
+    default: bool,
+) -> Result<bool, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    match value {
+        serde_json::Value::Bool(value) => Ok(value),
+        serde_json::Value::Number(value) => value
+            .as_i64()
+            .map(|value| value != 0)
+            .ok_or_else(|| de::Error::custom("expected integer-compatible boolean")),
+        serde_json::Value::String(value) => match value.trim().to_ascii_lowercase().as_str() {
+            "true" | "1" => Ok(true),
+            "false" | "0" => Ok(false),
+            other => Err(de::Error::custom(format!(
+                "expected boolean-compatible string, got {other}"
+            ))),
+        },
+        serde_json::Value::Null => Ok(default),
+        other => Err(de::Error::custom(format!(
+            "expected boolean-compatible value, got {other}"
+        ))),
+    }
+}
+
+fn deserialize_tags<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    match value {
+        serde_json::Value::Array(tags) => tags
+            .into_iter()
+            .map(|tag| {
+                tag.as_str()
+                    .map(std::string::ToString::to_string)
+                    .ok_or_else(|| de::Error::custom("expected tag array of strings"))
+            })
+            .collect(),
+        serde_json::Value::String(tags) => {
+            if tags.trim().is_empty() {
+                return Ok(Vec::new());
+            }
+
+            serde_json::from_str::<Vec<String>>(&tags).or_else(|_| Ok(vec![tags]))
+        }
+        serde_json::Value::Null => Ok(Vec::new()),
+        other => Err(de::Error::custom(format!(
+            "expected tags array or JSON string, got {other}"
+        ))),
+    }
+}
+
 fn default_ssh_port() -> u16 {
     22
 }
@@ -495,5 +566,23 @@ mod tests {
 
         let machine = registry.get_machine("local").unwrap().unwrap();
         assert!(!machine.enabled);
+    }
+
+    #[test]
+    fn test_machine_deserializes_stringified_tags_and_integer_flags() {
+        let row = serde_json::json!({
+            "machine_id": "remote-1",
+            "hostname": "example.com",
+            "ssh_port": 22,
+            "is_local": 0,
+            "status": "unknown",
+            "tags": "[\"builder\",\"gpu\"]",
+            "enabled": 1,
+        });
+
+        let machine: Machine = serde_json::from_value(row).unwrap();
+        assert!(!machine.is_local);
+        assert!(machine.enabled);
+        assert_eq!(machine.tags, vec!["builder", "gpu"]);
     }
 }
