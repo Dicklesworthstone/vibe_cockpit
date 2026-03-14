@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS experiments (
     stop_early_on_significance INTEGER DEFAULT 0,
     min_runtime_hours INTEGER,
     max_runtime_hours INTEGER,
-    created_at TEXT DEFAULT (datetime('now')),
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     created_by TEXT
 );
 
@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS experiment_assignments (
     experiment_id TEXT NOT NULL,
     variant_id TEXT NOT NULL,
     session_id TEXT NOT NULL,
-    assigned_at TEXT DEFAULT (datetime('now')),
+    assigned_at TEXT DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (experiment_id) REFERENCES experiments(experiment_id),
     FOREIGN KEY (variant_id) REFERENCES experiment_variants(variant_id)
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS experiment_observations (
     session_id TEXT NOT NULL,
     metric_name TEXT NOT NULL,
     metric_value REAL NOT NULL,
-    observed_at TEXT DEFAULT (datetime('now')),
+    observed_at TEXT DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (experiment_id) REFERENCES experiments(experiment_id),
     FOREIGN KEY (variant_id) REFERENCES experiment_variants(variant_id)

@@ -30,7 +30,7 @@ CREATE INDEX IF NOT EXISTS idx_collector_health_ts
 CREATE TABLE IF NOT EXISTS machine_baselines (
     machine_id TEXT NOT NULL,
     baseline_window TEXT NOT NULL,
-    computed_at TEXT NOT NULL DEFAULT (datetime('now')),
+    computed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     metrics_json TEXT NOT NULL,
     PRIMARY KEY (machine_id, baseline_window)
 );
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS machine_baselines (
 CREATE TABLE IF NOT EXISTS drift_events (
     id INTEGER PRIMARY KEY,
     machine_id TEXT NOT NULL,
-    detected_at TEXT NOT NULL DEFAULT (datetime('now')),
+    detected_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     metric TEXT NOT NULL,
     current_value REAL NOT NULL,
     baseline_mean REAL NOT NULL,

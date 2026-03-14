@@ -3,7 +3,7 @@
 CREATE TABLE IF NOT EXISTS alert_routing_events (
     id INTEGER PRIMARY KEY,
     alert_id TEXT NOT NULL,
-    routed_at TEXT DEFAULT (datetime('now')),
+    routed_at TEXT DEFAULT CURRENT_TIMESTAMP,
     rule_id TEXT,
     channel TEXT NOT NULL,
     action TEXT NOT NULL,

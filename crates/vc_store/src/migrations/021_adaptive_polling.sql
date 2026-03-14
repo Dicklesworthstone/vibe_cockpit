@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS poll_schedule_decisions (
     id INTEGER PRIMARY KEY,
     machine_id TEXT NOT NULL,
     collector TEXT NOT NULL,
-    decided_at TEXT DEFAULT (datetime('now')),
+    decided_at TEXT DEFAULT CURRENT_TIMESTAMP,
     next_interval_seconds INTEGER NOT NULL,
     reason_json TEXT
 );
@@ -16,7 +16,7 @@ CREATE INDEX IF NOT EXISTS idx_poll_schedule_machine
 CREATE TABLE IF NOT EXISTS sys_profile_samples (
     id INTEGER PRIMARY KEY,
     machine_id TEXT NOT NULL,
-    collected_at TEXT DEFAULT (datetime('now')),
+    collected_at TEXT DEFAULT CURRENT_TIMESTAMP,
     profile_id TEXT NOT NULL,
     metrics_json TEXT,
     raw_json TEXT

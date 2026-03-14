@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS incident_notes (
     incident_id TEXT NOT NULL,
     author TEXT,                       -- agent name or user
     content TEXT NOT NULL,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_incident_notes_incident ON incident_notes(incident_id);

@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS resolutions (
     trigger_context TEXT,
     actions TEXT NOT NULL,
     outcome TEXT NOT NULL DEFAULT 'unknown',
-    captured_at TEXT DEFAULT (datetime('now')),
+    captured_at TEXT DEFAULT CURRENT_TIMESTAMP,
     machine_id TEXT,
     operator TEXT
 );
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS playbook_drafts (
     status TEXT NOT NULL DEFAULT 'pending_review',
     approved_by TEXT,
     approved_at TEXT,
-    created_at TEXT DEFAULT (datetime('now')),
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     source_pattern_json TEXT
 );
 

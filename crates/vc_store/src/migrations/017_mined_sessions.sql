@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS mined_sessions (
     session_id TEXT PRIMARY KEY,
     machine_id TEXT,
-    mined_at TEXT DEFAULT (datetime('now')),
+    mined_at TEXT DEFAULT CURRENT_TIMESTAMP,
     solutions_extracted INTEGER DEFAULT 0,
     patterns_extracted INTEGER DEFAULT 0,
     quality_avg REAL,

@@ -6,7 +6,7 @@
 -- Log of vacuum/retention operations
 CREATE TABLE IF NOT EXISTS retention_log (
     id INTEGER PRIMARY KEY,
-    ts TEXT DEFAULT (datetime('now')),
+    ts TEXT DEFAULT CURRENT_TIMESTAMP,
     policy_id TEXT,
     table_name TEXT NOT NULL,
     rows_deleted INTEGER DEFAULT 0,

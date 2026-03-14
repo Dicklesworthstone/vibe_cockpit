@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS alert_delivery_log (
     id INTEGER PRIMARY KEY,
     alert_id TEXT NOT NULL,
     channel_type TEXT NOT NULL,
-    delivered_at TEXT NOT NULL DEFAULT (datetime('now')),
+    delivered_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     status TEXT NOT NULL DEFAULT 'pending',
     error_message TEXT,
     retry_count INTEGER NOT NULL DEFAULT 0,

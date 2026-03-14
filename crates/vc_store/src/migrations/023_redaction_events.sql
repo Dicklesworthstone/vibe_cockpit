@@ -2,7 +2,7 @@
 -- Translated from DuckDB to SQLite-compatible SQL (bd-h6y)
 CREATE TABLE IF NOT EXISTS redaction_events (
     id INTEGER PRIMARY KEY,
-    collected_at TEXT DEFAULT (datetime('now')),
+    collected_at TEXT DEFAULT CURRENT_TIMESTAMP,
     machine_id TEXT NOT NULL,
     collector TEXT NOT NULL,
     redacted_fields INTEGER NOT NULL DEFAULT 0,

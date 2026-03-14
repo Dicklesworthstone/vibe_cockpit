@@ -24,7 +24,7 @@
 //! | DuckDB                              | SQLite                                                   | Count | Locations                               |
 //! |-------------------------------------|----------------------------------------------------------|-------|-----------------------------------------|
 //! | `to_json(_row)`                     | Rust-side `serde_json` row construction                  |    12 | vc_store/lib.rs (518..3285)             |
-//! | `current_timestamp`                 | `datetime('now')`                                        |    33 | vc_store, vc_query, migrations          |
+//! | `current_timestamp`                 | `CURRENT_TIMESTAMP`                                      |    33 | vc_store, vc_query, migrations          |
 //! | `current_timestamp - INTERVAL 'Xu'` | `datetime('now', '-X unit')`                             |    19 | vc_store (4), vc_query/nl (11), cost (3), digest (1) |
 //! | `CAST(x AS TIMESTAMP)`              | Remove — TEXT already stores ISO-8601                    |     6 | vc_store (3), vc_query/nl (2), vc_web (1) |
 //! | `date_trunc('week', ts)`            | `strftime('%Y-%m-%d', ts, 'weekday 0', '-6 days')`      |     1 | vc_query/nl.rs:284                      |
@@ -34,8 +34,8 @@
 //! | `list_contains(arr, val)`           | `EXISTS (SELECT 1 FROM json_each(arr) WHERE value=val)`  |     1 | vc_knowledge/lib.rs:530                 |
 //! | `EXTRACT(EPOCH FROM ts)`            | `CAST(strftime('%s', ts) AS INTEGER)`                    |     2 | vc_store:1084, vc_web:567               |
 //! | `COUNT(*) FILTER (WHERE cond)`      | `SUM(CASE WHEN cond THEN 1 ELSE 0 END)`                 |     1 | vc_web/lib.rs:595                       |
-//! | `now()`                             | `datetime('now')`                                        |     2 | migrations 003 only                     |
-//! | `DEFAULT current_timestamp`         | `DEFAULT (datetime('now'))`                              |   ~30 | Migration DEFAULT clauses               |
+//! | `now()`                             | `CURRENT_TIMESTAMP`                                      |     2 | migrations 003 only                     |
+//! | `DEFAULT current_timestamp`         | `DEFAULT CURRENT_TIMESTAMP`                              |   ~30 | Migration DEFAULT clauses               |
 //!
 //! ## Rust API Translations (DuckDB crate → fsqlite)
 //!
@@ -59,7 +59,7 @@
 //! - **003_knowledge_base.sql**: Only file with `CREATE TYPE … AS ENUM` — must
 //!   convert to `TEXT + CHECK(col IN (…))` constraint.
 //! - **003_knowledge_base.sql**: Uses `now()` (DuckDB alias) instead of
-//!   `current_timestamp` — translate to `datetime('now')`.
+//!   `current_timestamp` — translate to `CURRENT_TIMESTAMP`.
 //! - **001_initial_schema.sql**: 3 `TEXT[]` columns (tags, recipients, channels)
 //!   — convert to `TEXT` and query via `json_each()`.
 //! - **004_agent_dna.sql**: 1 `DOUBLE[]` column (dna_embedding) — convert to

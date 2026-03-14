@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS incident_replay_snapshots (
     incident_id TEXT NOT NULL,
     snapshot_ts TEXT NOT NULL,
     snapshot_json TEXT NOT NULL,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_replay_snapshot_incident

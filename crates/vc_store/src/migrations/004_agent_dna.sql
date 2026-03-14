@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS agent_dna (
     agent_program TEXT NOT NULL,
     agent_model TEXT NOT NULL,
     configuration_hash TEXT,
-    computed_at TEXT DEFAULT (datetime('now')),
+    computed_at TEXT DEFAULT CURRENT_TIMESTAMP,
 
     -- Token patterns
     avg_tokens_per_turn REAL,

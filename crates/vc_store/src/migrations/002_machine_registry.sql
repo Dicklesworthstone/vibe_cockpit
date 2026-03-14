@@ -8,7 +8,7 @@ ALTER TABLE machines ADD COLUMN ssh_key_path TEXT;
 ALTER TABLE machines ADD COLUMN ssh_port INTEGER DEFAULT 22;
 ALTER TABLE machines ADD COLUMN os_type TEXT;
 ALTER TABLE machines ADD COLUMN arch TEXT;
-ALTER TABLE machines ADD COLUMN added_at TEXT DEFAULT (datetime('now'));
+ALTER TABLE machines ADD COLUMN added_at TEXT DEFAULT CURRENT_TIMESTAMP;
 ALTER TABLE machines ADD COLUMN last_probe_at TEXT;
 ALTER TABLE machines ADD COLUMN status TEXT DEFAULT 'unknown';
 ALTER TABLE machines ADD COLUMN metadata TEXT;

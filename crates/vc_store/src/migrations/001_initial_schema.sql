@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS machines (
     last_seen_at TEXT,
     tags TEXT, -- JSON array: '["tag1","tag2"]', query via json_each(tags)
     metadata_json TEXT,
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Collector status tracking
@@ -348,7 +348,7 @@ CREATE TABLE IF NOT EXISTS alert_rules (
     condition_config TEXT NOT NULL,
     cooldown_secs INTEGER DEFAULT 300,
     channels TEXT, -- JSON array: '["slack","email"]', query via json_each(channels)
-    created_at TEXT DEFAULT (datetime('now')),
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT
 );
 
@@ -392,7 +392,7 @@ CREATE TABLE IF NOT EXISTS health_summary (
 -- Audit events
 CREATE TABLE IF NOT EXISTS audit_events (
     id INTEGER PRIMARY KEY,
-    ts TEXT DEFAULT (datetime('now')),
+    ts TEXT DEFAULT CURRENT_TIMESTAMP,
     event_type TEXT,
     actor TEXT,
     machine_id TEXT,
@@ -405,7 +405,7 @@ CREATE TABLE IF NOT EXISTS audit_events (
 CREATE TABLE IF NOT EXISTS predictions (
     id INTEGER PRIMARY KEY,
     machine_id TEXT,
-    generated_at TEXT DEFAULT (datetime('now')),
+    generated_at TEXT DEFAULT CURRENT_TIMESTAMP,
     prediction_type TEXT,
     horizon_mins INTEGER,
     confidence REAL,
@@ -423,7 +423,7 @@ CREATE TABLE IF NOT EXISTS incidents (
     ended_at TEXT,
     root_cause TEXT,
     resolution TEXT,
-    created_at TEXT DEFAULT (datetime('now')),
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT
 );
 
@@ -448,7 +448,7 @@ CREATE TABLE IF NOT EXISTS guardian_playbooks (
     enabled INTEGER DEFAULT 1,
     requires_approval INTEGER DEFAULT 0,
     max_runs_per_hour INTEGER DEFAULT 3,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Guardian runs
@@ -481,7 +481,7 @@ CREATE TABLE IF NOT EXISTS ingestion_cursors (
     source TEXT,
     cursor_key TEXT,
     cursor_value TEXT,
-    updated_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (machine_id, source, cursor_key)
 );
 

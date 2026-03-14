@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS knowledge_entries (
     source_lines TEXT,                 -- "10-25" or NULL
     tags TEXT,                         -- JSON array: '["rust","async"]', query via json_each(tags)
     -- embedding FLOAT[1536],         -- For semantic search (future)
-    created_at TEXT DEFAULT (datetime('now')),
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT,
     usefulness_score REAL DEFAULT 0.0, -- Computed from feedback
     view_count INTEGER DEFAULT 0,
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS knowledge_feedback (
     feedback_type TEXT NOT NULL,       -- helpful, not_helpful, outdated
     session_id TEXT,
     comment TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Indexes for common queries

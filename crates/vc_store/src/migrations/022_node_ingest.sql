@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS node_ingest_log (
     collector TEXT NOT NULL,
     content_hash TEXT NOT NULL,
     row_count INTEGER NOT NULL,
-    ingested_at TEXT DEFAULT (datetime('now'))
+    ingested_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_ingest_content_hash

@@ -5,7 +5,7 @@
 -- Main cost attribution snapshot table
 CREATE TABLE IF NOT EXISTS cost_attribution_snapshot (
     id INTEGER PRIMARY KEY,
-    collected_at TEXT DEFAULT (datetime('now')),
+    collected_at TEXT DEFAULT CURRENT_TIMESTAMP,
     repo_id TEXT,                     -- Repository identifier (from ru)
     repo_path TEXT,                   -- Repository path
     machine_id TEXT,                  -- Machine identifier
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS cost_daily_summary (
 -- Cost anomalies for alerting
 CREATE TABLE IF NOT EXISTS cost_anomalies (
     id INTEGER PRIMARY KEY,
-    detected_at TEXT DEFAULT (datetime('now')),
+    detected_at TEXT DEFAULT CURRENT_TIMESTAMP,
     anomaly_type TEXT NOT NULL,       -- spike, drift, unusual_pattern
     severity TEXT NOT NULL,           -- info, warning, critical
     repo_id TEXT,
