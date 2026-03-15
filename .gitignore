@@ -57,3 +57,6 @@ storage.sqlite3-wal.corrupt-*
 .beads/*.repair_candidate_*
 .beads/*.bak-corrupt
 .claude/
+
+# Nested crate build artifacts (e.g., crates/vc_tui/target/)
+crates/*/target/
