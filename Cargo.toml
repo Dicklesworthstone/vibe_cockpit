@@ -25,8 +25,8 @@ repository = "https://github.com/Dicklesworthstone/vibe_cockpit"
 [workspace.dependencies]
 # Async runtime (primary) — from crates.io since the v0.3.0 release so
 # remote RCH workers and fresh clones resolve without a sibling checkout.
-asupersync = { version = "0.3.0" }
-asupersync-tokio-compat = { version = "0.3.0" }
+asupersync = { version = "0.3.1" }
+asupersync-tokio-compat = { version = "0.3.1" }
 # Tokio kept as an explicit compat bridge while crate-local migrations land in
 # Phases 2a–2e. This is intentionally broad so each crate can compile until its
 # direct Tokio usage is removed.
