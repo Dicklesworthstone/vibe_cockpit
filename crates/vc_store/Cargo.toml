@@ -5,7 +5,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "DuckDB storage layer for Vibe Cockpit"
+description = "Storage layer for Vibe Cockpit (DuckDB → FrankenSQLite migration in progress; see crates/vc_store/src/migrations.rs)"
 
 [lints]
 workspace = true
