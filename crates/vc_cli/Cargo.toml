@@ -33,9 +33,10 @@ uuid.workspace = true
 anyhow.workspace = true
 duckdb.workspace = true
 fsqlite.workspace = true
+tokio.workspace = true
+futures.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
 mockall.workspace = true
-futures.workspace = true
 tempfile = "3"

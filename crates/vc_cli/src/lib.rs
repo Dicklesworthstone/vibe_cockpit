@@ -4397,15 +4397,17 @@ fn duck_value_to_sqlite_value(
         DuckValue::UInt(number) => SqliteValue::Integer(i64::from(number)),
         DuckValue::Float(number) => SqliteValue::Float(f64::from(number)),
         DuckValue::Double(number) => SqliteValue::Float(number),
-        DuckValue::Text(text) => SqliteValue::Text(text),
-        DuckValue::Blob(bytes) => SqliteValue::Blob(bytes),
-        DuckValue::Timestamp(unit, value) => SqliteValue::Text(format_timestamp(unit, value)?),
-        DuckValue::Date32(days) => SqliteValue::Text(format_date(days)?),
-        DuckValue::Time64(unit, value) => SqliteValue::Text(format_time(unit, value)),
-        DuckValue::HugeInt(number) => SqliteValue::Text(number.to_string()),
-        DuckValue::UBigInt(number) => SqliteValue::Text(number.to_string()),
-        DuckValue::Decimal(decimal) => SqliteValue::Text(decimal.normalize().to_string()),
-        DuckValue::Enum(value) => SqliteValue::Text(value),
+        DuckValue::Text(text) => SqliteValue::Text(text.into()),
+        DuckValue::Blob(bytes) => SqliteValue::Blob(Arc::from(bytes.as_slice())),
+        DuckValue::Timestamp(unit, value) => {
+            SqliteValue::Text(format_timestamp(unit, value)?.into())
+        }
+        DuckValue::Date32(days) => SqliteValue::Text(format_date(days)?.into()),
+        DuckValue::Time64(unit, value) => SqliteValue::Text(format_time(unit, value).into()),
+        DuckValue::HugeInt(number) => SqliteValue::Text(number.to_string().into()),
+        DuckValue::UBigInt(number) => SqliteValue::Text(number.to_string().into()),
+        DuckValue::Decimal(decimal) => SqliteValue::Text(decimal.normalize().to_string().into()),
+        DuckValue::Enum(value) => SqliteValue::Text(value.into()),
         DuckValue::Interval {
             months,
             days,
@@ -4416,20 +4418,25 @@ fn duck_value_to_sqlite_value(
                 "days": days,
                 "nanos": nanos,
             })
-            .to_string(),
+            .to_string()
+            .into(),
         ),
         complex @ (DuckValue::List(_)
         | DuckValue::Array(_)
         | DuckValue::Struct(_)
         | DuckValue::Map(_)
-        | DuckValue::Union(_)) => SqliteValue::Text(duck_value_to_json(complex)?.to_string()),
+        | DuckValue::Union(_)) => {
+            SqliteValue::Text(duck_value_to_json(complex)?.to_string().into())
+        }
     };
 
     if is_text_json_type(&normalized_type)
         && !matches!(&sqlite_value, SqliteValue::Null | SqliteValue::Text(_))
     {
         return Ok(SqliteValue::Text(
-            sqlite_value_to_normalized_json(&sqlite_value, source_type)?.to_string(),
+            sqlite_value_to_normalized_json(&sqlite_value, source_type)?
+                .to_string()
+                .into(),
         ));
     }
     Ok(sqlite_value)
