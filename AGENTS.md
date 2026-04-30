@@ -68,7 +68,7 @@ This project uses **Asupersync** (`/dp/asupersync`) as the primary async runtime
 | `duckdb` | Embedded analytical database (bundled build) |
 | `serde` + `serde_json` + `toml` | Serialization (JSON, TOML config) |
 | `clap` | CLI argument parsing (derive mode) |
-| `ratatui` + `crossterm` | Terminal UI rendering |
+| `ftui` | Terminal UI rendering (FrankenTUI Elm-architecture framework) |
 | `axum` + `tower` + `tower-http` | Web server, middleware, CORS, static files, tracing |
 | `chrono` | Date/time handling with serde support |
 | `thiserror` + `anyhow` | Error type derivation and ad-hoc errors |
@@ -232,7 +232,7 @@ Monitors a fleet of 30+ AI coding agent accounts (Claude, GPT, Gemini) across mu
 ```
                     ┌─────────────────────────────────┐
                     │         User Interfaces          │
-                    │  TUI (ratatui)  │  Web (axum)    │
+                    │  TUI (ftui)     │  Web (axum)    │
                     │  CLI (robot)    │  MCP Server     │
                     └────────┬────────┬────────────────┘
                              │        │
@@ -286,7 +286,7 @@ vibe_cockpit/
 │   ├── vc_guardian/               # Self-healing: playbooks, autopilot, approval workflows
 │   ├── vc_knowledge/              # Knowledge base: solutions, patterns, prompts, debug logs
 │   ├── vc_alert/                  # Alert rules, condition evaluation, delivery channels
-│   ├── vc_tui/                    # Terminal UI (ratatui): 12 screens, themes, widgets
+│   ├── vc_tui/                    # Terminal UI (ftui): 12 screens, themes, widgets
 │   ├── vc_web/                    # Web server (axum): JSON API, WebSocket, static files
 │   ├── vc_cli/                    # CLI commands (clap): subcommands, robot mode, TOON output
 │   └── vc_mcp/                    # MCP server: tools and resources for agent consumers
