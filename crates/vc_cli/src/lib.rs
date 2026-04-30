@@ -4398,7 +4398,7 @@ fn duck_value_to_sqlite_value(
         DuckValue::Float(number) => SqliteValue::Float(f64::from(number)),
         DuckValue::Double(number) => SqliteValue::Float(number),
         DuckValue::Text(text) => SqliteValue::Text(text.into()),
-        DuckValue::Blob(bytes) => SqliteValue::Blob(Arc::from(bytes.as_slice())),
+        DuckValue::Blob(bytes) => SqliteValue::Blob(Arc::from(bytes)),
         DuckValue::Timestamp(unit, value) => {
             SqliteValue::Text(format_timestamp(unit, value)?.into())
         }

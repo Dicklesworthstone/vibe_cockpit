@@ -1,18 +1,18 @@
 //! `vc_store` — Vibe Cockpit storage layer.
 //!
-//! **Migration status:** mid-migration from DuckDB to FrankenSQLite
-//! (`fsqlite`). DuckDB remains the live runtime backend; FrankenSQLite
+//! **Migration status:** mid-migration from `DuckDB` to `FrankenSQLite`
+//! (`fsqlite`). `DuckDB` remains the live runtime backend; `FrankenSQLite`
 //! is wired in alongside while the per-statement translation work
 //! lands. Both `duckdb` and `fsqlite` are required workspace deps
-//! during this phase. See [`migrations`] for the complete DuckDB →
-//! FrankenSQLite type/function/syntax map (the single source of truth
+//! during this phase. See [`migrations`] for the complete `DuckDB` →
+//! `FrankenSQLite` type/function/syntax map (the single source of truth
 //! for what each construct becomes after migration), and the related
 //! beads (`bd-axj`, `bd-dfl`, `bd-phr`, `bd-h6y`, `bd-zut`,
 //! `bd-s8lm`) for the per-area cutover audits.
 //!
 //! This crate currently provides:
 //! - `DuckDB` connection management (live)
-//! - Schema migrations (DuckDB-shaped today; FrankenSQLite shape
+//! - Schema migrations (`DuckDB`-shaped today; `FrankenSQLite` shape
 //!   tracked in [`migrations`])
 //! - Data ingestion helpers
 //! - Query utilities
