@@ -3345,6 +3345,21 @@ impl Cli {
                 let registry = vc_collect::CollectorRegistry::with_builtins();
                 let timeout = config.collector_timeout();
 
+                // Validate `--collector NAME` upfront against the registry, so a
+                // typo errors out immediately instead of silently iterating zero
+                // collectors and printing `runs=0 failures=0`.
+                if let Some(filter) = collector.as_deref()
+                    && !registry.iter().any(|(name, _)| name == filter)
+                {
+                    let mut available: Vec<&str> =
+                        registry.iter().map(|(name, _)| name).collect();
+                    available.sort_unstable();
+                    return Err(CliError::CommandFailed(format!(
+                        "unknown collector '{filter}'. Registered: {}",
+                        available.join(", ")
+                    )));
+                }
+
                 // Resolve target machines: explicit --machine, otherwise every
                 // enabled local machine in the config (or "local" as a final
                 // fallback when nothing is configured).
@@ -3363,10 +3378,15 @@ impl Cli {
 
                 let mut runs: usize = 0;
                 let mut failures: usize = 0;
+                let mut cancelled_early = false;
 
-                for machine_id in &targets {
+                'outer: for machine_id in &targets {
                     let ctx = vc_collect::CollectContext::local(machine_id.clone(), timeout);
                     for (name, c) in registry.iter() {
+                        if cx.checkpoint().is_err() {
+                            cancelled_early = true;
+                            break 'outer;
+                        }
                         if let Some(filter) = collector.as_deref()
                             && filter != name
                         {
@@ -3391,52 +3411,95 @@ impl Cli {
                         let collected_at_ts =
                             Utc::now().to_rfc3339_opts(SecondsFormat::Micros, true);
 
-                        let (success, rows_inserted, bytes_parsed, error_class) = match &outcome {
-                            asupersync::Outcome::Ok(result) => {
-                                let mut total_rows: i64 = 0;
-                                let mut total_bytes: i64 = 0;
-                                for batch in &result.rows {
-                                    total_rows = total_rows.saturating_add(
-                                        i64::try_from(batch.rows.len()).unwrap_or(i64::MAX),
-                                    );
-                                    let _ = store.insert_json_batch(&batch.table, &batch.rows);
+                        // Single-pass classification: derive everything we need
+                        // for both the `collector_health` row and the user-facing
+                        // printout from one match arm so the two can never drift.
+                        let (success, rows_inserted, bytes_parsed, error_class, cursor_json, status) =
+                            match &outcome {
+                                asupersync::Outcome::Ok(result) => {
+                                    let mut total_rows: i64 = 0;
+                                    let mut total_bytes: i64 = 0;
+                                    for batch in &result.rows {
+                                        total_rows = total_rows.saturating_add(
+                                            i64::try_from(batch.rows.len())
+                                                .unwrap_or(i64::MAX),
+                                        );
+                                        let _ = store
+                                            .insert_json_batch(&batch.table, &batch.rows);
+                                    }
+                                    for artifact in &result.raw_artifacts {
+                                        total_bytes = total_bytes.saturating_add(
+                                            i64::try_from(artifact.content.len())
+                                                .unwrap_or(i64::MAX),
+                                        );
+                                    }
+                                    let cursor = result
+                                        .new_cursor
+                                        .as_ref()
+                                        .and_then(|c| c.to_json().ok());
+                                    // A collector that ran cleanly but reported
+                                    // its own failure (`result.success == false`)
+                                    // is a soft failure — count it and surface
+                                    // its `result.error` so the operator sees
+                                    // why instead of a bare "fail".
+                                    let soft_err = if result.success {
+                                        None
+                                    } else {
+                                        failures += 1;
+                                        Some(
+                                            result
+                                                .error
+                                                .clone()
+                                                .unwrap_or_else(|| "no error message".to_string()),
+                                        )
+                                    };
+                                    let status = if result.success { "ok  " } else { "fail" };
+                                    (
+                                        result.success,
+                                        total_rows,
+                                        total_bytes,
+                                        soft_err,
+                                        cursor,
+                                        status,
+                                    )
                                 }
-                                for artifact in &result.raw_artifacts {
-                                    total_bytes = total_bytes.saturating_add(
-                                        i64::try_from(artifact.content.len())
-                                            .unwrap_or(i64::MAX),
-                                    );
+                                asupersync::Outcome::Err(e) => {
+                                    failures += 1;
+                                    (
+                                        false,
+                                        0_i64,
+                                        0_i64,
+                                        Some(e.to_string()),
+                                        None,
+                                        "fail",
+                                    )
                                 }
-                                (result.success, total_rows, total_bytes, None)
-                            }
-                            asupersync::Outcome::Err(e) => {
-                                failures += 1;
-                                (false, 0_i64, 0_i64, Some(e.to_string()))
-                            }
-                            asupersync::Outcome::Cancelled(reason) => {
-                                // Cancellation is signal-driven (SIGINT/SIGTERM)
-                                // and not the collector's fault — record but
-                                // don't bump the failure counter.
-                                (false, 0_i64, 0_i64, Some(format!("cancelled: {reason:?}")))
-                            }
-                            asupersync::Outcome::Panicked(payload) => {
-                                failures += 1;
-                                (
-                                    false,
-                                    0_i64,
-                                    0_i64,
-                                    Some(format!("panicked: {}", payload.message())),
-                                )
-                            }
-                        };
-
-                        let cursor_json = match &outcome {
-                            asupersync::Outcome::Ok(result) => result
-                                .new_cursor
-                                .as_ref()
-                                .and_then(|c| c.to_json().ok()),
-                            _ => None,
-                        };
+                                asupersync::Outcome::Cancelled(reason) => {
+                                    // Cancellation is signal-driven (SIGINT/
+                                    // SIGTERM) and not the collector's fault —
+                                    // record but don't bump the failure counter.
+                                    cancelled_early = true;
+                                    (
+                                        false,
+                                        0_i64,
+                                        0_i64,
+                                        Some(format!("cancelled: {reason:?}")),
+                                        None,
+                                        "canc",
+                                    )
+                                }
+                                asupersync::Outcome::Panicked(payload) => {
+                                    failures += 1;
+                                    (
+                                        false,
+                                        0_i64,
+                                        0_i64,
+                                        Some(format!("panicked: {}", payload.message())),
+                                        None,
+                                        "fail",
+                                    )
+                                }
+                            };
 
                         let health = vc_store::CollectorHealth {
                             machine_id: machine_id.clone(),
@@ -3457,16 +3520,26 @@ impl Cli {
 
                         match error_class {
                             Some(err) => println!(
-                                "fail machine={machine_id} collector={name} duration_ms={elapsed} error={err}"
+                                "{status} machine={machine_id} collector={name} duration_ms={elapsed} error={err}"
                             ),
                             None => println!(
-                                "ok   machine={machine_id} collector={name} duration_ms={elapsed}"
+                                "{status} machine={machine_id} collector={name} duration_ms={elapsed}"
                             ),
+                        }
+
+                        // Stop immediately on cancellation so we don't iterate
+                        // every remaining collector returning the same error.
+                        if cancelled_early {
+                            break 'outer;
                         }
                     }
                 }
 
-                println!("collected runs={runs} failures={failures}");
+                if cancelled_early {
+                    println!("collected runs={runs} failures={failures} (cancelled)");
+                } else {
+                    println!("collected runs={runs} failures={failures}");
+                }
             }
             command => {
                 println!("Command not yet implemented: {:?}", command);
@@ -3742,7 +3815,22 @@ async fn run_collection_tick(
                         .new_cursor
                         .as_ref()
                         .and_then(|c| c.to_json().ok());
-                    (result.success, total_rows, total_bytes, None, cursor_json)
+                    // A collector that ran cleanly but reported its own
+                    // failure (`result.success == false`) is a soft failure —
+                    // count it and surface `result.error` into the
+                    // `error_class` column so it isn't lost.
+                    let soft_err = if result.success {
+                        None
+                    } else {
+                        failures += 1;
+                        Some(
+                            result
+                                .error
+                                .clone()
+                                .unwrap_or_else(|| "no error message".to_string()),
+                        )
+                    };
+                    (result.success, total_rows, total_bytes, soft_err, cursor_json)
                 }
                 asupersync::Outcome::Err(err) => {
                     failures += 1;
