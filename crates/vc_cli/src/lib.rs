@@ -3339,6 +3339,104 @@ impl Cli {
                     );
                 }
             },
+            Commands::Collect { collector, machine } => {
+                let cx = Cx::for_testing();
+                let config = load_config(self.config.as_ref())?;
+                let store = VcStore::open(&config.global.db_path)?;
+                let registry = vc_collect::CollectorRegistry::with_builtins();
+                let timeout = config.collector_timeout();
+
+                // Resolve target machines: explicit --machine, otherwise every
+                // enabled local machine in the config (or "local" as a final
+                // fallback when nothing is configured).
+                let mut targets: Vec<String> = if let Some(m) = machine.clone() {
+                    vec![m]
+                } else {
+                    config
+                        .enabled_machines()
+                        .filter(|(id, _)| config.is_local_machine(id))
+                        .map(|(id, _)| id.clone())
+                        .collect()
+                };
+                if targets.is_empty() {
+                    targets.push("local".to_string());
+                }
+
+                let mut runs: usize = 0;
+                let mut failures: usize = 0;
+
+                for machine_id in &targets {
+                    let ctx = vc_collect::CollectContext::local(machine_id.clone(), timeout);
+                    for (name, c) in registry.iter() {
+                        if let Some(filter) = collector.as_deref()
+                            && filter != name
+                        {
+                            continue;
+                        }
+                        if collector.is_none()
+                            && !config.is_collector_enabled(machine_id, name)
+                        {
+                            continue;
+                        }
+
+                        let started = Instant::now();
+                        let outcome = c.collect(&cx, &ctx).await;
+                        let elapsed =
+                            i64::try_from(started.elapsed().as_millis()).unwrap_or(i64::MAX);
+                        runs += 1;
+
+                        let collected_at_ts =
+                            Utc::now().to_rfc3339_opts(SecondsFormat::Micros, true);
+
+                        let (success, rows_inserted, error_class) = match &outcome {
+                            asupersync::Outcome::Ok(result) => {
+                                let mut total_rows: i64 = 0;
+                                for batch in &result.rows {
+                                    total_rows +=
+                                        i64::try_from(batch.rows.len()).unwrap_or(i64::MAX);
+                                    let _ = store.insert_json_batch(&batch.table, &batch.rows);
+                                }
+                                (result.success, total_rows, None)
+                            }
+                            asupersync::Outcome::Err(e) => {
+                                failures += 1;
+                                (false, 0_i64, Some(e.to_string()))
+                            }
+                            _ => {
+                                failures += 1;
+                                (false, 0_i64, Some("non-terminal outcome".to_string()))
+                            }
+                        };
+
+                        let health = vc_store::CollectorHealth {
+                            machine_id: machine_id.clone(),
+                            collector: name.to_string(),
+                            collected_at: collected_at_ts,
+                            success,
+                            duration_ms: Some(elapsed),
+                            rows_inserted,
+                            bytes_parsed: 0,
+                            error_class,
+                            freshness_seconds: None,
+                            payload_hash: None,
+                            collector_version: None,
+                            schema_version: None,
+                            cursor_json: None,
+                        };
+                        let _ = store.insert_collector_health(&health);
+
+                        println!(
+                            "{} machine={} collector={} duration_ms={}",
+                            if success { "ok  " } else { "fail" },
+                            machine_id,
+                            name,
+                            elapsed,
+                        );
+                    }
+                }
+
+                println!("collected runs={runs} failures={failures}");
+            }
             command => {
                 println!("Command not yet implemented: {:?}", command);
             }
@@ -3601,11 +3699,11 @@ async fn run_collection_tick(
                             );
                         }
                     }
-                    for artifact in &result.artifacts {
+                    for artifact in &result.raw_artifacts {
                         total_bytes += i64::try_from(artifact.content.len()).unwrap_or(i64::MAX);
                     }
                     let cursor_json = result
-                        .cursor
+                        .new_cursor
                         .as_ref()
                         .and_then(|c| c.to_json().ok());
                     (result.success, total_rows, total_bytes, None, cursor_json)
