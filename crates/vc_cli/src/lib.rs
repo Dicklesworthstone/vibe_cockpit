@@ -3340,7 +3340,6 @@ impl Cli {
                 }
             },
             Commands::Collect { collector, machine } => {
-                let cx = Cx::for_testing();
                 let config = load_config(self.config.as_ref())?;
                 let store = VcStore::open(&config.global.db_path)?;
                 let registry = vc_collect::CollectorRegistry::with_builtins();
@@ -3380,7 +3379,11 @@ impl Cli {
                         }
 
                         let started = Instant::now();
-                        let outcome = c.collect(&cx, &ctx).await;
+                        // Use the request-scoped Cx threaded in from `run_with_cx`
+                        // so SIGINT/SIGTERM during `vc collect` actually cancels
+                        // in-flight collectors (a fresh Cx::for_testing() here
+                        // wouldn't be wired to the signal-driven shutdown path).
+                        let outcome = c.collect(cx, &ctx).await;
                         let elapsed =
                             i64::try_from(started.elapsed().as_millis()).unwrap_or(i64::MAX);
                         runs += 1;
@@ -3388,24 +3391,51 @@ impl Cli {
                         let collected_at_ts =
                             Utc::now().to_rfc3339_opts(SecondsFormat::Micros, true);
 
-                        let (success, rows_inserted, error_class) = match &outcome {
+                        let (success, rows_inserted, bytes_parsed, error_class) = match &outcome {
                             asupersync::Outcome::Ok(result) => {
                                 let mut total_rows: i64 = 0;
+                                let mut total_bytes: i64 = 0;
                                 for batch in &result.rows {
-                                    total_rows +=
-                                        i64::try_from(batch.rows.len()).unwrap_or(i64::MAX);
+                                    total_rows = total_rows.saturating_add(
+                                        i64::try_from(batch.rows.len()).unwrap_or(i64::MAX),
+                                    );
                                     let _ = store.insert_json_batch(&batch.table, &batch.rows);
                                 }
-                                (result.success, total_rows, None)
+                                for artifact in &result.raw_artifacts {
+                                    total_bytes = total_bytes.saturating_add(
+                                        i64::try_from(artifact.content.len())
+                                            .unwrap_or(i64::MAX),
+                                    );
+                                }
+                                (result.success, total_rows, total_bytes, None)
                             }
                             asupersync::Outcome::Err(e) => {
                                 failures += 1;
-                                (false, 0_i64, Some(e.to_string()))
+                                (false, 0_i64, 0_i64, Some(e.to_string()))
                             }
-                            _ => {
+                            asupersync::Outcome::Cancelled(reason) => {
+                                // Cancellation is signal-driven (SIGINT/SIGTERM)
+                                // and not the collector's fault — record but
+                                // don't bump the failure counter.
+                                (false, 0_i64, 0_i64, Some(format!("cancelled: {reason:?}")))
+                            }
+                            asupersync::Outcome::Panicked(payload) => {
                                 failures += 1;
-                                (false, 0_i64, Some("non-terminal outcome".to_string()))
+                                (
+                                    false,
+                                    0_i64,
+                                    0_i64,
+                                    Some(format!("panicked: {}", payload.message())),
+                                )
                             }
+                        };
+
+                        let cursor_json = match &outcome {
+                            asupersync::Outcome::Ok(result) => result
+                                .new_cursor
+                                .as_ref()
+                                .and_then(|c| c.to_json().ok()),
+                            _ => None,
                         };
 
                         let health = vc_store::CollectorHealth {
@@ -3415,23 +3445,24 @@ impl Cli {
                             success,
                             duration_ms: Some(elapsed),
                             rows_inserted,
-                            bytes_parsed: 0,
-                            error_class,
+                            bytes_parsed,
+                            error_class: error_class.clone(),
                             freshness_seconds: None,
                             payload_hash: None,
                             collector_version: None,
                             schema_version: None,
-                            cursor_json: None,
+                            cursor_json,
                         };
                         let _ = store.insert_collector_health(&health);
 
-                        println!(
-                            "{} machine={} collector={} duration_ms={}",
-                            if success { "ok  " } else { "fail" },
-                            machine_id,
-                            name,
-                            elapsed,
-                        );
+                        match error_class {
+                            Some(err) => println!(
+                                "fail machine={machine_id} collector={name} duration_ms={elapsed} error={err}"
+                            ),
+                            None => println!(
+                                "ok   machine={machine_id} collector={name} duration_ms={elapsed}"
+                            ),
+                        }
                     }
                 }
 
@@ -3633,6 +3664,7 @@ async fn wait_for_interval_or_shutdown(tick: Duration, shutdown: &mut ShutdownRe
 /// Errors from individual collectors are recorded as failed health rows and
 /// do not abort the tick — the daemon keeps running so other collectors get
 /// a chance to report on every machine.
+#[allow(clippy::too_many_lines)]
 async fn run_collection_tick(
     config: &VcConfig,
     registry: &vc_collect::CollectorRegistry,
@@ -3688,7 +3720,9 @@ async fn run_collection_tick(
                     let mut total_rows: i64 = 0;
                     let mut total_bytes: i64 = 0;
                     for batch in &result.rows {
-                        total_rows += i64::try_from(batch.rows.len()).unwrap_or(i64::MAX);
+                        total_rows = total_rows.saturating_add(
+                            i64::try_from(batch.rows.len()).unwrap_or(i64::MAX),
+                        );
                         if let Err(e) = store.insert_json_batch(&batch.table, &batch.rows) {
                             tracing::warn!(
                                 machine = %machine_id,
@@ -3700,7 +3734,9 @@ async fn run_collection_tick(
                         }
                     }
                     for artifact in &result.raw_artifacts {
-                        total_bytes += i64::try_from(artifact.content.len()).unwrap_or(i64::MAX);
+                        total_bytes = total_bytes.saturating_add(
+                            i64::try_from(artifact.content.len()).unwrap_or(i64::MAX),
+                        );
                     }
                     let cursor_json = result
                         .new_cursor
@@ -3712,9 +3748,27 @@ async fn run_collection_tick(
                     failures += 1;
                     (false, 0_i64, 0_i64, Some(err.to_string()), None)
                 }
-                _ => {
+                asupersync::Outcome::Cancelled(reason) => {
+                    // Cancellation is signal-driven and not the collector's
+                    // fault; record the reason but skip the failure counter so
+                    // SIGTERM during a long tick doesn't poison the metric.
+                    (
+                        false,
+                        0_i64,
+                        0_i64,
+                        Some(format!("cancelled: {reason:?}")),
+                        None,
+                    )
+                }
+                asupersync::Outcome::Panicked(payload) => {
                     failures += 1;
-                    (false, 0_i64, 0_i64, Some("non-terminal outcome".to_string()), None)
+                    (
+                        false,
+                        0_i64,
+                        0_i64,
+                        Some(format!("panicked: {}", payload.message())),
+                        None,
+                    )
                 }
             };
 
