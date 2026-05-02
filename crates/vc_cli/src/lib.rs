@@ -3529,6 +3529,127 @@ async fn wait_for_interval_or_shutdown(tick: Duration, shutdown: &mut ShutdownRe
     )
 }
 
+/// Run one tick of collection: invoke every enabled collector against every
+/// enabled local machine and persist a `collector_health` row for each result.
+///
+/// Errors from individual collectors are recorded as failed health rows and
+/// do not abort the tick — the daemon keeps running so other collectors get
+/// a chance to report on every machine.
+async fn run_collection_tick(
+    config: &VcConfig,
+    registry: &vc_collect::CollectorRegistry,
+    store: &VcStore,
+    cx: &Cx,
+) -> Result<(usize, usize), CliError> {
+    use vc_collect::CollectContext;
+
+    // Resolve the set of machines to collect against. If the user hasn't
+    // configured any machines, fall back to a single "local" entry so the
+    // daemon still produces health rows on a fresh DB.
+    let mut targets: Vec<String> = config
+        .enabled_machines()
+        .filter(|(id, _)| config.is_local_machine(id))
+        .map(|(id, _)| id.clone())
+        .collect();
+    if targets.is_empty() {
+        targets.push("local".to_string());
+    }
+
+    let timeout = config.collector_timeout();
+    let mut runs: usize = 0;
+    let mut failures: usize = 0;
+
+    for machine_id in &targets {
+        if cx.checkpoint().is_err() {
+            return Ok((runs, failures));
+        }
+
+        let ctx = CollectContext::local(machine_id.clone(), timeout);
+
+        for (name, collector) in registry.iter() {
+            if cx.checkpoint().is_err() {
+                return Ok((runs, failures));
+            }
+            if !config.is_collector_enabled(machine_id, name) {
+                continue;
+            }
+
+            let started = Instant::now();
+            tracing::debug!(machine = %machine_id, collector = %name, "collecting");
+            let outcome = collector.collect(cx, &ctx).await;
+            let elapsed = i64::try_from(started.elapsed().as_millis()).unwrap_or(i64::MAX);
+            runs += 1;
+
+            let collected_at_ts = Utc::now().to_rfc3339_opts(SecondsFormat::Micros, true);
+
+            let (success, rows_inserted, bytes_parsed, error_class, cursor_json) = match &outcome {
+                asupersync::Outcome::Ok(result) => {
+                    // Best-effort persistence of structured rows. Per-row
+                    // errors are logged but don't fail the tick — the most
+                    // important signal is that we actually ran the collector.
+                    let mut total_rows: i64 = 0;
+                    let mut total_bytes: i64 = 0;
+                    for batch in &result.rows {
+                        total_rows += i64::try_from(batch.rows.len()).unwrap_or(i64::MAX);
+                        if let Err(e) = store.insert_json_batch(&batch.table, &batch.rows) {
+                            tracing::warn!(
+                                machine = %machine_id,
+                                collector = %name,
+                                table = %batch.table,
+                                error = %e,
+                                "row batch persist failed"
+                            );
+                        }
+                    }
+                    for artifact in &result.artifacts {
+                        total_bytes += i64::try_from(artifact.content.len()).unwrap_or(i64::MAX);
+                    }
+                    let cursor_json = result
+                        .cursor
+                        .as_ref()
+                        .and_then(|c| c.to_json().ok());
+                    (result.success, total_rows, total_bytes, None, cursor_json)
+                }
+                asupersync::Outcome::Err(err) => {
+                    failures += 1;
+                    (false, 0_i64, 0_i64, Some(err.to_string()), None)
+                }
+                _ => {
+                    failures += 1;
+                    (false, 0_i64, 0_i64, Some("non-terminal outcome".to_string()), None)
+                }
+            };
+
+            let health = vc_store::CollectorHealth {
+                machine_id: machine_id.clone(),
+                collector: name.to_string(),
+                collected_at: collected_at_ts,
+                success,
+                duration_ms: Some(elapsed),
+                rows_inserted,
+                bytes_parsed,
+                error_class,
+                freshness_seconds: None,
+                payload_hash: None,
+                collector_version: None,
+                schema_version: None,
+                cursor_json,
+            };
+
+            if let Err(e) = store.insert_collector_health(&health) {
+                tracing::warn!(
+                    machine = %machine_id,
+                    collector = %name,
+                    error = %e,
+                    "collector_health persist failed"
+                );
+            }
+        }
+    }
+
+    Ok((runs, failures))
+}
+
 async fn run_daemon(
     config_path: Option<&PathBuf>,
     foreground: bool,
@@ -3536,7 +3657,8 @@ async fn run_daemon(
     mut shutdown: ShutdownReceiver,
 ) -> Result<(), CliError> {
     let config = load_config(config_path)?;
-    let _store = VcStore::open(&config.global.db_path)?;
+    let store = VcStore::open(&config.global.db_path)?;
+    let registry = vc_collect::CollectorRegistry::with_builtins();
     let tick = config.poll_interval();
     let mut ticks = 0_u64;
 
@@ -3547,8 +3669,24 @@ async fn run_daemon(
     tracing::info!(
         foreground,
         poll_interval_secs = tick.as_secs(),
+        registered_collectors = registry.len(),
         "Starting daemon loop"
     );
+
+    // Run an initial tick before the first sleep so the DB has fresh data
+    // immediately after `vc daemon` starts (rather than after the first
+    // poll_interval has elapsed).
+    if cx.checkpoint().is_ok() {
+        match run_collection_tick(&config, &registry, &store, cx).await {
+            Ok((runs, failures)) => tracing::info!(
+                ticks,
+                runs,
+                failures,
+                "collection tick complete"
+            ),
+            Err(e) => tracing::warn!(error = %e, "collection tick failed"),
+        }
+    }
 
     loop {
         if cx.checkpoint().is_err() {
@@ -3565,7 +3703,16 @@ async fn run_daemon(
         }
 
         ticks += 1;
-        tracing::debug!(ticks, "Daemon poll tick");
+
+        match run_collection_tick(&config, &registry, &store, cx).await {
+            Ok((runs, failures)) => tracing::info!(
+                ticks,
+                runs,
+                failures,
+                "collection tick complete"
+            ),
+            Err(e) => tracing::warn!(ticks, error = %e, "collection tick failed"),
+        }
     }
 
     tracing::info!(
