@@ -3419,13 +3419,31 @@ impl Cli {
                                 asupersync::Outcome::Ok(result) => {
                                     let mut total_rows: i64 = 0;
                                     let mut total_bytes: i64 = 0;
+                                    // Only count rows the store actually
+                                    // persisted, using the count returned by
+                                    // `insert_json_batch`. Surfacing storage
+                                    // errors on stderr keeps the operator
+                                    // informed when the DB is broken (disk
+                                    // full, schema drift, etc.) — the daemon
+                                    // path uses tracing::warn for the same
+                                    // signal.
                                     for batch in &result.rows {
-                                        total_rows = total_rows.saturating_add(
-                                            i64::try_from(batch.rows.len())
-                                                .unwrap_or(i64::MAX),
-                                        );
-                                        let _ = store
-                                            .insert_json_batch(&batch.table, &batch.rows);
+                                        match store
+                                            .insert_json_batch(&batch.table, &batch.rows)
+                                        {
+                                            Ok(count) => {
+                                                total_rows = total_rows.saturating_add(
+                                                    i64::try_from(count)
+                                                        .unwrap_or(i64::MAX),
+                                                );
+                                            }
+                                            Err(e) => {
+                                                eprintln!(
+                                                    "warn: row batch persist failed table={} collector={name} error={e}",
+                                                    batch.table
+                                                );
+                                            }
+                                        }
                                     }
                                     for artifact in &result.raw_artifacts {
                                         total_bytes = total_bytes.saturating_add(
@@ -3516,7 +3534,11 @@ impl Cli {
                             schema_version: None,
                             cursor_json,
                         };
-                        let _ = store.insert_collector_health(&health);
+                        if let Err(e) = store.insert_collector_health(&health) {
+                            eprintln!(
+                                "warn: collector_health persist failed collector={name} error={e}"
+                            );
+                        }
 
                         match error_class {
                             Some(err) => println!(
@@ -3790,20 +3812,27 @@ async fn run_collection_tick(
                     // Best-effort persistence of structured rows. Per-row
                     // errors are logged but don't fail the tick — the most
                     // important signal is that we actually ran the collector.
+                    // Only count rows the store confirms it persisted (via
+                    // the `usize` returned by `insert_json_batch`); a failed
+                    // batch must not inflate `rows_inserted`.
                     let mut total_rows: i64 = 0;
                     let mut total_bytes: i64 = 0;
                     for batch in &result.rows {
-                        total_rows = total_rows.saturating_add(
-                            i64::try_from(batch.rows.len()).unwrap_or(i64::MAX),
-                        );
-                        if let Err(e) = store.insert_json_batch(&batch.table, &batch.rows) {
-                            tracing::warn!(
-                                machine = %machine_id,
-                                collector = %name,
-                                table = %batch.table,
-                                error = %e,
-                                "row batch persist failed"
-                            );
+                        match store.insert_json_batch(&batch.table, &batch.rows) {
+                            Ok(count) => {
+                                total_rows = total_rows.saturating_add(
+                                    i64::try_from(count).unwrap_or(i64::MAX),
+                                );
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    machine = %machine_id,
+                                    collector = %name,
+                                    table = %batch.table,
+                                    error = %e,
+                                    "row batch persist failed"
+                                );
+                            }
                         }
                     }
                     for artifact in &result.raw_artifacts {
@@ -3876,6 +3905,8 @@ async fn run_collection_tick(
                 cursor_json,
             };
 
+            let was_cancelled = matches!(&outcome, asupersync::Outcome::Cancelled(_));
+
             if let Err(e) = store.insert_collector_health(&health) {
                 tracing::warn!(
                     machine = %machine_id,
@@ -3883,6 +3914,15 @@ async fn run_collection_tick(
                     error = %e,
                     "collector_health persist failed"
                 );
+            }
+
+            // If the collector returned `Outcome::Cancelled` we know the cx
+            // is in a cancelled state — skip straight to returning instead of
+            // iterating the rest of the registry just to have every remaining
+            // collector return the same Cancelled (which the next-iteration
+            // `cx.checkpoint()` would catch one collector-call later anyway).
+            if was_cancelled {
+                return Ok((runs, failures));
             }
         }
     }
