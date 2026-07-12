@@ -1,0 +1,119 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: 1
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    # vc bundles DuckDB (a large C++ build) and compiles the frankentui +
+    # frankensqlite path-dep stack from source, so a cold-cache run is slow.
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---------------------------------------------------------------------
+      # Path-dependency workaround.
+      #
+      # vc's workspace Cargo.toml declares PATH dependencies on two sibling
+      # repos, matching the local dev layout where vibe_cockpit sits next to
+      # them under /data/projects:
+      #
+      #   ftui          = { path = "../frankentui/crates/ftui" }
+      #   fsqlite       = { path = "../frankensqlite/crates/fsqlite" }
+      #   fsqlite-error = { path = "../frankensqlite/crates/fsqlite-error" }
+      #   fsqlite-types = { path = "../frankensqlite/crates/fsqlite-types" }
+      #
+      # A bare `actions/checkout` gives us vibe_cockpit only, so `../frankentui`
+      # does not exist and every cargo invocation fails at manifest-parse time.
+      #
+      # Fix (same idiom as eidetic_engine_cli's verify job): clone the siblings
+      # INSIDE $GITHUB_WORKSPACE and rewrite the `../<repo>` prefixes in
+      # Cargo.toml to workspace-relative paths. Keeping them inside the
+      # workspace — rather than cloning to the parent dir — means any Dockerized
+      # action that mounts only $GITHUB_WORKSPACE still sees the full dependency
+      # tree. Cargo.lock is unaffected: it records path deps by name+version,
+      # not by location, so the rewrite produces no lockfile churn.
+      #
+      # Both the `../<repo>` (current) and `/data/projects/<repo>` (legacy local
+      # absolute) spellings are rewritten, so a future revert of the checkout
+      # convention keeps building.
+      # ---------------------------------------------------------------------
+      - name: Checkout Franken stack path dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          project_root="$GITHUB_WORKSPACE/.ci/franken-stack/projects"
+          mkdir -p "$project_root"
+          git clone --depth 1 https://github.com/Dicklesworthstone/frankentui.git "$project_root/frankentui"
+          git clone --depth 1 https://github.com/Dicklesworthstone/frankensqlite.git "$project_root/frankensqlite"
+
+          CARGO_PATH_ROOT=".ci/franken-stack/projects" perl -0pi -e '
+            s{/data/projects/(frankentui|frankensqlite)}{$ENV{CARGO_PATH_ROOT}/$1}g;
+            s{\.\./(frankentui|frankensqlite)}{$ENV{CARGO_PATH_ROOT}/$1}g;
+          ' Cargo.toml
+
+          echo "Rewritten path dependencies:"
+          grep -nE 'frankentui|frankensqlite' Cargo.toml
+
+      # The rewritten Cargo.toml must never be committed. Fail loudly if a
+      # future edit to the step above leaves the tree dirty in a way that could
+      # be picked up by a caching action keyed on file contents.
+      - name: Sanity-check the rewrite resolved
+        shell: bash
+        run: |
+          set -euo pipefail
+          for p in \
+            .ci/franken-stack/projects/frankentui/crates/ftui/Cargo.toml \
+            .ci/franken-stack/projects/frankensqlite/crates/fsqlite/Cargo.toml \
+            .ci/franken-stack/projects/frankensqlite/crates/fsqlite-error/Cargo.toml \
+            .ci/franken-stack/projects/frankensqlite/crates/fsqlite-types/Cargo.toml
+          do
+            if [ ! -f "$p" ]; then
+              echo "::error::path dependency did not resolve: $p is missing (did a sibling repo move its crates?)"
+              exit 1
+            fi
+          done
+          echo "All four path dependencies resolved."
+
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry and target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock', 'Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Check compilation
+        run: cargo check --workspace --all-targets
+
+      - name: Run tests
+        run: cargo test --workspace

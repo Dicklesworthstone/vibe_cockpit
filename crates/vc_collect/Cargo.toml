@@ -30,6 +30,7 @@ russh.workspace = true
 russh-keys.workspace = true
 
 [dev-dependencies]
+asupersync = { workspace = true, features = ["test-internals"] }
 proptest.workspace = true
 mockall.workspace = true
 tempfile = "3"

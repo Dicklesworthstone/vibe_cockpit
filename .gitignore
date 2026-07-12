@@ -5,11 +5,14 @@
 /target/
 /target-*/
 
-# Test output logs (ephemeral)
-/tests/logs/*.err
-/tests/logs/*.out
-/tests/logs/*.json
-/tests/logs/summary.json
+# Test output logs (ephemeral).
+# NOTE: these were committed BEFORE the ignore rules existed, so the rules were
+# inert (gitignore never applies to already-tracked paths). Untrack them with
+# `git rm -r --cached tests/logs tests/e2e/logs` and the rules take effect.
+# Ignore the whole directories rather than an extension allowlist, so a new
+# log suffix does not silently start getting committed again.
+/tests/logs/
+/tests/e2e/logs/
 
 # IDE and editor
 .idea/
@@ -57,6 +60,18 @@ storage.sqlite3-wal.corrupt-*
 .beads/*.repair_candidate_*
 .beads/*.bak-corrupt
 .claude/
+
+# beads local snapshot history. `br` rewrites these on every flush; they are a
+# local undo log, not shared state (.beads/issues.jsonl is the tracked source of
+# truth). Committed before an ignore rule existed — untrack with
+# `git rm -r --cached .beads/.br_history`.
+.beads/.br_history/
+
+# Sibling path-dependency checkouts staged by the CI workflows. vc's Cargo.toml
+# points at ../frankentui and ../frankensqlite; CI clones them here and rewrites
+# the manifest (see .github/workflows/ci.yml). Never commit either the clones or
+# a rewritten Cargo.toml.
+/.ci/
 
 # Nested crate build artifacts (e.g., crates/vc_tui/target/)
 crates/*/target/

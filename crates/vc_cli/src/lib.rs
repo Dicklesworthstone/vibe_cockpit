@@ -1200,8 +1200,19 @@ pub enum MachineCommands {
 
 impl Cli {
     /// Run the CLI
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CliError`] if called outside an Asupersync runtime. A `Cx` can
+    /// only be minted at the runtime boundary, so this must run inside
+    /// `Runtime::block_on`, which installs the ambient context this reads.
     pub async fn run(self) -> Result<(), CliError> {
-        let cx = Cx::for_request();
+        let cx = Cx::current().ok_or_else(|| {
+            CliError::CommandFailed(
+                "no ambient Asupersync context; Cli::run must be called inside Runtime::block_on"
+                    .to_string(),
+            )
+        })?;
         self.run_with_cx(&cx).await
     }
 
@@ -1496,7 +1507,8 @@ impl Cli {
                         };
 
                         // First, check connectivity with uname
-                        let connectivity = executor.run("uname -s", Duration::from_secs(5)).await;
+                        let connectivity =
+                            executor.run(cx, "uname -s", Duration::from_secs(5)).await;
                         let (status, os_detail) = match connectivity {
                             Ok(output) if output.exit_code == 0 => {
                                 registry
@@ -1542,7 +1554,7 @@ impl Cli {
                         // If online, probe for tools
                         let tools_result = if status == vc_collect::machine::MachineStatus::Online {
                             let prober = vc_collect::ToolProber::new();
-                            Some(prober.probe_machine(&id, &executor, &registry).await)
+                            Some(prober.probe_machine(cx, &id, &executor, &registry).await)
                         } else {
                             None
                         };
@@ -3351,8 +3363,7 @@ impl Cli {
                 if let Some(filter) = collector.as_deref()
                     && !registry.iter().any(|(name, _)| name == filter)
                 {
-                    let mut available: Vec<&str> =
-                        registry.iter().map(|(name, _)| name).collect();
+                    let mut available: Vec<&str> = registry.iter().map(|(name, _)| name).collect();
                     available.sort_unstable();
                     return Err(CliError::CommandFailed(format!(
                         "unknown collector '{filter}'. Registered: {}",
@@ -3392,9 +3403,7 @@ impl Cli {
                         {
                             continue;
                         }
-                        if collector.is_none()
-                            && !config.is_collector_enabled(machine_id, name)
-                        {
+                        if collector.is_none() && !config.is_collector_enabled(machine_id, name) {
                             continue;
                         }
 
@@ -3414,110 +3423,103 @@ impl Cli {
                         // Single-pass classification: derive everything we need
                         // for both the `collector_health` row and the user-facing
                         // printout from one match arm so the two can never drift.
-                        let (success, rows_inserted, bytes_parsed, error_class, cursor_json, status) =
-                            match &outcome {
-                                asupersync::Outcome::Ok(result) => {
-                                    let mut total_rows: i64 = 0;
-                                    let mut total_bytes: i64 = 0;
-                                    // Only count rows the store actually
-                                    // persisted, using the count returned by
-                                    // `insert_json_batch`. Surfacing storage
-                                    // errors on stderr keeps the operator
-                                    // informed when the DB is broken (disk
-                                    // full, schema drift, etc.) — the daemon
-                                    // path uses tracing::warn for the same
-                                    // signal.
-                                    for batch in &result.rows {
-                                        match store
-                                            .insert_json_batch(&batch.table, &batch.rows)
-                                        {
-                                            Ok(count) => {
-                                                total_rows = total_rows.saturating_add(
-                                                    i64::try_from(count)
-                                                        .unwrap_or(i64::MAX),
-                                                );
-                                            }
-                                            Err(e) => {
-                                                eprintln!(
-                                                    "warn: row batch persist failed table={} collector={name} error={e}",
-                                                    batch.table
-                                                );
-                                            }
+                        let (
+                            success,
+                            rows_inserted,
+                            bytes_parsed,
+                            error_class,
+                            cursor_json,
+                            status,
+                        ) = match &outcome {
+                            asupersync::Outcome::Ok(result) => {
+                                let mut total_rows: i64 = 0;
+                                let mut total_bytes: i64 = 0;
+                                // Only count rows the store actually
+                                // persisted, using the count returned by
+                                // `insert_json_batch`. Surfacing storage
+                                // errors on stderr keeps the operator
+                                // informed when the DB is broken (disk
+                                // full, schema drift, etc.) — the daemon
+                                // path uses tracing::warn for the same
+                                // signal.
+                                for batch in &result.rows {
+                                    match store.insert_json_batch(&batch.table, &batch.rows) {
+                                        Ok(count) => {
+                                            total_rows = total_rows.saturating_add(
+                                                i64::try_from(count).unwrap_or(i64::MAX),
+                                            );
+                                        }
+                                        Err(e) => {
+                                            eprintln!(
+                                                "warn: row batch persist failed table={} collector={name} error={e}",
+                                                batch.table
+                                            );
                                         }
                                     }
-                                    for artifact in &result.raw_artifacts {
-                                        total_bytes = total_bytes.saturating_add(
-                                            i64::try_from(artifact.content.len())
-                                                .unwrap_or(i64::MAX),
-                                        );
-                                    }
-                                    let cursor = result
-                                        .new_cursor
-                                        .as_ref()
-                                        .and_then(|c| c.to_json().ok());
-                                    // A collector that ran cleanly but reported
-                                    // its own failure (`result.success == false`)
-                                    // is a soft failure — count it and surface
-                                    // its `result.error` so the operator sees
-                                    // why instead of a bare "fail".
-                                    let soft_err = if result.success {
-                                        None
-                                    } else {
-                                        failures += 1;
-                                        Some(
-                                            result
-                                                .error
-                                                .clone()
-                                                .unwrap_or_else(|| "no error message".to_string()),
-                                        )
-                                    };
-                                    let status = if result.success { "ok  " } else { "fail" };
-                                    (
-                                        result.success,
-                                        total_rows,
-                                        total_bytes,
-                                        soft_err,
-                                        cursor,
-                                        status,
-                                    )
                                 }
-                                asupersync::Outcome::Err(e) => {
+                                for artifact in &result.raw_artifacts {
+                                    total_bytes = total_bytes.saturating_add(
+                                        i64::try_from(artifact.content.len()).unwrap_or(i64::MAX),
+                                    );
+                                }
+                                let cursor =
+                                    result.new_cursor.as_ref().and_then(|c| c.to_json().ok());
+                                // A collector that ran cleanly but reported
+                                // its own failure (`result.success == false`)
+                                // is a soft failure — count it and surface
+                                // its `result.error` so the operator sees
+                                // why instead of a bare "fail".
+                                let soft_err = if result.success {
+                                    None
+                                } else {
                                     failures += 1;
-                                    (
-                                        false,
-                                        0_i64,
-                                        0_i64,
-                                        Some(e.to_string()),
-                                        None,
-                                        "fail",
+                                    Some(
+                                        result
+                                            .error
+                                            .clone()
+                                            .unwrap_or_else(|| "no error message".to_string()),
                                     )
-                                }
-                                asupersync::Outcome::Cancelled(reason) => {
-                                    // Cancellation is signal-driven (SIGINT/
-                                    // SIGTERM) and not the collector's fault —
-                                    // record but don't bump the failure counter.
-                                    cancelled_early = true;
-                                    (
-                                        false,
-                                        0_i64,
-                                        0_i64,
-                                        Some(format!("cancelled: {reason:?}")),
-                                        None,
-                                        "canc",
-                                    )
-                                }
-                                asupersync::Outcome::Panicked(payload) => {
-                                    failures += 1;
-                                    (
-                                        false,
-                                        0_i64,
-                                        0_i64,
-                                        Some(format!("panicked: {}", payload.message())),
-                                        None,
-                                        "fail",
-                                    )
-                                }
-                            };
+                                };
+                                let status = if result.success { "ok  " } else { "fail" };
+                                (
+                                    result.success,
+                                    total_rows,
+                                    total_bytes,
+                                    soft_err,
+                                    cursor,
+                                    status,
+                                )
+                            }
+                            asupersync::Outcome::Err(e) => {
+                                failures += 1;
+                                (false, 0_i64, 0_i64, Some(e.to_string()), None, "fail")
+                            }
+                            asupersync::Outcome::Cancelled(reason) => {
+                                // Cancellation is signal-driven (SIGINT/
+                                // SIGTERM) and not the collector's fault —
+                                // record but don't bump the failure counter.
+                                cancelled_early = true;
+                                (
+                                    false,
+                                    0_i64,
+                                    0_i64,
+                                    Some(format!("cancelled: {reason:?}")),
+                                    None,
+                                    "canc",
+                                )
+                            }
+                            asupersync::Outcome::Panicked(payload) => {
+                                failures += 1;
+                                (
+                                    false,
+                                    0_i64,
+                                    0_i64,
+                                    Some(format!("panicked: {}", payload.message())),
+                                    None,
+                                    "fail",
+                                )
+                            }
+                        };
 
                         let health = vc_store::CollectorHealth {
                             machine_id: machine_id.clone(),
@@ -3820,9 +3822,8 @@ async fn run_collection_tick(
                     for batch in &result.rows {
                         match store.insert_json_batch(&batch.table, &batch.rows) {
                             Ok(count) => {
-                                total_rows = total_rows.saturating_add(
-                                    i64::try_from(count).unwrap_or(i64::MAX),
-                                );
+                                total_rows = total_rows
+                                    .saturating_add(i64::try_from(count).unwrap_or(i64::MAX));
                             }
                             Err(e) => {
                                 tracing::warn!(
@@ -3840,10 +3841,7 @@ async fn run_collection_tick(
                             i64::try_from(artifact.content.len()).unwrap_or(i64::MAX),
                         );
                     }
-                    let cursor_json = result
-                        .new_cursor
-                        .as_ref()
-                        .and_then(|c| c.to_json().ok());
+                    let cursor_json = result.new_cursor.as_ref().and_then(|c| c.to_json().ok());
                     // A collector that ran cleanly but reported its own
                     // failure (`result.success == false`) is a soft failure —
                     // count it and surface `result.error` into the
@@ -3859,7 +3857,13 @@ async fn run_collection_tick(
                                 .unwrap_or_else(|| "no error message".to_string()),
                         )
                     };
-                    (result.success, total_rows, total_bytes, soft_err, cursor_json)
+                    (
+                        result.success,
+                        total_rows,
+                        total_bytes,
+                        soft_err,
+                        cursor_json,
+                    )
                 }
                 asupersync::Outcome::Err(err) => {
                     failures += 1;
@@ -3958,12 +3962,9 @@ async fn run_daemon(
     // poll_interval has elapsed).
     if cx.checkpoint().is_ok() {
         match run_collection_tick(&config, &registry, &store, cx).await {
-            Ok((runs, failures)) => tracing::info!(
-                ticks,
-                runs,
-                failures,
-                "collection tick complete"
-            ),
+            Ok((runs, failures)) => {
+                tracing::info!(ticks, runs, failures, "collection tick complete")
+            }
             Err(e) => tracing::warn!(error = %e, "collection tick failed"),
         }
     }
@@ -3985,12 +3986,9 @@ async fn run_daemon(
         ticks += 1;
 
         match run_collection_tick(&config, &registry, &store, cx).await {
-            Ok((runs, failures)) => tracing::info!(
-                ticks,
-                runs,
-                failures,
-                "collection tick complete"
-            ),
+            Ok((runs, failures)) => {
+                tracing::info!(ticks, runs, failures, "collection tick complete")
+            }
             Err(e) => tracing::warn!(ticks, error = %e, "collection tick failed"),
         }
     }
@@ -5237,8 +5235,23 @@ mod tests {
     use std::future::Future;
     use tempfile::tempdir;
 
+    /// Drive a test future on the real Asupersync runtime.
+    ///
+    /// A bare `futures::executor::block_on` installs no ambient `Cx`, so
+    /// anything reaching `Cx::current()` — which is how production code now
+    /// obtains its capability context — would see `None`. Going through
+    /// `Runtime::block_on` means these tests exercise the same path as `main`.
     fn run_async<F: Future<Output = ()>>(future: F) {
-        futures::executor::block_on(future);
+        let asupersync_rt = asupersync::runtime::RuntimeBuilder::new()
+            .build()
+            .expect("build asupersync test runtime");
+        let tokio_rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("build tokio compat runtime");
+        let _tokio_guard = tokio_rt.enter();
+
+        asupersync_rt.block_on(future);
     }
 
     // =============================================================================
@@ -7552,7 +7565,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             value,
-            SqliteValue::Text("2026-01-02T03:04:05.123456Z".to_string())
+            SqliteValue::Text("2026-01-02T03:04:05.123456Z".into())
         );
     }
 
@@ -7630,7 +7643,7 @@ mod tests {
             "TEXT[]",
         )
         .unwrap();
-        assert_eq!(value, SqliteValue::Text(r#"["alpha","beta"]"#.to_string()));
+        assert_eq!(value, SqliteValue::Text(r#"["alpha","beta"]"#.into()));
     }
 
     #[test]
@@ -7645,7 +7658,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             value,
-            SqliteValue::Text(r#"{"name":"agent","level":3}"#.to_string())
+            SqliteValue::Text(r#"{"name":"agent","level":3}"#.into())
         );
     }
 
@@ -7748,22 +7761,16 @@ mod tests {
         assert_eq!(account_rows[0].values()[1], SqliteValue::Integer(1));
         assert_eq!(
             account_rows[0].values()[2],
-            SqliteValue::Text("2026-01-02T03:04:05.123456Z".to_string())
+            SqliteValue::Text("2026-01-02T03:04:05.123456Z".into())
         );
-        assert_eq!(
-            account_rows[0].values()[3],
-            SqliteValue::Text("Zoë".to_string())
-        );
+        assert_eq!(account_rows[0].values()[3], SqliteValue::Text("Zoë".into()));
         assert_eq!(account_rows[0].values()[4], SqliteValue::Null);
         assert_eq!(account_rows[1].values()[1], SqliteValue::Integer(0));
         assert_eq!(
             account_rows[1].values()[3],
-            SqliteValue::Text("李雷".to_string())
+            SqliteValue::Text("李雷".into())
         );
-        assert_eq!(
-            account_rows[1].values()[4],
-            SqliteValue::Text("ok".to_string())
-        );
+        assert_eq!(account_rows[1].values()[4], SqliteValue::Text("ok".into()));
 
         let metric_rows = target
             .query("SELECT tags, scores FROM metrics ORDER BY id")
@@ -7771,19 +7778,19 @@ mod tests {
         assert_eq!(metric_rows.len(), 2);
         assert_eq!(
             metric_rows[0].values()[0],
-            SqliteValue::Text(r#"["alpha","beta"]"#.to_string())
+            SqliteValue::Text(r#"["alpha","beta"]"#.into())
         );
         assert_eq!(
             metric_rows[0].values()[1],
-            SqliteValue::Text("[1.25,2.5]".to_string())
+            SqliteValue::Text("[1.25,2.5]".into())
         );
         assert_eq!(
             metric_rows[1].values()[0],
-            SqliteValue::Text(r#"["solo"]"#.to_string())
+            SqliteValue::Text(r#"["solo"]"#.into())
         );
         assert_eq!(
             metric_rows[1].values()[1],
-            SqliteValue::Text("[9.0]".to_string())
+            SqliteValue::Text("[9.0]".into())
         );
     }
 

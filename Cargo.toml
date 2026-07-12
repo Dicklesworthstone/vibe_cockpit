@@ -25,7 +25,10 @@ repository = "https://github.com/Dicklesworthstone/vibe_cockpit"
 [workspace.dependencies]
 # Async runtime (primary) — from crates.io since the v0.3.0 release so
 # remote RCH workers and fresh clones resolve without a sibling checkout.
-asupersync = { version = "0.3.4" }
+asupersync = { version = "0.3.5" }
+# Latest published compat bridge is 0.3.4; it is not released in lockstep with
+# asupersync. Pin it explicitly rather than letting a caret range imply a 0.3.5
+# that does not exist.
 asupersync-tokio-compat = { version = "0.3.4" }
 # Tokio kept as an explicit compat bridge while crate-local migrations land in
 # Phases 2a–2e. This is intentionally broad so each crate can compile until its
@@ -142,6 +145,11 @@ tracing-subscriber.workspace = true
 anyhow.workspace = true
 
 [dev-dependencies]
+# `Cx::for_testing` / `Cx::for_request` are gated behind `test-internals` as of
+# asupersync 0.3.5 — minting a Cx outside the runtime boundary is a capability
+# escalation, so it is a test-only affordance. Resolver 2 keeps this out of the
+# production build.
+asupersync = { workspace = true, features = ["test-internals"] }
 chrono.workspace = true
 duckdb.workspace = true
 fsqlite.workspace = true

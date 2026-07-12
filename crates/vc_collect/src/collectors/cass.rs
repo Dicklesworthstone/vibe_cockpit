@@ -112,7 +112,7 @@ impl Collector for CassCollector {
         crate::collect_checkpoint!(cx, "collect_start");
 
         // Check if cass is available
-        if !self.check_availability(ctx).await {
+        if !self.check_availability(cx, ctx).await {
             return asupersync::Outcome::Err(CollectError::ToolNotFound("cass".to_string()));
         }
 
@@ -122,7 +122,7 @@ impl Collector for CassCollector {
         crate::collect_checkpoint!(cx, "pre_cass_health_command");
         match ctx
             .executor
-            .run_timeout("cass health --json", ctx.timeout)
+            .run_timeout(cx, "cass health --json", ctx.timeout)
             .await
         {
             Ok(output) => {
@@ -169,7 +169,7 @@ impl Collector for CassCollector {
         crate::collect_checkpoint!(cx, "pre_cass_stats_command");
         match ctx
             .executor
-            .run_timeout("cass stats --json", ctx.timeout)
+            .run_timeout(cx, "cass stats --json", ctx.timeout)
             .await
         {
             Ok(output) => {

@@ -172,6 +172,7 @@ impl ToolProber {
     /// Probe a machine for all known tools
     pub async fn probe_machine(
         &self,
+        cx: &asupersync::Cx,
         machine_id: &str,
         executor: &Executor,
         registry: &MachineRegistry,
@@ -182,7 +183,7 @@ impl ToolProber {
         info!(machine_id = %machine_id, "Starting tool probe");
 
         for spec in TOOL_SPECS {
-            match self.probe_tool(executor, spec).await {
+            match self.probe_tool(cx, executor, spec).await {
                 Ok(Some(info)) => {
                     debug!(
                         tool = %spec.name,
@@ -232,12 +233,13 @@ impl ToolProber {
     /// Probe for a single tool
     async fn probe_tool(
         &self,
+        cx: &asupersync::Cx,
         executor: &Executor,
         spec: &ToolSpec,
     ) -> Result<Option<ToolInfo>, CollectError> {
         // Try each detection command
         for cmd in spec.detect_commands {
-            let result = executor.run(cmd, self.timeout).await;
+            let result = executor.run(cx, cmd, self.timeout).await;
             if let Ok(output) = result
                 && output.exit_code == 0
                 && !output.stdout.trim().is_empty()
@@ -246,7 +248,7 @@ impl ToolProber {
 
                 // Get version
                 let version_cmd = format!("{} {}", path, spec.version_flag);
-                let version = match executor.run(&version_cmd, self.timeout).await {
+                let version = match executor.run(cx, &version_cmd, self.timeout).await {
                     Ok(out) if out.exit_code == 0 => {
                         Self::extract_version(&out.stdout, spec.version_regex)
                             .or_else(|| Self::extract_version(&out.stderr, spec.version_regex))
@@ -333,6 +335,7 @@ mod tests {
     #[test]
     fn test_probe_local_tools() {
         crate::run_async_test(async {
+            let cx = asupersync::Cx::for_testing();
             let prober = ToolProber::new();
             let executor = Executor::local();
 
@@ -344,7 +347,7 @@ mod tests {
                 version_regex: r"(\d+\.\d+(?:\.\d+)?)",
             };
 
-            let result = prober.probe_tool(&executor, &spec).await;
+            let result = prober.probe_tool(&cx, &executor, &spec).await;
             assert!(result.is_ok());
             let tool = result.unwrap();
             assert!(tool.is_some());
@@ -358,6 +361,7 @@ mod tests {
     #[test]
     fn test_probe_nonexistent_tool() {
         crate::run_async_test(async {
+            let cx = asupersync::Cx::for_testing();
             let prober = ToolProber::new();
             let executor = Executor::local();
 
@@ -368,7 +372,7 @@ mod tests {
                 version_regex: r"(\d+\.\d+(?:\.\d+)?)",
             };
 
-            let result = prober.probe_tool(&executor, &spec).await;
+            let result = prober.probe_tool(&cx, &executor, &spec).await;
             assert!(result.is_ok());
             assert!(result.unwrap().is_none());
         });

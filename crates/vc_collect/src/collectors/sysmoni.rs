@@ -190,7 +190,7 @@ impl Collector for SysmoniCollector {
         crate::collect_checkpoint!(cx, "collect_start");
 
         // Check if sysmoni is available
-        if !self.check_availability(ctx).await {
+        if !self.check_availability(cx, ctx).await {
             return asupersync::Outcome::Err(CollectError::ToolNotFound("sysmoni".to_string()));
         }
 
@@ -198,7 +198,7 @@ impl Collector for SysmoniCollector {
         crate::collect_checkpoint!(cx, "pre_sysmoni_command");
         let output = crate::collect_try!(
             ctx.executor
-                .run_timeout("sysmoni --json", ctx.timeout)
+                .run_timeout(cx, "sysmoni --json", ctx.timeout)
                 .await
         );
 

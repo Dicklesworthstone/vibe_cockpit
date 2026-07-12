@@ -298,10 +298,13 @@ fn assert_table_integrity(source: &DuckConnection, target: &FrankenConnection, s
 
 fn collect_duck_rows(source: &DuckConnection, sql: &str) -> Vec<Vec<Value>> {
     let mut stmt = source.prepare(sql).unwrap();
-    let column_count = stmt.column_count();
+    // `column_count()` panics with "The statement was not executed yet" if it is
+    // called before `query()`, so the arity has to be read from the executed
+    // statement rather than the prepared one.
     let mut rows = stmt.query([]).unwrap();
     let mut collected = Vec::new();
     while let Some(row) = rows.next().unwrap() {
+        let column_count = row.as_ref().column_count();
         let mut values = Vec::with_capacity(column_count);
         for index in 0..column_count {
             values.push(normalize_duck_value(row.get_ref_unwrap(index).to_owned()));
@@ -393,7 +396,7 @@ fn normalize_sqlite_value(value: &SqliteValue, parse_json: bool) -> Value {
         SqliteValue::Integer(number) => Value::from(*number),
         SqliteValue::Float(number) => serde_json::json!(*number),
         SqliteValue::Text(text) if parse_json => serde_json::from_str(text).unwrap(),
-        SqliteValue::Text(text) => Value::String(text.clone()),
+        SqliteValue::Text(text) => Value::String(text.to_string()),
         SqliteValue::Blob(bytes) => {
             Value::Array(bytes.iter().copied().map(Value::from).collect::<Vec<_>>())
         }

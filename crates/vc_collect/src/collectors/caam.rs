@@ -138,7 +138,7 @@ impl Collector for CaamCollector {
         crate::collect_checkpoint!(cx, "collect_start");
 
         // Check if caam is available
-        if !self.check_availability(ctx).await {
+        if !self.check_availability(cx, ctx).await {
             return asupersync::Outcome::Err(CollectError::ToolNotFound("caam".to_string()));
         }
 
@@ -146,7 +146,7 @@ impl Collector for CaamCollector {
         crate::collect_checkpoint!(cx, "pre_caam_limits_command");
         match ctx
             .executor
-            .run_timeout("caam limits --format json", ctx.timeout)
+            .run_timeout(cx, "caam limits --format json", ctx.timeout)
             .await
         {
             Ok(output) => {
@@ -186,7 +186,7 @@ impl Collector for CaamCollector {
         crate::collect_checkpoint!(cx, "pre_caam_status_command");
         match ctx
             .executor
-            .run_timeout("caam status --json", ctx.timeout)
+            .run_timeout(cx, "caam status --json", ctx.timeout)
             .await
         {
             Ok(output) => {

@@ -187,7 +187,7 @@ impl Collector for AfscCollector {
         crate::collect_checkpoint!(cx, "collect_start");
 
         // Check if afsc is available
-        if !self.check_availability(ctx).await {
+        if !self.check_availability(cx, ctx).await {
             return asupersync::Outcome::Err(CollectError::ToolNotFound(
                 "automated_flywheel_setup_checker".to_string(),
             ));
@@ -198,6 +198,7 @@ impl Collector for AfscCollector {
         let status_result = ctx
             .executor
             .run_timeout(
+                cx,
                 "automated_flywheel_setup_checker status --format json",
                 ctx.timeout,
             )
@@ -246,7 +247,7 @@ impl Collector for AfscCollector {
         };
 
         crate::collect_checkpoint!(cx, "pre_afsc_list_command");
-        let list_result = ctx.executor.run_timeout(&list_cmd, ctx.timeout).await;
+        let list_result = ctx.executor.run_timeout(cx, &list_cmd, ctx.timeout).await;
 
         if let Ok(output) = list_result {
             crate::collect_checkpoint!(cx, "post_afsc_list_command_pre_parse");
@@ -286,6 +287,7 @@ impl Collector for AfscCollector {
         let validate_result = ctx
             .executor
             .run_timeout(
+                cx,
                 "automated_flywheel_setup_checker validate --format jsonl",
                 ctx.timeout,
             )
@@ -326,6 +328,7 @@ impl Collector for AfscCollector {
         let classify_result = ctx
             .executor
             .run_timeout(
+                cx,
                 "automated_flywheel_setup_checker classify-error --format jsonl",
                 ctx.timeout,
             )

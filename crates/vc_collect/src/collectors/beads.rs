@@ -250,7 +250,7 @@ impl Collector for BeadsCollector {
         crate::collect_checkpoint!(cx, "pre_bv_triage_command");
         let triage_result = ctx
             .executor
-            .run_timeout("bv --robot-triage", ctx.timeout)
+            .run_timeout(cx, "bv --robot-triage", ctx.timeout)
             .await;
 
         match triage_result {
@@ -312,7 +312,7 @@ impl Collector for BeadsCollector {
         crate::collect_checkpoint!(cx, "pre_br_list_command");
         let list_result = ctx
             .executor
-            .run_timeout("br list --format json", ctx.timeout)
+            .run_timeout(cx, "br list --format json", ctx.timeout)
             .await;
 
         match list_result {

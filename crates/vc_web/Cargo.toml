@@ -28,6 +28,7 @@ tracing.workspace = true
 chrono.workspace = true
 
 [dev-dependencies]
+asupersync = { workspace = true, features = ["test-internals"] }
 proptest.workspace = true
 mockall.workspace = true
 http-body-util = "0.1"

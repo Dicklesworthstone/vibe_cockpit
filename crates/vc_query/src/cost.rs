@@ -198,7 +198,8 @@ impl<'a> CostQueryBuilder<'a> {
             "SELECT provider, model, price_per_1k_input_tokens, price_per_1k_output_tokens \
              FROM provider_pricing \
              WHERE provider = '{}' AND model = '{}' \
-             AND (effective_until IS NULL OR effective_until > current_timestamp) \
+             AND (effective_until IS NULL \
+                  OR CAST(effective_until AS TIMESTAMPTZ) > current_timestamp) \
              ORDER BY effective_from DESC LIMIT 1",
             escape_sql_literal(provider),
             escape_sql_literal(model)
@@ -228,7 +229,8 @@ impl<'a> CostQueryBuilder<'a> {
         let sql = "SELECT DISTINCT ON (provider, model) provider, model, \
                    price_per_1k_input_tokens, price_per_1k_output_tokens \
                    FROM provider_pricing \
-                   WHERE effective_until IS NULL OR effective_until > current_timestamp \
+                   WHERE effective_until IS NULL \
+                         OR CAST(effective_until AS TIMESTAMPTZ) > current_timestamp \
                    ORDER BY provider, model, effective_from DESC";
 
         let rows = self.store.query_json(sql)?;

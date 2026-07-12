@@ -1,0 +1,250 @@
+name: release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: 1
+
+jobs:
+  # ===========================================================================
+  # BUILD — cross-platform release binaries
+  #
+  # Every job here re-does the frankentui / frankensqlite sibling checkout,
+  # because vc's Cargo.toml carries path dependencies on them and a bare
+  # actions/checkout cannot compile the workspace. See .github/workflows/ci.yml
+  # for the full rationale.
+  # ===========================================================================
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x86_64. Built on ubuntu-22.04 (glibc 2.35) rather than
+          # ubuntu-latest, so the binary runs on older hosts. dcg solves the
+          # same problem with a fully-static musl target, but that is not open
+          # to vc: it bundles DuckDB (C++) and links reqwest, so a static musl
+          # build would need a musl C++ toolchain and a musl OpenSSL. Pinning
+          # an older-glibc runner buys most of the portability for none of the
+          # pain. (dcg#114 is the corresponding regression there.)
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            artifact_name: vc
+          # Linux aarch64. Built on the NATIVE ARM runner rather than
+          # cross-compiled, which keeps the bundled DuckDB C++ build honest and
+          # makes a wrong-arch artifact impossible by construction. (dcg#112
+          # shipped an x86-64 ELF as the aarch64 asset; a native runner is the
+          # fix that stuck.)
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            artifact_name: vc
+          # macOS Intel
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            artifact_name: vc
+          # macOS Apple Silicon
+          - os: macos-14
+            target: aarch64-apple-darwin
+            artifact_name: vc
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout Franken stack path dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Siblings live inside $GITHUB_WORKSPACE so that any Dockerized action
+          # mounting only the workspace still resolves them. Cargo.lock records
+          # path deps by name+version, not location, so the rewrite is lock-safe.
+          project_root="$GITHUB_WORKSPACE/.ci/franken-stack/projects"
+          mkdir -p "$project_root"
+          git clone --depth 1 https://github.com/Dicklesworthstone/frankentui.git "$project_root/frankentui"
+          git clone --depth 1 https://github.com/Dicklesworthstone/frankensqlite.git "$project_root/frankensqlite"
+
+          CARGO_PATH_ROOT=".ci/franken-stack/projects" perl -0pi -e '
+            s{/data/projects/(frankentui|frankensqlite)}{$ENV{CARGO_PATH_ROOT}/$1}g;
+            s{\.\./(frankentui|frankensqlite)}{$ENV{CARGO_PATH_ROOT}/$1}g;
+          ' Cargo.toml
+
+          echo "Rewritten path dependencies:"
+          grep -nE 'frankentui|frankensqlite' Cargo.toml
+
+      - name: Install Rust nightly
+        # rust-toolchain.toml pins channel = "nightly" (floating), so
+        # @nightly here installs the same channel the workspace expects and
+        # adds the cross-target std to it.
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build release binary
+        # Deliberately NOT --locked. The sibling repos are cloned at HEAD, so
+        # their crate versions can legitimately be ahead of what Cargo.lock
+        # recorded from the local dev checkout; --locked would hard-fail on that
+        # instead of letting cargo re-resolve the two path entries.
+        run: cargo build --release --bin vc --target ${{ matrix.target }}
+
+      - name: Strip binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="target/${{ matrix.target }}/release/${{ matrix.artifact_name }}"
+          if [ ! -f "$binary" ]; then
+            echo "::error::expected built binary not found at $binary"
+            exit 1
+          fi
+          before=$(wc -c < "$binary")
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            # -x strips local symbols only; a full strip breaks codesigning on
+            # Apple Silicon (the adhoc signature covers the symbol table).
+            strip -x "$binary"
+          else
+            strip "$binary"
+          fi
+          after=$(wc -c < "$binary")
+          echo "stripped $binary: ${before} -> ${after} bytes"
+
+      # Guard against the class of bug that produced dcg#112 (an x86-64 ELF
+      # published as the aarch64 asset). Native runners make this impossible,
+      # but the check is nearly free insurance against a future matrix edit.
+      - name: Verify binary architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="target/${{ matrix.target }}/release/${{ matrix.artifact_name }}"
+          desc="$(file "$binary")"
+          echo "$desc"
+          case "${{ matrix.target }}" in
+            x86_64-unknown-linux-gnu)
+              echo "$desc" | grep -q "x86-64" || { echo "::error::expected an x86-64 ELF, got: $desc"; exit 1; } ;;
+            aarch64-unknown-linux-gnu)
+              echo "$desc" | grep -q "aarch64" || { echo "::error::expected an aarch64 ELF, got: $desc"; exit 1; } ;;
+            x86_64-apple-darwin)
+              echo "$desc" | grep -q "x86_64" || { echo "::error::expected an x86_64 Mach-O, got: $desc"; exit 1; } ;;
+            aarch64-apple-darwin)
+              echo "$desc" | grep -q "arm64" || { echo "::error::expected an arm64 Mach-O, got: $desc"; exit 1; } ;;
+          esac
+          echo "architecture verified for ${{ matrix.target }}"
+
+      # A binary that is the right architecture but crashes on startup must not
+      # ship. Every target in this matrix is built on a native runner, so we can
+      # actually execute all four.
+      - name: Execute binary (--version smoke)
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="target/${{ matrix.target }}/release/${{ matrix.artifact_name }}"
+          "$binary" --version
+          echo "smoke test passed"
+
+      - name: Create tarball
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          TARBALL="vc-${{ matrix.target }}.tar.xz"
+          cd "target/${{ matrix.target }}/release"
+          # Force mode 755 inside the tarball. macOS release builds have been
+          # observed emerging as 0700, which breaks the installer's
+          # `find ... -perm -111` binary discovery (ee#4).
+          chmod 755 "${{ matrix.artifact_name }}"
+          tar -cJf "$GITHUB_WORKSPACE/dist/$TARBALL" "${{ matrix.artifact_name }}"
+          cd "$GITHUB_WORKSPACE/dist"
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "$TARBALL" > "$TARBALL.sha256"
+          else
+            shasum -a 256 "$TARBALL" > "$TARBALL.sha256"
+          fi
+          cat "$TARBALL.sha256"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  # ===========================================================================
+  # RELEASE — aggregate checksums and publish
+  # ===========================================================================
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -laR dist
+
+      - name: Generate SHA256SUMS
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          # One aggregate manifest for the installer to consult, alongside the
+          # per-artifact .sha256 sidecars the build jobs already produced. The
+          # manifest is the `sha256sum -c` format, so users can verify with:
+          #   sha256sum -c SHA256SUMS --ignore-missing
+          sha256sum vc-*.tar.xz > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Verify SHA256SUMS against the sidecars
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          # Cross-check the aggregate manifest we just built against the
+          # per-artifact sidecars written on four different runners. A mismatch
+          # means an artifact was corrupted in transit through the artifact
+          # store — better to fail the release than to publish a manifest that
+          # disagrees with its own sidecars.
+          sha256sum -c SHA256SUMS
+          for f in vc-*.tar.xz; do
+            expected="$(awk '{print $1}' "$f.sha256")"
+            actual="$(awk -v n="$f" '$2 == n || $2 == "*"n {print $1}' SHA256SUMS)"
+            if [ "$expected" != "$actual" ]; then
+              echo "::error::checksum mismatch for $f: sidecar=$expected manifest=$actual"
+              exit 1
+            fi
+          done
+          echo "All artifact checksums agree."
+
+      - name: Copy install script to dist
+        run: |
+          cp install.sh dist/
+          cd dist
+          sha256sum install.sh > install.sh.sha256
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

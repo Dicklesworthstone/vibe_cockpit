@@ -326,6 +326,7 @@ impl Collector for GhCollector {
         let repo_view_result = ctx
             .executor
             .run_timeout(
+                cx,
                 "gh repo view --json name,owner,nameWithOwner,url,defaultBranchRef,isPrivate,isArchived,description,stargazerCount,forkCount",
                 ctx.timeout,
             )
@@ -354,6 +355,7 @@ impl Collector for GhCollector {
         let issues_result = ctx
             .executor
             .run_timeout(
+                cx,
                 "gh issue list --state all --limit 100 --json number,title,state,labels,assignees,createdAt,updatedAt,author",
                 ctx.timeout,
             )
@@ -381,6 +383,7 @@ impl Collector for GhCollector {
         let prs_result = ctx
             .executor
             .run_timeout(
+                cx,
                 "gh pr list --state all --limit 100 --json number,title,state,labels,assignees,createdAt,updatedAt,author,isDraft,mergeable,reviewDecision",
                 ctx.timeout,
             )

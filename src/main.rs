@@ -38,12 +38,6 @@ fn main() -> Result<()> {
     let asupersync_rt = build_asupersync_runtime()?;
     tracing::debug!("Asupersync runtime created");
 
-    // Establish root Cx capability token for structured concurrency.
-    // Tokio-locked code is still quarantined behind a compat runtime, but the
-    // request-scoped capability token is the authoritative execution context.
-    let root_cx = Cx::for_request();
-    tracing::debug!("root Cx established (region={:?})", root_cx.region_id());
-
     // ── Tokio compat runtime (secondary) ─────────────────────────────────
     // Required while downstream crates still call tokio APIs directly.
     // Will be removed once Phases 2a–2e migrate all crate-level tokio usage.
@@ -54,9 +48,15 @@ fn main() -> Result<()> {
     tracing::info!("Tokio compat bridge ready");
 
     // ── Run the CLI ──────────────────────────────────────────────────────
+    // The root Cx is taken from inside `block_on`, which installs an ambient
+    // context backed by this runtime's drivers. Minting one outside the runtime
+    // boundary would hand every caller an unrestricted capability set.
     tracing::info!("starting CLI execution");
-    let cli_cx = root_cx.clone();
     let cli_result = asupersync_rt.block_on(async {
+        let root_cx =
+            Cx::current().expect("Runtime::block_on installs an ambient Cx for the polled future");
+        tracing::debug!("root Cx established (region={:?})", root_cx.region_id());
+        let cli_cx = root_cx.clone();
         with_tokio_context(&root_cx, || async move { cli.run_with_cx(&cli_cx).await }).await
     });
     let Some(cli_result) = cli_result else {

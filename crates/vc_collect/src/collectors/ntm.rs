@@ -180,7 +180,7 @@ impl Collector for NtmCollector {
         crate::collect_checkpoint!(cx, "collect_start");
 
         // Check if ntm is available
-        if !self.check_availability(ctx).await {
+        if !self.check_availability(cx, ctx).await {
             return asupersync::Outcome::Err(CollectError::ToolNotFound("ntm".to_string()));
         }
 
@@ -188,7 +188,7 @@ impl Collector for NtmCollector {
         crate::collect_checkpoint!(cx, "pre_ntm_status_command");
         let status_result = ctx
             .executor
-            .run_timeout("ntm --robot-status", ctx.timeout)
+            .run_timeout(cx, "ntm --robot-status", ctx.timeout)
             .await;
 
         let output = match status_result {

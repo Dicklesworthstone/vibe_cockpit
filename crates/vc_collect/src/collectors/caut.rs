@@ -108,7 +108,7 @@ impl Collector for CautCollector {
         crate::collect_checkpoint!(cx, "collect_start");
 
         // Check if caut is available
-        if !self.check_availability(ctx).await {
+        if !self.check_availability(cx, ctx).await {
             return asupersync::Outcome::Err(CollectError::ToolNotFound("caut".to_string()));
         }
 
@@ -116,7 +116,7 @@ impl Collector for CautCollector {
         crate::collect_checkpoint!(cx, "pre_caut_usage_command");
         let output = crate::collect_try!(
             ctx.executor
-                .run_timeout("caut usage --json", ctx.timeout)
+                .run_timeout(cx, "caut usage --json", ctx.timeout)
                 .await
         );
 

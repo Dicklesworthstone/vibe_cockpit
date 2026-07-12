@@ -174,13 +174,13 @@ impl Collector for RchCollector {
         crate::collect_checkpoint!(cx, "collect_start");
 
         // Check if rch is available
-        if !self.check_availability(ctx).await {
+        if !self.check_availability(cx, ctx).await {
             return asupersync::Outcome::Err(CollectError::ToolNotFound("rch".to_string()));
         }
 
         // Get file info and check if it exists
         crate::collect_checkpoint!(cx, "pre_rch_stat");
-        let file_stat = crate::collect_try!(ctx.executor.stat(&jsonl_path, ctx.timeout).await);
+        let file_stat = crate::collect_try!(ctx.executor.stat(cx, &jsonl_path, ctx.timeout).await);
         if !file_stat.exists {
             warnings.push(Warning::info(format!(
                 "rch JSONL file not found: {jsonl_path}",
@@ -210,11 +210,11 @@ impl Collector for RchCollector {
         let content_bytes = if start_offset > 0 {
             crate::collect_try!(
                 ctx.executor
-                    .read_file_range(&jsonl_path, start_offset, ctx.timeout)
+                    .read_file_range(cx, &jsonl_path, start_offset, ctx.timeout)
                     .await
             )
         } else {
-            crate::collect_try!(ctx.executor.read_file(&jsonl_path, ctx.timeout).await)
+            crate::collect_try!(ctx.executor.read_file(cx, &jsonl_path, ctx.timeout).await)
         };
 
         // Parse JSONL lines
@@ -281,7 +281,7 @@ impl Collector for RchCollector {
         crate::collect_checkpoint!(cx, "pre_rch_status_command");
         match ctx
             .executor
-            .run_timeout("rch status --json", ctx.timeout)
+            .run_timeout(cx, "rch status --json", ctx.timeout)
             .await
         {
             Ok(output) => {

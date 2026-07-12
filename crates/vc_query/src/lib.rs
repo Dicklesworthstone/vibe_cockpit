@@ -271,23 +271,67 @@ impl<'a> QueryBuilder<'a> {
         Self { store }
     }
 
-    /// Get fleet overview
+    /// Get fleet overview.
+    ///
+    /// Counts are gathered in a single round-trip. The fleet health score is the
+    /// mean of the latest per-machine health summary, defaulting to 1.0 when no
+    /// health data has been persisted yet.
     ///
     /// # Errors
     ///
     /// Returns [`QueryError`] if retrieval fails.
     pub fn fleet_overview(&self) -> Result<FleetOverview, QueryError> {
-        // Placeholder implementation
+        let counts_sql = "SELECT \
+             (SELECT COUNT(*) FROM machines) AS total_machines, \
+             (SELECT COUNT(*) FROM machines WHERE status = 'online') AS online_machines, \
+             (SELECT COUNT(*) FROM machines WHERE status = 'offline') AS offline_machines, \
+             (SELECT COUNT(*) FROM agent_sessions) AS total_agents, \
+             (SELECT COUNT(*) FROM agent_sessions WHERE ended_at IS NULL) AS active_agents, \
+             (SELECT COUNT(*) FROM alert_history WHERE resolved_at IS NULL) AS active_alerts, \
+             (SELECT COUNT(*) FROM guardian_runs WHERE status = 'pending_approval') \
+             AS pending_approvals";
+        let rows = self.store.query_json(counts_sql)?;
+        let counts = rows
+            .first()
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!({}));
+        let count_of = |key: &str| -> usize {
+            usize::try_from(counts[key].as_u64().unwrap_or(0)).unwrap_or(usize::MAX)
+        };
+
+        // `list_health_summaries` returns the latest row per machine, worst score first.
+        let summaries = self.list_health_summaries()?;
+        let scores: Vec<(String, f64)> = summaries
+            .iter()
+            .filter_map(|row| {
+                let machine_id = row["machine_id"].as_str()?;
+                let score = row["overall_score"].as_f64()?;
+                Some((machine_id.to_string(), score))
+            })
+            .collect();
+
+        let fleet_health_score = if scores.is_empty() {
+            1.0
+        } else {
+            let total: f64 = scores.iter().map(|(_, score)| score).sum();
+            total / f64::from(u32::try_from(scores.len()).unwrap_or(u32::MAX))
+        };
+
+        let worst_machine = scores
+            .first()
+            .filter(|(_, score)| *score < 1.0)
+            .map(|(machine_id, _)| machine_id.clone());
+
         Ok(FleetOverview {
-            total_machines: 0,
-            online_machines: 0,
-            offline_machines: 0,
-            total_agents: 0,
-            active_agents: 0,
-            fleet_health_score: 1.0,
-            worst_machine: None,
-            active_alerts: 0,
-            pending_approvals: 0,
+            total_machines: count_of("total_machines"),
+            online_machines: count_of("online_machines"),
+            offline_machines: count_of("offline_machines"),
+            total_agents: count_of("total_agents"),
+            active_agents: count_of("active_agents"),
+            fleet_health_score,
+            worst_machine,
+            active_alerts: count_of("active_alerts"),
+            pending_approvals: count_of("pending_approvals"),
         })
     }
 
@@ -659,9 +703,43 @@ mod tests {
         let builder = QueryBuilder::new(&store);
 
         let overview = builder.fleet_overview().unwrap();
-        // Default placeholder returns zeros
+        // Empty store: no machines, and health defaults to fully healthy.
         assert_eq!(overview.total_machines, 0);
         assert!((overview.fleet_health_score - 1.0).abs() < f64::EPSILON);
+        assert!(overview.worst_machine.is_none());
+    }
+
+    #[test]
+    fn test_query_builder_fleet_overview_counts_real_rows() {
+        let store = VcStore::open_memory().unwrap();
+        store
+            .execute_batch(
+                r"
+                INSERT INTO machines (machine_id, hostname, status)
+                VALUES ('m1', 'alpha', 'online');
+                INSERT INTO machines (machine_id, hostname, status)
+                VALUES ('m2', 'zulu', 'offline');
+                INSERT INTO alert_history (id, rule_id, fired_at, severity, title)
+                VALUES (1, 'r1', TIMESTAMP '2026-01-01 00:00:00', 'critical', 'Disk full');
+                ",
+            )
+            .unwrap();
+
+        let builder = QueryBuilder::new(&store);
+        builder
+            .persist_health_score(
+                "m2",
+                &[make_factor("sys_disk", 0.2, 2.0, Severity::Warning)],
+            )
+            .unwrap();
+
+        let overview = builder.fleet_overview().unwrap();
+        assert_eq!(overview.total_machines, 2);
+        assert_eq!(overview.online_machines, 1);
+        assert_eq!(overview.offline_machines, 1);
+        assert_eq!(overview.active_alerts, 1);
+        assert_eq!(overview.worst_machine, Some("m2".to_string()));
+        assert!(overview.fleet_health_score < 1.0);
     }
 
     #[test]

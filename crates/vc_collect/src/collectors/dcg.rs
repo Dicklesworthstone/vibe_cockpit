@@ -87,13 +87,13 @@ impl Collector for DcgCollector {
         crate::collect_checkpoint!(cx, "collect_start");
 
         // Check if sqlite3 is available
-        if !self.check_availability(ctx).await {
+        if !self.check_availability(cx, ctx).await {
             return asupersync::Outcome::Err(CollectError::ToolNotFound("sqlite3".to_string()));
         }
 
         // Check if the database file exists
         crate::collect_checkpoint!(cx, "pre_dcg_file_check");
-        if !crate::collect_try!(ctx.executor.file_exists(&db_path, ctx.timeout).await) {
+        if !crate::collect_try!(ctx.executor.file_exists(cx, &db_path, ctx.timeout).await) {
             // Database doesn't exist yet - this is not an error, just no data
             warnings.push(Warning::info(format!("DCG database not found: {db_path}")));
             let result = CollectResult::empty()
@@ -132,7 +132,7 @@ impl Collector for DcgCollector {
 
         let events = ctx
             .executor
-            .sqlite_query(&db_path, &events_query, ctx.timeout)
+            .sqlite_query(cx, &db_path, &events_query, ctx.timeout)
             .await;
         crate::collect_checkpoint!(cx, "post_dcg_sqlite_query_pre_parse");
         let events = crate::collect_try!(events);

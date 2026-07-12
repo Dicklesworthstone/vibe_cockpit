@@ -1247,10 +1247,13 @@ impl VcStore {
                 collector, \
                 CAST(MAX(CASE WHEN success THEN collected_at END) AS TEXT) AS last_success_at, \
                 COALESCE(CAST(EXTRACT(EPOCH FROM (CAST(current_timestamp AS TIMESTAMP) - \
-                    MAX(CASE WHEN success THEN collected_at END))) AS BIGINT), -1) AS freshness_seconds, \
-                COALESCE(AVG(CASE WHEN collected_at > CAST(current_timestamp AS TIMESTAMP) - INTERVAL '24 hours' \
+                    MAX(CASE WHEN success THEN CAST(collected_at AS TIMESTAMP) END))) AS BIGINT), -1) \
+                    AS freshness_seconds, \
+                COALESCE(AVG(CASE WHEN CAST(collected_at AS TIMESTAMP) > \
+                    CAST(current_timestamp AS TIMESTAMP) - INTERVAL '24 hours' \
                     THEN CASE WHEN success THEN 1.0 ELSE 0.0 END END), 0.0) AS success_rate_24h, \
-                COALESCE(COUNT(CASE WHEN collected_at > CAST(current_timestamp AS TIMESTAMP) - INTERVAL '24 hours' \
+                COALESCE(COUNT(CASE WHEN CAST(collected_at AS TIMESTAMP) > \
+                    CAST(current_timestamp AS TIMESTAMP) - INTERVAL '24 hours' \
                     THEN 1 END), 0) AS total_runs_24h \
              FROM collector_health \
              {machine_filter} \
@@ -4846,7 +4849,9 @@ mod tests {
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0]["machine_id"], "m1");
         assert_eq!(entries[0]["collector"], "sysmoni");
-        assert_eq!(entries[0]["success"], true);
+        // `success` is `INTEGER NOT NULL` (011_collector_health.sql), so it
+        // round-trips through JSON as 1/0, not as a JSON boolean.
+        assert_eq!(entries[0]["success"], 1);
     }
 
     #[test]
@@ -4913,7 +4918,8 @@ mod tests {
             .list_collector_health(None, Some("broken"), 10)
             .unwrap();
         assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0]["success"], false);
+        // `success` is `INTEGER NOT NULL` (011_collector_health.sql): 1/0, not a bool.
+        assert_eq!(entries[0]["success"], 0);
         assert_eq!(entries[0]["error_class"], "timeout");
     }
 
@@ -5407,7 +5413,15 @@ mod tests {
         assert_eq!(decisions.len(), 1);
         assert_eq!(decisions[0]["decision_type"], "account_switch");
         assert_eq!(decisions[0]["reason"], "Usage at 80%");
-        assert_eq!(decisions[0]["confidence"], 0.92);
+        // `confidence` is `REAL` (014_autopilot_decisions.sql), i.e. f32, so
+        // 0.92 does not survive the widening back to f64 exactly.
+        let confidence = decisions[0]["confidence"]
+            .as_f64()
+            .expect("confidence is numeric");
+        assert!(
+            (confidence - 0.92).abs() < 1e-6,
+            "confidence = {confidence}"
+        );
         assert_eq!(decisions[0]["executed"], true);
     }
 

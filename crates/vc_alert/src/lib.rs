@@ -661,7 +661,7 @@ impl AlertChannel for DesktopChannel {
         "desktop"
     }
 
-    async fn deliver(&self, _cx: &Cx, alert: &Alert) -> Result<(), AlertError> {
+    async fn deliver(&self, cx: &Cx, alert: &Alert) -> Result<(), AlertError> {
         if alert.severity < self.min_severity {
             return Ok(());
         }
@@ -680,7 +680,7 @@ impl AlertChannel for DesktopChannel {
             ProcessCommand::new("osascript")
                 .arg("-e")
                 .arg(&script)
-                .output_async()
+                .output_async(cx)
                 .await
                 .map_err(|e| AlertError::DeliveryFailed(format!("osascript failed: {e}")))?;
         }
@@ -696,11 +696,12 @@ impl AlertChannel for DesktopChannel {
                 })
                 .arg(&title)
                 .arg(body)
-                .output_async()
+                .output_async(cx)
                 .await
                 .map_err(|e| AlertError::DeliveryFailed(format!("notify-send failed: {e}")))?;
         }
 
+        let _ = cx;
         Ok(())
     }
 }

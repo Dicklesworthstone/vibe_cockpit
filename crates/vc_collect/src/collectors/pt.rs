@@ -233,7 +233,7 @@ impl Collector for PtCollector {
         crate::collect_checkpoint!(cx, "collect_start");
 
         // Check if pt is available
-        if !self.check_availability(ctx).await {
+        if !self.check_availability(cx, ctx).await {
             return asupersync::Outcome::Err(CollectError::ToolNotFound("pt".to_string()));
         }
 
@@ -252,7 +252,7 @@ impl Collector for PtCollector {
 
         // Run the command
         crate::collect_checkpoint!(cx, "pre_pt_list_command");
-        let output = match ctx.executor.run_timeout(&cmd, ctx.timeout).await {
+        let output = match ctx.executor.run_timeout(cx, &cmd, ctx.timeout).await {
             Ok(out) => out,
             Err(e) => {
                 warnings.push(Warning::warn(format!("pt list failed: {e}")));

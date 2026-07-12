@@ -169,7 +169,7 @@ impl Collector for CloudBenchCollector {
         crate::collect_checkpoint!(cx, "pre_cloud_bench_raw_command");
         let raw_result = ctx
             .executor
-            .run_timeout(&format!("curl -s -f '{raw_url}'"), ctx.timeout)
+            .run_timeout(cx, &format!("curl -s -f '{raw_url}'"), ctx.timeout)
             .await;
 
         let mut overall_score: Option<f64> = None;
@@ -244,7 +244,7 @@ impl Collector for CloudBenchCollector {
         crate::collect_checkpoint!(cx, "pre_cloud_bench_overall_command");
         let overall_result = ctx
             .executor
-            .run_timeout(&format!("curl -s -f '{overall_url}'"), ctx.timeout)
+            .run_timeout(cx, &format!("curl -s -f '{overall_url}'"), ctx.timeout)
             .await;
 
         if let Ok(output) = overall_result {
@@ -302,7 +302,7 @@ impl Collector for CloudBenchCollector {
                     format!("test -f {db_path} && sqlite3 {db_path} \"SELECT 1\" 2>/dev/null");
 
                 crate::collect_checkpoint!(cx, "pre_cloud_bench_sqlite_probe");
-                if let Ok(output) = ctx.executor.run_timeout(&check_cmd, ctx.timeout).await
+                if let Ok(output) = ctx.executor.run_timeout(cx, &check_cmd, ctx.timeout).await
                     && output.contains('1')
                 {
                     // Database exists and is readable
@@ -311,7 +311,8 @@ impl Collector for CloudBenchCollector {
                     );
 
                     crate::collect_checkpoint!(cx, "pre_cloud_bench_sqlite_query");
-                    if let Ok(json_output) = ctx.executor.run_timeout(&query_cmd, ctx.timeout).await
+                    if let Ok(json_output) =
+                        ctx.executor.run_timeout(cx, &query_cmd, ctx.timeout).await
                     {
                         crate::collect_checkpoint!(cx, "post_cloud_bench_sqlite_query_pre_parse");
                         if let Ok(rows) =

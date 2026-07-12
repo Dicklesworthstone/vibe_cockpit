@@ -240,7 +240,7 @@ impl Collector for ToolRequiringDummyCollector {
     async fn collect(&self, cx: &asupersync::Cx, ctx: &CollectContext) -> CollectOutcome {
         crate::collect_checkpoint!(cx, "collect_start");
         // Check tool availability first
-        if !self.check_availability(ctx).await {
+        if !self.check_availability(cx, ctx).await {
             return asupersync::Outcome::Err(CollectError::ToolNotFound(self.required.to_string()));
         }
 
@@ -400,7 +400,7 @@ impl Collector for RuCollector {
         crate::collect_checkpoint!(cx, "pre_ru_list_command");
         let list_result = ctx
             .executor
-            .run_timeout("ru list --json", ctx.timeout)
+            .run_timeout(cx, "ru list --json", ctx.timeout)
             .await;
 
         if let Ok(output) = list_result {
@@ -441,7 +441,7 @@ impl Collector for RuCollector {
         crate::collect_checkpoint!(cx, "pre_ru_status_command");
         let status_result = ctx
             .executor
-            .run_timeout("ru status --no-fetch --json", ctx.timeout)
+            .run_timeout(cx, "ru status --no-fetch --json", ctx.timeout)
             .await;
 
         match status_result {
@@ -580,21 +580,21 @@ impl Collector for FallbackProbeCollector {
         crate::collect_checkpoint!(cx, "collect_start");
 
         // Detect platform
-        let platform = Self::detect_platform(ctx).await;
+        let platform = Self::detect_platform(cx, ctx).await;
         crate::collect_checkpoint!(cx, "post_platform_detect");
 
         // Collect uptime and load averages
         let uptime_data =
-            Self::collect_uptime(ctx, &platform, &mut warnings, &mut raw_outputs).await;
+            Self::collect_uptime(cx, ctx, &platform, &mut warnings, &mut raw_outputs).await;
         crate::collect_checkpoint!(cx, "post_uptime_collect");
 
         // Collect memory stats
         let memory_data =
-            Self::collect_memory(ctx, &platform, &mut warnings, &mut raw_outputs).await;
+            Self::collect_memory(cx, ctx, &platform, &mut warnings, &mut raw_outputs).await;
         crate::collect_checkpoint!(cx, "post_memory_collect");
 
         // Collect disk usage
-        let disk_usage = Self::collect_disk_usage(ctx, &mut warnings, &mut raw_outputs).await;
+        let disk_usage = Self::collect_disk_usage(cx, ctx, &mut warnings, &mut raw_outputs).await;
         crate::collect_checkpoint!(cx, "post_disk_collect");
 
         // Build the row
@@ -635,8 +635,8 @@ impl Collector for FallbackProbeCollector {
 
 impl FallbackProbeCollector {
     /// Detect platform (linux or macos)
-    async fn detect_platform(ctx: &CollectContext) -> String {
-        let result = ctx.executor.run("uname -s", ctx.timeout).await;
+    async fn detect_platform(cx: &asupersync::Cx, ctx: &CollectContext) -> String {
+        let result = ctx.executor.run(cx, "uname -s", ctx.timeout).await;
         match result {
             Ok(output) if output.exit_code == 0 => {
                 let os = output.stdout.trim().to_lowercase();
@@ -652,6 +652,7 @@ impl FallbackProbeCollector {
 
     /// Collect uptime and load averages
     async fn collect_uptime(
+        cx: &asupersync::Cx,
         ctx: &CollectContext,
         platform: &str,
         warnings: &mut Vec<String>,
@@ -661,7 +662,7 @@ impl FallbackProbeCollector {
 
         // Try /proc/loadavg on Linux first (most reliable)
         if platform == "linux" {
-            if let Ok(output) = ctx.executor.run("cat /proc/loadavg", ctx.timeout).await
+            if let Ok(output) = ctx.executor.run(cx, "cat /proc/loadavg", ctx.timeout).await
                 && output.exit_code == 0
             {
                 raw_outputs.push(format!("/proc/loadavg:\n{}", output.stdout));
@@ -675,7 +676,7 @@ impl FallbackProbeCollector {
             }
 
             // Try /proc/uptime for uptime seconds
-            if let Ok(output) = ctx.executor.run("cat /proc/uptime", ctx.timeout).await
+            if let Ok(output) = ctx.executor.run(cx, "cat /proc/uptime", ctx.timeout).await
                 && output.exit_code == 0
             {
                 raw_outputs.push(format!("/proc/uptime:\n{}", output.stdout));
@@ -691,7 +692,7 @@ impl FallbackProbeCollector {
 
         // Fallback to uptime command (works on both platforms)
         if data.load1.is_none() {
-            if let Ok(output) = ctx.executor.run("uptime", ctx.timeout).await {
+            if let Ok(output) = ctx.executor.run(cx, "uptime", ctx.timeout).await {
                 if output.exit_code == 0 {
                     raw_outputs.push(format!("uptime:\n{}", output.stdout));
                     Self::parse_uptime_output(&output.stdout, &mut data);
@@ -791,6 +792,7 @@ impl FallbackProbeCollector {
 
     /// Collect memory statistics
     async fn collect_memory(
+        cx: &asupersync::Cx,
         ctx: &CollectContext,
         platform: &str,
         warnings: &mut Vec<String>,
@@ -799,7 +801,7 @@ impl FallbackProbeCollector {
         let mut data = MemoryData::default();
 
         if platform == "linux" {
-            if let Ok(output) = ctx.executor.run("cat /proc/meminfo", ctx.timeout).await
+            if let Ok(output) = ctx.executor.run(cx, "cat /proc/meminfo", ctx.timeout).await
                 && output.exit_code == 0
             {
                 raw_outputs.push(format!("/proc/meminfo:\n{}", output.stdout));
@@ -807,7 +809,7 @@ impl FallbackProbeCollector {
             }
 
             if data.mem_total_bytes.is_none()
-                && let Ok(output) = ctx.executor.run("free -b", ctx.timeout).await
+                && let Ok(output) = ctx.executor.run(cx, "free -b", ctx.timeout).await
             {
                 if output.exit_code == 0 {
                     raw_outputs.push(format!("free -b:\n{}", output.stdout));
@@ -818,7 +820,7 @@ impl FallbackProbeCollector {
             }
         } else {
             // macOS
-            if let Ok(output) = ctx.executor.run("sysctl hw.memsize", ctx.timeout).await
+            if let Ok(output) = ctx.executor.run(cx, "sysctl hw.memsize", ctx.timeout).await
                 && output.exit_code == 0
             {
                 raw_outputs.push(format!("sysctl hw.memsize:\n{}", output.stdout));
@@ -827,7 +829,7 @@ impl FallbackProbeCollector {
                 }
             }
 
-            if let Ok(output) = ctx.executor.run("vm_stat", ctx.timeout).await {
+            if let Ok(output) = ctx.executor.run(cx, "vm_stat", ctx.timeout).await {
                 if output.exit_code == 0 {
                     raw_outputs.push(format!("vm_stat:\n{}", output.stdout));
                     Self::parse_vm_stat(&output.stdout, &mut data);
@@ -924,13 +926,14 @@ impl FallbackProbeCollector {
 
     /// Collect disk usage
     async fn collect_disk_usage(
+        cx: &asupersync::Cx,
         ctx: &CollectContext,
         warnings: &mut Vec<String>,
         raw_outputs: &mut Vec<String>,
     ) -> Vec<DiskUsage> {
         let mut disks = Vec::new();
 
-        if let Ok(output) = ctx.executor.run("df -P", ctx.timeout).await {
+        if let Ok(output) = ctx.executor.run(cx, "df -P", ctx.timeout).await {
             if output.exit_code == 0 {
                 raw_outputs.push(format!("df -P:\n{}", output.stdout));
 

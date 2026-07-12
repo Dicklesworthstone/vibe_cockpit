@@ -27,4 +27,4 @@ reqwest.workspace = true
 futures.workspace = true
 proptest.workspace = true
 mockall.workspace = true
-asupersync.workspace = true
+asupersync = { workspace = true, features = ["test-internals"] }

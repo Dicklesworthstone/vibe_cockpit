@@ -605,11 +605,11 @@ pub trait Collector: Send + Sync {
     async fn collect(&self, cx: &asupersync::Cx, ctx: &CollectContext) -> CollectOutcome;
 
     /// Check if the required tool is available
-    async fn check_availability(&self, ctx: &CollectContext) -> bool {
+    async fn check_availability(&self, cx: &asupersync::Cx, ctx: &CollectContext) -> bool {
         match self.required_tool() {
             // check_tool returns Result<bool, _> where bool = tool exists
             // unwrap_or(false) returns false on error or if tool doesn't exist
-            Some(tool) => ctx.executor.check_tool(tool).await.unwrap_or(false),
+            Some(tool) => ctx.executor.check_tool(cx, tool).await.unwrap_or(false),
             None => true,
         }
     }
@@ -693,9 +693,10 @@ impl CollectorRegistry {
         registry.register(Arc::new(collectors::BeadsCollector));
         registry.register(Arc::new(collectors::GhCollector));
         registry.register(Arc::new(collectors::NtmCollector::new()));
+        registry.register(Arc::new(collectors::PtCollector::new()));
+        registry.register(Arc::new(collectors::AfscCollector::new()));
+        registry.register(Arc::new(collectors::CloudBenchCollector::new()));
 
-        // More collectors will be registered here as they're implemented
-        // etc.
         registry
     }
 }
@@ -763,6 +764,38 @@ mod tests {
         let registry = CollectorRegistry::with_builtins();
         assert!(!registry.is_empty());
         assert!(registry.get("dummy").is_some());
+    }
+
+    /// Every implemented collector must be reachable from `with_builtins`,
+    /// otherwise `vc collect --collector NAME` rejects it as unknown and the
+    /// daemon silently never runs it.
+    #[test]
+    fn test_collector_registry_registers_every_builtin() {
+        let registry = CollectorRegistry::with_builtins();
+        for name in [
+            "fallback_probe",
+            "dummy",
+            "ru",
+            "sysmoni",
+            "mcp_agent_mail",
+            "caut",
+            "cass",
+            "caam",
+            "rch",
+            "rano",
+            "dcg",
+            "beads",
+            "github",
+            "ntm",
+            "pt",
+            "afsc",
+            "cloud_benchmarker",
+        ] {
+            assert!(
+                registry.get(name).is_some(),
+                "collector `{name}` is implemented but not registered"
+            );
+        }
     }
 
     // Cursor tests

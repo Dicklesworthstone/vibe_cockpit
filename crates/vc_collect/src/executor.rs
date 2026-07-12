@@ -5,6 +5,7 @@
 //! and `SQLite` query support.
 
 use crate::CollectError;
+use asupersync::Cx;
 use asupersync::process::{Command, Stdio};
 use asupersync::time::wall_now;
 use chrono::{DateTime, Utc};
@@ -136,10 +137,10 @@ impl Executor {
     /// # Errors
     ///
     /// Returns [`CollectError`] only if command execution fails before producing output.
-    #[instrument(skip(self))]
-    pub async fn check_tool(&self, tool: &str) -> Result<bool, CollectError> {
+    #[instrument(skip(self, cx))]
+    pub async fn check_tool(&self, cx: &Cx, tool: &str) -> Result<bool, CollectError> {
         let cmd = format!("command -v {tool}");
-        match self.run(&cmd, Duration::from_secs(5)).await {
+        match self.run(cx, &cmd, Duration::from_secs(5)).await {
             Ok(output) => Ok(output.exit_code == 0),
             Err(_) => Ok(false),
         }
@@ -150,11 +151,16 @@ impl Executor {
     /// # Errors
     ///
     /// Returns [`CollectError`] when command execution fails or times out.
-    #[instrument(skip(self))]
-    pub async fn run(&self, cmd: &str, timeout: Duration) -> Result<CommandOutput, CollectError> {
+    #[instrument(skip(self, cx))]
+    pub async fn run(
+        &self,
+        cx: &Cx,
+        cmd: &str,
+        timeout: Duration,
+    ) -> Result<CommandOutput, CollectError> {
         let output = match &self.ssh_config {
-            None => self.run_local(cmd, timeout).await?,
-            Some(ssh) => self.run_remote(cmd, timeout, ssh).await?,
+            None => self.run_local(cx, cmd, timeout).await?,
+            Some(ssh) => self.run_remote(cx, cmd, timeout, ssh).await?,
         };
         Ok(output)
     }
@@ -164,8 +170,13 @@ impl Executor {
     /// # Errors
     ///
     /// Returns [`CollectError`] when execution fails, times out, or the command exits non-zero.
-    pub async fn run_timeout(&self, cmd: &str, timeout: Duration) -> Result<String, CollectError> {
-        let output = self.run(cmd, timeout).await?;
+    pub async fn run_timeout(
+        &self,
+        cx: &Cx,
+        cmd: &str,
+        timeout: Duration,
+    ) -> Result<String, CollectError> {
+        let output = self.run(cx, cmd, timeout).await?;
         if output.exit_code != 0 {
             return Err(CollectError::ExecutionError(format!(
                 "Command failed with exit code {}: {}",
@@ -180,10 +191,15 @@ impl Executor {
     /// # Errors
     ///
     /// Returns [`CollectError`] when the file cannot be read or is missing.
-    #[instrument(skip(self))]
-    pub async fn read_file(&self, path: &str, timeout: Duration) -> Result<Vec<u8>, CollectError> {
+    #[instrument(skip(self, cx))]
+    pub async fn read_file(
+        &self,
+        cx: &Cx,
+        path: &str,
+        timeout: Duration,
+    ) -> Result<Vec<u8>, CollectError> {
         let cmd = format!("cat {}", shell_escape(path));
-        let output = self.run(&cmd, timeout).await?;
+        let output = self.run(cx, &cmd, timeout).await?;
         if output.exit_code != 0 {
             if output.stderr.contains("No such file") {
                 return Err(CollectError::FileNotFound(path.to_string()));
@@ -198,9 +214,10 @@ impl Executor {
     /// # Errors
     ///
     /// Returns [`CollectError`] when the file cannot be read or is missing.
-    #[instrument(skip(self))]
+    #[instrument(skip(self, cx))]
     pub async fn read_file_range(
         &self,
+        cx: &Cx,
         path: &str,
         offset: u64,
         timeout: Duration,
@@ -208,7 +225,7 @@ impl Executor {
         // Use tail with byte offset
         // +1 because tail uses 1-based byte positions
         let cmd = format!("tail -c +{} {}", offset + 1, shell_escape(path));
-        let output = self.run(&cmd, timeout).await?;
+        let output = self.run(cx, &cmd, timeout).await?;
         if output.exit_code != 0 {
             if output.stderr.contains("No such file") {
                 return Err(CollectError::FileNotFound(path.to_string()));
@@ -223,8 +240,13 @@ impl Executor {
     /// # Errors
     ///
     /// Returns [`CollectError`] when stat output cannot be parsed or execution fails.
-    #[instrument(skip(self))]
-    pub async fn stat(&self, path: &str, timeout: Duration) -> Result<FileStat, CollectError> {
+    #[instrument(skip(self, cx))]
+    pub async fn stat(
+        &self,
+        cx: &Cx,
+        path: &str,
+        timeout: Duration,
+    ) -> Result<FileStat, CollectError> {
         // Use stat command with format for inode, size, mtime
         // Linux format: stat -c '%i %s %Y'
         // macOS format: stat -f '%i %z %m'
@@ -233,7 +255,7 @@ impl Executor {
             shell_escape(path),
             shell_escape(path)
         );
-        let output = self.run(&cmd, timeout).await?;
+        let output = self.run(cx, &cmd, timeout).await?;
 
         if output.exit_code != 0 || output.stdout.trim().is_empty() {
             // File doesn't exist or can't be statted
@@ -284,9 +306,10 @@ impl Executor {
     /// # Errors
     ///
     /// Returns [`CollectError`] when query execution fails or JSON output cannot be parsed.
-    #[instrument(skip(self))]
+    #[instrument(skip(self, cx))]
     pub async fn sqlite_query(
         &self,
+        cx: &Cx,
         db_path: &str,
         query: &str,
         timeout: Duration,
@@ -299,7 +322,7 @@ impl Executor {
             escaped_query
         );
 
-        let output = self.run(&cmd, timeout).await?;
+        let output = self.run(cx, &cmd, timeout).await?;
 
         if output.exit_code != 0 {
             return Err(CollectError::SqliteError(output.stderr));
@@ -321,12 +344,17 @@ impl Executor {
     /// # Errors
     ///
     /// Returns [`CollectError`] when request execution fails or exits non-zero.
-    #[instrument(skip(self))]
-    pub async fn http_get(&self, url: &str, timeout: Duration) -> Result<String, CollectError> {
+    #[instrument(skip(self, cx))]
+    pub async fn http_get(
+        &self,
+        cx: &Cx,
+        url: &str,
+        timeout: Duration,
+    ) -> Result<String, CollectError> {
         let timeout_secs = timeout.as_secs().max(1);
         let cmd = format!("curl -s --max-time {} {}", timeout_secs, shell_escape(url));
 
-        let output = self.run(&cmd, timeout).await?;
+        let output = self.run(cx, &cmd, timeout).await?;
 
         if output.exit_code != 0 {
             return Err(CollectError::HttpError(format!(
@@ -343,8 +371,13 @@ impl Executor {
     /// # Errors
     ///
     /// Returns [`CollectError`] when file stat cannot be retrieved.
-    pub async fn file_exists(&self, path: &str, timeout: Duration) -> Result<bool, CollectError> {
-        let stat = self.stat(path, timeout).await?;
+    pub async fn file_exists(
+        &self,
+        cx: &Cx,
+        path: &str,
+        timeout: Duration,
+    ) -> Result<bool, CollectError> {
+        let stat = self.stat(cx, path, timeout).await?;
         Ok(stat.exists)
     }
 
@@ -353,15 +386,25 @@ impl Executor {
     /// # Errors
     ///
     /// Returns [`CollectError`] when file stat fails or the file does not exist.
-    pub async fn file_size(&self, path: &str, timeout: Duration) -> Result<u64, CollectError> {
-        let stat = self.stat(path, timeout).await?;
+    pub async fn file_size(
+        &self,
+        cx: &Cx,
+        path: &str,
+        timeout: Duration,
+    ) -> Result<u64, CollectError> {
+        let stat = self.stat(cx, path, timeout).await?;
         if !stat.exists {
             return Err(CollectError::FileNotFound(path.to_string()));
         }
         Ok(stat.size)
     }
 
-    async fn run_local(&self, cmd: &str, timeout: Duration) -> Result<CommandOutput, CollectError> {
+    async fn run_local(
+        &self,
+        cx: &Cx,
+        cmd: &str,
+        timeout: Duration,
+    ) -> Result<CommandOutput, CollectError> {
         debug!(cmd = %cmd, "Running local command");
 
         let child = Command::new("sh")
@@ -374,7 +417,7 @@ impl Executor {
             .map_err(|e| CollectError::ExecutionError(e.to_string()))?;
 
         let result =
-            asupersync::time::timeout(wall_now(), timeout, child.wait_with_output_async()).await;
+            asupersync::time::timeout(wall_now(), timeout, child.wait_with_output_async(cx)).await;
 
         match result {
             Ok(Ok(output)) => Ok(CommandOutput {
@@ -389,6 +432,7 @@ impl Executor {
 
     async fn run_remote(
         &self,
+        cx: &Cx,
         cmd: &str,
         timeout: Duration,
         ssh: &SshConfig,
@@ -429,7 +473,7 @@ impl Executor {
             .map_err(|e| CollectError::ExecutionError(e.to_string()))?;
 
         let result =
-            asupersync::time::timeout(wall_now(), timeout, child.wait_with_output_async()).await;
+            asupersync::time::timeout(wall_now(), timeout, child.wait_with_output_async(cx)).await;
 
         match result {
             Ok(Ok(output)) => Ok(CommandOutput {
@@ -455,14 +499,22 @@ mod tests {
     use std::io::Write;
     use tempfile::NamedTempFile;
 
+    /// The ambient context installed by `Runtime::block_on` inside
+    /// `run_async_test`. Spawning a process needs the runtime's drivers, so a
+    /// detached `Cx::for_testing()` would not do here.
+    fn ambient_cx() -> Cx {
+        Cx::current().expect("run_async_test installs an ambient Cx via block_on")
+    }
+
     #[test]
     fn test_local_executor() {
         crate::run_async_test(async {
+            let cx = ambient_cx();
             let executor = Executor::local();
             assert!(executor.is_local());
 
             let output = executor
-                .run("echo hello", Duration::from_secs(5))
+                .run(&cx, "echo hello", Duration::from_secs(5))
                 .await
                 .unwrap();
             assert_eq!(output.exit_code, 0);
@@ -474,11 +526,15 @@ mod tests {
     #[test]
     fn test_check_tool() {
         crate::run_async_test(async {
+            let cx = ambient_cx();
             let executor = Executor::local();
-            let has_sh = executor.check_tool("sh").await.unwrap();
+            let has_sh = executor.check_tool(&cx, "sh").await.unwrap();
             assert!(has_sh);
 
-            let has_nonexistent = executor.check_tool("nonexistent_tool_xyz").await.unwrap();
+            let has_nonexistent = executor
+                .check_tool(&cx, "nonexistent_tool_xyz")
+                .await
+                .unwrap();
             assert!(!has_nonexistent);
         });
     }
@@ -486,9 +542,10 @@ mod tests {
     #[test]
     fn test_run_timeout_success() {
         crate::run_async_test(async {
+            let cx = ambient_cx();
             let executor = Executor::local();
             let stdout = executor
-                .run_timeout("echo success", Duration::from_secs(5))
+                .run_timeout(&cx, "echo success", Duration::from_secs(5))
                 .await
                 .unwrap();
             assert_eq!(stdout.trim(), "success");
@@ -498,8 +555,11 @@ mod tests {
     #[test]
     fn test_run_timeout_failure() {
         crate::run_async_test(async {
+            let cx = ambient_cx();
             let executor = Executor::local();
-            let result = executor.run_timeout("exit 1", Duration::from_secs(5)).await;
+            let result = executor
+                .run_timeout(&cx, "exit 1", Duration::from_secs(5))
+                .await;
             assert!(result.is_err());
         });
     }
@@ -507,12 +567,13 @@ mod tests {
     #[test]
     fn test_read_file() {
         crate::run_async_test(async {
+            let cx = ambient_cx();
             let mut temp = NamedTempFile::new().unwrap();
             writeln!(temp, "test content").unwrap();
 
             let executor = Executor::local();
             let content = executor
-                .read_file(temp.path().to_str().unwrap(), Duration::from_secs(5))
+                .read_file(&cx, temp.path().to_str().unwrap(), Duration::from_secs(5))
                 .await
                 .unwrap();
 
@@ -523,9 +584,10 @@ mod tests {
     #[test]
     fn test_read_file_not_found() {
         crate::run_async_test(async {
+            let cx = ambient_cx();
             let executor = Executor::local();
             let result = executor
-                .read_file("/nonexistent/path/to/file", Duration::from_secs(5))
+                .read_file(&cx, "/nonexistent/path/to/file", Duration::from_secs(5))
                 .await;
             assert!(matches!(result, Err(CollectError::FileNotFound(_))));
         });
@@ -534,12 +596,18 @@ mod tests {
     #[test]
     fn test_read_file_range() {
         crate::run_async_test(async {
+            let cx = ambient_cx();
             let mut temp = NamedTempFile::new().unwrap();
             write!(temp, "0123456789").unwrap();
 
             let executor = Executor::local();
             let content = executor
-                .read_file_range(temp.path().to_str().unwrap(), 5, Duration::from_secs(5))
+                .read_file_range(
+                    &cx,
+                    temp.path().to_str().unwrap(),
+                    5,
+                    Duration::from_secs(5),
+                )
                 .await
                 .unwrap();
 
@@ -550,11 +618,12 @@ mod tests {
     #[test]
     fn test_stat_existing_file() {
         crate::run_async_test(async {
+            let cx = ambient_cx();
             let temp = NamedTempFile::new().unwrap();
 
             let executor = Executor::local();
             let stat = executor
-                .stat(temp.path().to_str().unwrap(), Duration::from_secs(5))
+                .stat(&cx, temp.path().to_str().unwrap(), Duration::from_secs(5))
                 .await
                 .unwrap();
 
@@ -566,9 +635,10 @@ mod tests {
     #[test]
     fn test_stat_nonexistent_file() {
         crate::run_async_test(async {
+            let cx = ambient_cx();
             let executor = Executor::local();
             let stat = executor
-                .stat("/nonexistent/path/to/file", Duration::from_secs(5))
+                .stat(&cx, "/nonexistent/path/to/file", Duration::from_secs(5))
                 .await
                 .unwrap();
 
@@ -579,17 +649,18 @@ mod tests {
     #[test]
     fn test_file_exists() {
         crate::run_async_test(async {
+            let cx = ambient_cx();
             let temp = NamedTempFile::new().unwrap();
             let executor = Executor::local();
 
             let exists = executor
-                .file_exists(temp.path().to_str().unwrap(), Duration::from_secs(5))
+                .file_exists(&cx, temp.path().to_str().unwrap(), Duration::from_secs(5))
                 .await
                 .unwrap();
             assert!(exists);
 
             let not_exists = executor
-                .file_exists("/nonexistent/path", Duration::from_secs(5))
+                .file_exists(&cx, "/nonexistent/path", Duration::from_secs(5))
                 .await
                 .unwrap();
             assert!(!not_exists);
@@ -599,12 +670,13 @@ mod tests {
     #[test]
     fn test_file_size() {
         crate::run_async_test(async {
+            let cx = ambient_cx();
             let mut temp = NamedTempFile::new().unwrap();
             write!(temp, "hello").unwrap();
 
             let executor = Executor::local();
             let size = executor
-                .file_size(temp.path().to_str().unwrap(), Duration::from_secs(5))
+                .file_size(&cx, temp.path().to_str().unwrap(), Duration::from_secs(5))
                 .await
                 .unwrap();
 
