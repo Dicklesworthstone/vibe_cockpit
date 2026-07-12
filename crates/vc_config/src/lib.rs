@@ -1419,12 +1419,12 @@ enabled = true
 
     #[test]
     fn test_collectors_parse_beads_alias_and_new_fields() {
-        let toml_src = r#"
+        let toml_src = r"
 [collectors]
 fallback_probe = false
 beads = false
 github = true
-"#;
+";
         let config: VcConfig = toml::from_str(toml_src).unwrap();
         assert!(!config.collectors.fallback_probe);
         // `beads` is an alias for the `bv_br` field.

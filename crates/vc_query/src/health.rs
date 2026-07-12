@@ -173,6 +173,10 @@ impl QueryBuilder<'_> {
     /// # Errors
     ///
     /// Returns [`QueryError`] if any underlying store query fails.
+    // Seven factors, each read from a different table and classified the same
+    // way. Splitting it would scatter one linear computation across seven
+    // one-caller helpers without making any of it easier to follow.
+    #[allow(clippy::too_many_lines)]
     pub fn compute_health_factors(
         &self,
         machine_id: &str,
@@ -603,8 +607,8 @@ mod tests {
         assert!(factor(&factors, "sys_cpu").is_some());
         assert!(factor(&factors, "process_health").is_some());
 
-        let score = crate::compute_overall_score(&factors);
-        assert!((score - 1.0).abs() < f64::EPSILON, "score was {score}");
+        let overall = crate::compute_overall_score(&factors);
+        assert!((overall - 1.0).abs() < f64::EPSILON, "score was {overall}");
     }
 
     #[test]
@@ -653,8 +657,8 @@ mod tests {
             Severity::Critical
         );
 
-        let score = crate::compute_overall_score(&factors);
-        assert!(score < 0.3, "expected a bad score, got {score}");
+        let overall = crate::compute_overall_score(&factors);
+        assert!(overall < 0.3, "expected a bad score, got {overall}");
     }
 
     #[test]
@@ -751,9 +755,9 @@ mod tests {
             .unwrap();
 
         let qb = QueryBuilder::new(&store);
-        let score = qb.compute_and_persist_health("m1").unwrap();
-        assert_eq!(score.machine_id, "m1");
-        assert!(!score.factors.is_empty());
+        let computed = qb.compute_and_persist_health("m1").unwrap();
+        assert_eq!(computed.machine_id, "m1");
+        assert!(!computed.factors.is_empty());
 
         // health_summary and health_factors are no longer empty.
         let summaries = qb.list_health_summaries().unwrap();
@@ -762,8 +766,8 @@ mod tests {
 
         // machine_health reads back what we just wrote.
         let health = qb.machine_health("m1").unwrap();
-        assert!((health.overall_score - score.overall_score).abs() < 1e-9);
-        assert_eq!(health.factors.len(), score.factors.len());
+        assert!((health.overall_score - computed.overall_score).abs() < 1e-9);
+        assert_eq!(health.factors.len(), computed.factors.len());
         assert!(health.worst_factor.is_some());
 
         let cpu = factor(&health.factors, "sys_cpu").unwrap();

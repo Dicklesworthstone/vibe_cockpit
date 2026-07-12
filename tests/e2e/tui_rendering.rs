@@ -123,22 +123,31 @@ fn apply_cmd(app: &mut App, cmd: Cmd<AppMessage>) {
     }
 }
 
+/// The string that proves a screen rendered what it is supposed to render.
+///
+/// Screens with no backing query deliberately render `NO DATA SOURCE YET`
+/// rather than a dashboard, so that is what we assert for them. Their old
+/// markers ("Repository status and sync state" and friends) only ever appeared
+/// because the screen drew a frame that nothing populated — asserting on them
+/// again would be asserting on the very thing we removed.
 fn expected_marker(screen: Screen) -> &'static str {
     match screen {
         Screen::Overview => "Disk trending high",
         Screen::Machines => "orko",
-        Screen::Repos => "Repository status and sync state",
-        Screen::Accounts => "max-5",
         Screen::Sessions => "CobaltTurtle",
-        Screen::Mail => "BeigeMink",
         Screen::Alerts => "High CPU usage",
-        Screen::Guardian => "with-approval",
-        Screen::Oracle => "Backup: max-6",
         Screen::Events => "rm -rf target",
-        Screen::Beads => "Ready: 9",
-        Screen::Rch => "vmi1152480",
         Screen::Settings => "/etc/vibe_cockpit/vibe.toml",
         Screen::Help => "Keyboard shortcuts:",
+
+        // No backing query yet — see `Screen::has_data_source`.
+        Screen::Repos
+        | Screen::Accounts
+        | Screen::Mail
+        | Screen::Guardian
+        | Screen::Oracle
+        | Screen::Beads
+        | Screen::Rch => "NO DATA SOURCE YET",
     }
 }
 
