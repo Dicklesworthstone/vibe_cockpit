@@ -2046,10 +2046,10 @@ impl Cli {
                         let qb = vc_query::QueryBuilder::new(&store);
 
                         if let Some(machine_id) = &machine {
-                            let score = qb.machine_health(machine_id).map_err(|e| {
+                            let health = qb.machine_health(machine_id).map_err(|e| {
                                 CliError::CommandFailed(format!("Failed to get health score: {e}"))
                             })?;
-                            print_output(&score, self.format);
+                            print_output(&health, self.format);
                         } else {
                             let summaries = qb.list_health_summaries().map_err(|e| {
                                 CliError::CommandFailed(format!(
@@ -4433,7 +4433,7 @@ async fn run_mcp_server(
     let shutdown_requested = Arc::new(AtomicBool::new(false));
     let worker_shutdown = Arc::clone(&shutdown_requested);
     let join_handle =
-        tokio::task::spawn_blocking(move || server.run_stdio_with_shutdown(worker_shutdown));
+        tokio::task::spawn_blocking(move || server.run_stdio_with_shutdown(&worker_shutdown));
     let join_handle = Box::pin(join_handle);
     let shutdown_wait = Box::pin(shutdown.wait());
 

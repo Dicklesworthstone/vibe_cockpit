@@ -734,10 +734,7 @@ impl McpServer {
     ///
     /// Returns an error when reading input, parsing/serializing JSON, or
     /// writing output fails.
-    pub fn run_stdio_with_shutdown(
-        &self,
-        shutdown_requested: Arc<AtomicBool>,
-    ) -> Result<(), McpError> {
+    pub fn run_stdio_with_shutdown(&self, shutdown_requested: &AtomicBool) -> Result<(), McpError> {
         use std::io::BufRead;
 
         let (sender, receiver) = mpsc::channel::<Result<String, std::io::Error>>();
@@ -755,12 +752,12 @@ impl McpServer {
         let stdout = std::io::stdout();
         let mut writer = stdout.lock();
 
-        self.run_received_lines_with_shutdown(receiver, &mut writer, &shutdown_requested)
+        self.run_received_lines_with_shutdown(&receiver, &mut writer, shutdown_requested)
     }
 
     fn run_received_lines_with_shutdown<W: std::io::Write>(
         &self,
-        receiver: mpsc::Receiver<Result<String, std::io::Error>>,
+        receiver: &mpsc::Receiver<Result<String, std::io::Error>>,
         writer: &mut W,
         shutdown_requested: &AtomicBool,
     ) -> Result<(), McpError> {
@@ -772,7 +769,7 @@ impl McpServer {
             match receiver.recv_timeout(Duration::from_millis(50)) {
                 Ok(Ok(line)) => self.write_response_for_line(&line, writer)?,
                 Ok(Err(err)) => return Err(McpError::IoError(err)),
-                Err(mpsc::RecvTimeoutError::Timeout) => continue,
+                Err(mpsc::RecvTimeoutError::Timeout) => (),
                 Err(mpsc::RecvTimeoutError::Disconnected) => break,
             }
         }
@@ -841,7 +838,7 @@ mod tests {
         drop(sender);
 
         server
-            .run_received_lines_with_shutdown(receiver, &mut writer, &shutdown_requested)
+            .run_received_lines_with_shutdown(&receiver, &mut writer, &shutdown_requested)
             .unwrap();
 
         let output = String::from_utf8(writer.into_inner()).unwrap();
@@ -857,7 +854,7 @@ mod tests {
         let mut writer = Cursor::new(Vec::new());
 
         server
-            .run_received_lines_with_shutdown(receiver, &mut writer, &shutdown_requested)
+            .run_received_lines_with_shutdown(&receiver, &mut writer, &shutdown_requested)
             .unwrap();
 
         assert!(writer.into_inner().is_empty());

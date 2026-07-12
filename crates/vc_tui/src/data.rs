@@ -2,7 +2,7 @@
 //!
 //! Every loader in this module runs on a background thread (via `ftui::Cmd::task`)
 //! and returns a fully-populated screen struct built from rows that are actually
-//! present in the DuckDB store. Nothing here invents values: when a column is
+//! present in the `DuckDB` store. Nothing here invents values: when a column is
 //! absent or NULL the corresponding field is left empty/`None`.
 //!
 //! Screens without a loader here have no backing query in `vc_query`/`vc_store`
@@ -492,6 +492,10 @@ pub fn load_sessions(store: &VcStore) -> Result<SessionsData, TuiError> {
 /// # Errors
 ///
 /// Returns [`TuiError`] if any underlying query fails.
+// Three independent event sources (dcg_events, net_events, process_triage) each
+// get their own query and row mapping, then merge into one screen. Splitting it
+// would produce three private helpers with one caller apiece.
+#[allow(clippy::too_many_lines)]
 pub fn load_events(store: &VcStore) -> Result<EventsData, TuiError> {
     let now = Utc::now();
 

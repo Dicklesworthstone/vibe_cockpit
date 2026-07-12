@@ -93,9 +93,11 @@ impl Oracle {
     /// # Errors
     ///
     /// Returns [`OracleError`] when forecasting fails.
-    #[allow(clippy::unused_async)]
+    // Nothing to await yet: the `predictions` table has no writer, so this
+    // returns empty rather than fabricating a forecast. The signature stays
+    // async because the real implementation will query the store.
+    #[allow(clippy::unused_async, clippy::unused_async_trait_impl)]
     pub async fn forecast_rate_limits(&self) -> Result<Vec<RateLimitForecast>, OracleError> {
-        // Placeholder implementation
         Ok(vec![])
     }
 

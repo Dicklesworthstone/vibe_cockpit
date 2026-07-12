@@ -658,8 +658,8 @@ fn load_health_scores(store: &VcStore) -> Result<HashMap<String, (f64, Option<St
         .iter()
         .filter_map(|row| {
             let machine_id = row_str(row, "machine_id")?;
-            let score = row_f64(row, "overall_score")?;
-            Some((machine_id, (score, row_str(row, "worst_factor_id"))))
+            let overall = row_f64(row, "overall_score")?;
+            Some((machine_id, (overall, row_str(row, "worst_factor_id"))))
         })
         .collect())
 }
@@ -976,12 +976,12 @@ pub fn robot_health(store: &VcStore) -> Result<RobotEnvelope<HealthData>, CliErr
         .iter()
         .map(|machine| {
             let scored = health_scores.get(&machine.id);
-            let score = scored.map(|(score, _)| *score);
+            let overall = scored.map(|(value, _)| *value);
             let top_issue = scored.and_then(|(_, worst)| worst.clone());
             // A machine the registry calls online but whose score has fallen is
             // degraded, not healthy.
-            let status = match (machine.status.as_str(), score) {
-                ("online", Some(score)) if score < 0.8 => "degraded".to_string(),
+            let status = match (machine.status.as_str(), overall) {
+                ("online", Some(value)) if value < 0.8 => "degraded".to_string(),
                 _ => machine.status.clone(),
             };
             let machine_metrics = metrics.get(&machine.id);
@@ -989,7 +989,7 @@ pub fn robot_health(store: &VcStore) -> Result<RobotEnvelope<HealthData>, CliErr
             MachineHealth {
                 id: machine.id.clone(),
                 name: machine.name.clone(),
-                score,
+                score: overall,
                 status,
                 top_issue,
                 last_seen: machine.last_seen,
@@ -1089,7 +1089,7 @@ pub fn robot_triage(store: &VcStore) -> Result<RobotEnvelope<TriageData>, CliErr
 
     // 2. Machines that are offline or scoring badly.
     for machine in &machines {
-        let score = health_scores.get(&machine.id).map(|(score, _)| *score);
+        let overall = health_scores.get(&machine.id).map(|(value, _)| *value);
         let worst = health_scores
             .get(&machine.id)
             .and_then(|(_, worst)| worst.clone());
@@ -1111,20 +1111,20 @@ pub fn robot_triage(store: &VcStore) -> Result<RobotEnvelope<TriageData>, CliErr
                 reason: "Machine is marked offline in the registry".to_string(),
                 confidence: 0.8,
             });
-        } else if let Some(score) = score {
-            if score < 0.8 {
-                recommendations.push(Recommendation {
-                    id: format!("machine-degraded-{}", machine.id),
-                    priority: if score < 0.5 { 1 } else { 2 },
-                    title: format!("Machine {} health is {:.2}", machine.name, score),
-                    description: match worst {
-                        Some(ref factor) => format!("Worst health factor: {factor}"),
-                        None => "Health summary is below the healthy threshold".to_string(),
-                    },
-                    scope: machine.id.clone(),
-                    action: format!("Inspect with `vc status --machine {}`", machine.id),
-                });
-            }
+        } else if let Some(value) = overall
+            && value < 0.8
+        {
+            recommendations.push(Recommendation {
+                id: format!("machine-degraded-{}", machine.id),
+                priority: if value < 0.5 { 1 } else { 2 },
+                title: format!("Machine {} health is {:.2}", machine.name, value),
+                description: match worst {
+                    Some(ref factor) => format!("Worst health factor: {factor}"),
+                    None => "Health summary is below the healthy threshold".to_string(),
+                },
+                scope: machine.id.clone(),
+                action: format!("Inspect with `vc status --machine {}`", machine.id),
+            });
         }
     }
 
@@ -1301,9 +1301,9 @@ pub fn robot_status(store: &VcStore) -> Result<RobotEnvelope<StatusData>, CliErr
         .iter()
         .map(|machine| {
             let scored = health_scores.get(&machine.id);
-            let health_score = scored.map(|(score, _)| *score);
+            let health_score = scored.map(|(value, _)| *value);
             let status = match (machine.status.as_str(), health_score) {
-                ("online", Some(score)) if score < 0.8 => "degraded".to_string(),
+                ("online", Some(value)) if value < 0.8 => "degraded".to_string(),
                 _ => machine.status.clone(),
             };
 

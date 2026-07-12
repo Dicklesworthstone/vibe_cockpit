@@ -276,8 +276,7 @@ pub async fn auth_middleware(
     let client_ip = request
         .extensions()
         .get::<ConnectInfo<SocketAddr>>()
-        .map(|info| info.ip().to_string())
-        .unwrap_or_else(|| "unknown".to_string());
+        .map_or_else(|| "unknown".to_string(), |info| info.ip().to_string());
 
     let result = authenticate(&state.config, request.headers(), &client_ip);
 

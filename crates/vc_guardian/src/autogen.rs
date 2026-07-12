@@ -321,6 +321,9 @@ impl PatternRecognizer {
                             has_switch = true;
                         }
                     }
+                    // Not collapsible into a match guard: `insert` needs a
+                    // mutable borrow of `seen_restarts`, which a guard cannot take.
+                    #[allow(clippy::collapsible_match)]
                     CapturedAction::ServiceRestart { name } => {
                         if seen_restarts.insert(name.clone()) {
                             *restart_counts.entry(name.clone()).or_insert(0) += 1;
@@ -587,13 +590,13 @@ pub fn validate_draft(draft: &PlaybookDraft) -> ValidationResult {
 
     // Check for dangerous commands
     for step in &draft.steps {
-        if let PlaybookStep::Command { cmd, args, .. } = step {
-            if is_dangerous_command(cmd, args) {
-                issues.push(ValidationIssue::DangerousCommand {
-                    cmd: format!("{} {}", cmd, args.join(" ")),
-                    reason: "Command contains potentially destructive operations".to_string(),
-                });
-            }
+        if let PlaybookStep::Command { cmd, args, .. } = step
+            && is_dangerous_command(cmd, args)
+        {
+            issues.push(ValidationIssue::DangerousCommand {
+                cmd: format!("{} {}", cmd, args.join(" ")),
+                reason: "Command contains potentially destructive operations".to_string(),
+            });
         }
     }
 
