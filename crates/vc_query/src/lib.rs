@@ -548,7 +548,7 @@ mod tests {
     // Severity tests
     #[test]
     fn test_severity_ordering() {
-        assert!(Severity::Critical != Severity::Healthy);
+        assert_ne!(Severity::Critical, Severity::Healthy);
     }
 
     #[test]

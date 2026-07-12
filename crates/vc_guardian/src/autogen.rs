@@ -147,6 +147,12 @@ impl ActionCapture {
     }
 
     /// Record a resolution (actions taken to resolve an alert)
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GuardianError::ExecutionFailed`] if `actions` cannot be
+    /// serialized to JSON, or [`GuardianError::StoreError`] if the resolution
+    /// row cannot be inserted.
     pub fn capture(
         &self,
         alert_type: &str,
@@ -176,6 +182,11 @@ impl ActionCapture {
     }
 
     /// Get count of successful resolutions for an alert type
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GuardianError::StoreError`] if the count query against the
+    /// store fails.
     pub fn success_count(&self, alert_type: &str) -> Result<i64, GuardianError> {
         self.store
             .count_resolutions_by_type(alert_type, "success")
@@ -209,6 +220,15 @@ impl PatternRecognizer {
     }
 
     /// Find patterns for a specific alert type
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GuardianError::StoreError`] if the successful resolutions for
+    /// `alert_type` cannot be read from the store.
+    // `confidence` divides two collection lengths that are both bounded by the
+    // 50-row query limit below, so neither `usize` can reach the 2^53 mark where
+    // an `f64` starts losing integer precision.
+    #[allow(clippy::cast_precision_loss)]
     pub fn find_patterns(&self, alert_type: &str) -> Result<Vec<ResolutionPattern>, GuardianError> {
         let resolutions = self
             .store
@@ -235,7 +255,7 @@ impl PatternRecognizer {
         }
 
         // Find common action types across sequences
-        let common_steps = self.extract_common_steps(&action_sequences);
+        let common_steps = Self::extract_common_steps(&action_sequences);
         if common_steps.is_empty() {
             return Ok(vec![]);
         }
@@ -255,6 +275,11 @@ impl PatternRecognizer {
     }
 
     /// Find patterns across all alert types
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GuardianError::StoreError`] if the distinct alert types cannot
+    /// be listed, and propagates any error from [`Self::find_patterns`].
     pub fn find_all_patterns(&self) -> Result<Vec<ResolutionPattern>, GuardianError> {
         let alert_types = self
             .store
@@ -270,7 +295,7 @@ impl PatternRecognizer {
     }
 
     /// Extract common steps from multiple action sequences
-    fn extract_common_steps(&self, sequences: &[Vec<CapturedAction>]) -> Vec<PatternStep> {
+    fn extract_common_steps(sequences: &[Vec<CapturedAction>]) -> Vec<PatternStep> {
         // Count action type occurrences
         let mut command_counts: std::collections::HashMap<String, usize> =
             std::collections::HashMap::new();
@@ -313,7 +338,7 @@ impl PatternRecognizer {
         for (cmd, count) in &command_counts {
             if *count > threshold {
                 // Find the most common args for this command
-                let args = self.most_common_args(sequences, cmd);
+                let args = Self::most_common_args(sequences, cmd);
                 steps.push(PatternStep::Command {
                     cmd: cmd.clone(),
                     args,
@@ -339,7 +364,7 @@ impl PatternRecognizer {
     }
 
     /// Find most common args for a command across sequences
-    fn most_common_args(&self, sequences: &[Vec<CapturedAction>], cmd: &str) -> Vec<String> {
+    fn most_common_args(sequences: &[Vec<CapturedAction>], cmd: &str) -> Vec<String> {
         let mut arg_counts: std::collections::HashMap<Vec<String>, usize> =
             std::collections::HashMap::new();
 
@@ -397,7 +422,7 @@ impl PlaybookGenerator {
     /// Generate a playbook draft from a pattern
     #[must_use]
     pub fn generate_from_pattern(&self, pattern: &ResolutionPattern) -> PlaybookDraft {
-        let steps = self.pattern_to_playbook_steps(&pattern.common_steps);
+        let steps = Self::pattern_to_playbook_steps(&pattern.common_steps);
         let draft_id = format!(
             "auto-{}-{}",
             pattern.alert_type,
@@ -425,6 +450,11 @@ impl PlaybookGenerator {
     }
 
     /// Generate playbook drafts for all patterns that meet thresholds
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GuardianError::StoreError`] if a generated draft cannot be
+    /// persisted to the store.
     pub fn generate_all(
         &self,
         patterns: &[ResolutionPattern],
@@ -455,7 +485,7 @@ impl PlaybookGenerator {
                     &trigger_json,
                     &steps_json,
                     draft.confidence,
-                    draft.sample_count as i32,
+                    i32::try_from(draft.sample_count).unwrap_or(i32::MAX),
                     pattern_json.as_deref(),
                 )
                 .map_err(GuardianError::StoreError)?;
@@ -467,7 +497,7 @@ impl PlaybookGenerator {
     }
 
     /// Convert pattern steps to playbook steps
-    fn pattern_to_playbook_steps(&self, pattern_steps: &[PatternStep]) -> Vec<PlaybookStep> {
+    fn pattern_to_playbook_steps(pattern_steps: &[PatternStep]) -> Vec<PlaybookStep> {
         let mut steps = vec![PlaybookStep::Log {
             message: "Auto-generated playbook starting".to_string(),
         }];
@@ -555,7 +585,7 @@ pub fn validate_draft(draft: &PlaybookDraft) -> ValidationResult {
         issues.push(ValidationIssue::EmptySteps);
     }
 
-    /// Check for dangerous commands
+    // Check for dangerous commands
     for step in &draft.steps {
         if let PlaybookStep::Command { cmd, args, .. } = step {
             if is_dangerous_command(cmd, args) {
@@ -623,6 +653,12 @@ pub fn is_dangerous_command(cmd: &str, args: &[String]) -> bool {
 // ============================================================================
 
 /// Run the full auto-generation pipeline
+///
+/// # Errors
+///
+/// Propagates any [`GuardianError`] raised while mining resolution patterns
+/// ([`PatternRecognizer::find_all_patterns`]) or while generating and storing
+/// the resulting drafts ([`PlaybookGenerator::generate_all`]).
 pub fn run_pipeline(
     store: Arc<VcStore>,
     min_samples: usize,
@@ -954,7 +990,7 @@ mod tests {
         let draft = generator.generate_from_pattern(&pattern);
         assert!(draft.draft_id.starts_with("auto-rate-limit-"));
         assert!(draft.name.contains("Auto:"));
-        assert_eq!(draft.confidence, 0.85);
+        assert!((draft.confidence - 0.85).abs() < f64::EPSILON);
         // Log + 2 pattern steps + Notify = 4
         assert_eq!(draft.steps.len(), 4);
         assert_eq!(draft.status, DraftStatus::PendingReview);

@@ -1273,7 +1273,11 @@ impl VcStore {
     /// # Panics
     ///
     /// Panics if the internal database mutex is poisoned.
-    pub fn has_open_alert(&self, rule_id: &str, machine_id: Option<&str>) -> Result<bool, StoreError> {
+    pub fn has_open_alert(
+        &self,
+        rule_id: &str,
+        machine_id: Option<&str>,
+    ) -> Result<bool, StoreError> {
         let conn = self.conn.lock().unwrap();
         let count: i64 = match machine_id {
             Some(machine) => conn.query_row(

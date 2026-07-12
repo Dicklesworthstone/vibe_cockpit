@@ -1,10 +1,10 @@
 Vibe Cockpit | Repositories                                                                                             
                                                                                                                         
-Repository status and sync state                                                                                        
+NO DATA SOURCE YET                                                                                                      
+Repo status lives in `repo_status_snapshots`, but this screen has no renderer or query yet. (The Overview repo panel doe
+Nothing is fetched for this screen, so nothing is shown. Live screens: 1 Overview, 2 Machines, 5 Sessions, 7 Alerts, 0 E
                                                                                                                         
 Error: collector stale: rano                                                                                            
-                                                                                                                        
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

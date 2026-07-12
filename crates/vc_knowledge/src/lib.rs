@@ -727,7 +727,7 @@ impl KnowledgeBase {
     /// # Errors
     ///
     /// Returns an error when a persistent backend is configured and write fails.
-    pub fn record_solution(&self, _solution: Solution) -> Result<(), KnowledgeError> {
+    pub fn record_solution(&self, _solution: &Solution) -> Result<(), KnowledgeError> {
         Ok(())
     }
 }

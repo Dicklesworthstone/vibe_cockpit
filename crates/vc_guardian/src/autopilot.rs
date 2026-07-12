@@ -605,8 +605,8 @@ mod tests {
     #[test]
     fn test_evaluate_costs_under_budget() {
         let analysis = evaluate_costs(10.0, Some(50.0), &[]);
-        assert_eq!(analysis.daily_cost, 10.0);
-        assert_eq!(analysis.projected_monthly, 300.0);
+        assert!((analysis.daily_cost - 10.0).abs() < f64::EPSILON);
+        assert!((analysis.projected_monthly - 300.0).abs() < f64::EPSILON);
         assert_eq!(analysis.budget_remaining, Some(40.0));
         assert!(analysis.recommendations.is_empty());
     }
@@ -728,7 +728,7 @@ mod tests {
 
         let json = serde_json::to_string(&analysis).unwrap();
         let parsed: CostAnalysis = serde_json::from_str(&json).unwrap();
-        assert_eq!(parsed.daily_cost, 25.0);
+        assert!((parsed.daily_cost - 25.0).abs() < f64::EPSILON);
         assert_eq!(parsed.recommendations.len(), 1);
     }
 

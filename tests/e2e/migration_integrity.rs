@@ -10,6 +10,7 @@ use fsqlite::{Connection as FrankenConnection, SqliteValue};
 use serde_json::Value;
 use std::collections::BTreeSet;
 use std::collections::hash_map::DefaultHasher;
+use std::fmt::Write;
 use std::hash::{Hash, Hasher};
 use std::process::Command;
 use tempfile::tempdir;
@@ -144,13 +145,15 @@ fn create_source_fixture(source: &DuckConnection) {
         } else {
             sql_text(&format!("note-{id:03}"))
         };
-        machine_sql.push_str(&format!(
-            "INSERT INTO machines VALUES ({id}, {}, {}, {}, {});\n",
+        writeln!(
+            &mut machine_sql,
+            "INSERT INTO machines VALUES ({id}, {}, {}, {}, {});",
             sql_text(&format!("machine-{id:03}")),
             sql_bool(id % 2 == 0),
             sql_timestamp(created_at),
             notes,
-        ));
+        )
+        .expect("writing to a String cannot fail");
     }
     source.execute_batch(&machine_sql).unwrap();
 
@@ -199,11 +202,13 @@ fn create_source_fixture(source: &DuckConnection) {
         } else {
             sql_text(&format!("session-{session_id:04}"))
         };
-        session_sql.push_str(&format!(
-            "INSERT INTO agent_sessions VALUES ({session_id}, {machine_id}, {}, {}, {token_count}, {tags}, {metadata}, {notes});\n",
+        writeln!(
+            &mut session_sql,
+            "INSERT INTO agent_sessions VALUES ({session_id}, {machine_id}, {}, {}, {token_count}, {tags}, {metadata}, {notes});",
             sql_text(&agent_name),
             sql_timestamp(started_at),
-        ));
+        )
+        .expect("writing to a String cannot fail");
     }
     source.execute_batch(&session_sql).unwrap();
 
@@ -234,10 +239,12 @@ fn create_source_fixture(source: &DuckConnection) {
             (index % 5) + 1,
             sql_bool(index % 3 == 0),
         );
-        metric_sql.push_str(&format!(
-            "INSERT INTO system_metrics VALUES ({machine_id}, {}, {cpu_pct}, {mem_pct}, {notes}, {labels}, {details});\n",
+        writeln!(
+            &mut metric_sql,
+            "INSERT INTO system_metrics VALUES ({machine_id}, {}, {cpu_pct}, {mem_pct}, {notes}, {labels}, {details});",
             sql_timestamp(collected_at),
-        ));
+        )
+        .expect("writing to a String cannot fail");
     }
     source.execute_batch(&metric_sql).unwrap();
 }
@@ -390,10 +397,7 @@ fn normalize_duck_value_inner(value: DuckValue, nested: bool) -> Value {
         DuckValue::Struct(fields) => {
             let mut object = serde_json::Map::new();
             for (key, value) in fields.iter() {
-                object.insert(
-                    key.clone(),
-                    normalize_duck_value_inner(value.clone(), true),
-                );
+                object.insert(key.clone(), normalize_duck_value_inner(value.clone(), true));
             }
             Value::Object(object)
         }

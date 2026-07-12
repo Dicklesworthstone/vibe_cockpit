@@ -64,24 +64,28 @@ impl<T: Serialize> RobotEnvelope<T> {
     }
 
     /// Add staleness information
+    #[must_use]
     pub fn with_staleness(mut self, staleness: HashMap<String, u64>) -> Self {
         self.staleness = staleness;
         self
     }
 
     /// Add a single staleness entry
+    #[must_use]
     pub fn add_staleness(mut self, source: impl Into<String>, seconds: u64) -> Self {
         self.staleness.insert(source.into(), seconds);
         self
     }
 
     /// Add warnings
+    #[must_use]
     pub fn with_warnings(mut self, warnings: Vec<String>) -> Self {
         self.warnings = warnings;
         self
     }
 
     /// Add a single warning
+    #[must_use]
     pub fn add_warning(mut self, warning: impl Into<String>) -> Self {
         self.warnings.push(warning.into());
         self
@@ -705,7 +709,10 @@ fn load_latest_metrics(store: &VcStore) -> Result<HashMap<String, MachineMetrics
             let Some(machine_id) = row_str(&row, "machine_id") else {
                 continue;
             };
-            let mem_pct = match (row_f64(&row, "mem_used_bytes"), row_f64(&row, "mem_total_bytes")) {
+            let mem_pct = match (
+                row_f64(&row, "mem_used_bytes"),
+                row_f64(&row, "mem_total_bytes"),
+            ) {
                 (Some(used), Some(total)) if total > 0.0 => Some((used / total) * 100.0),
                 _ => None,
             };
@@ -1005,14 +1012,12 @@ pub fn robot_health(store: &VcStore) -> Result<RobotEnvelope<HealthData>, CliErr
         alerts_by_severity,
     };
 
-    Ok(
-        RobotEnvelope::new("vc.robot.health.v1", data)
-            .with_staleness(staleness_for(
-                store,
-                &["sys_samples", "sys_fallback_samples", "health_summary"],
-            ))
-            .with_warnings(warnings),
-    )
+    Ok(RobotEnvelope::new("vc.robot.health.v1", data)
+        .with_staleness(staleness_for(
+            store,
+            &["sys_samples", "sys_fallback_samples", "health_summary"],
+        ))
+        .with_warnings(warnings))
 }
 
 /// Generate triage recommendations from the store.
@@ -1074,7 +1079,10 @@ pub fn robot_triage(store: &VcStore) -> Result<RobotEnvelope<TriageData>, CliErr
     if !recommendations.is_empty() {
         suggested_commands.push(SuggestedCommand {
             command: "vc alert list --unacked".to_string(),
-            reason: format!("{} unresolved alert(s) in alert_history", recommendations.len()),
+            reason: format!(
+                "{} unresolved alert(s) in alert_history",
+                recommendations.len()
+            ),
             confidence: 0.95,
         });
     }
@@ -1210,7 +1218,10 @@ pub fn robot_triage(store: &VcStore) -> Result<RobotEnvelope<TriageData>, CliErr
         recommendations.push(Recommendation {
             id: "guardian-pending-approvals".to_string(),
             priority: 2,
-            title: format!("{} playbook run(s) awaiting approval", overview.pending_approvals),
+            title: format!(
+                "{} playbook run(s) awaiting approval",
+                overview.pending_approvals
+            ),
             description: "Guardian will not act until these are approved".to_string(),
             scope: "guardian".to_string(),
             action: "Review with `vc guardian runs` and approve or reject".to_string(),
@@ -1226,7 +1237,9 @@ pub fn robot_triage(store: &VcStore) -> Result<RobotEnvelope<TriageData>, CliErr
     // finding from nothing to triage because everything is fine. Say which.
     let store_is_empty = machines.is_empty() && accounts.is_empty() && repos.is_empty();
     if store_is_empty {
-        warnings.push("store has no machines, accounts or repos - nothing has been collected yet".to_string());
+        warnings.push(
+            "store has no machines, accounts or repos - nothing has been collected yet".to_string(),
+        );
         suggested_commands.push(SuggestedCommand {
             command: "vc collect".to_string(),
             reason: "The store is empty - run an initial collection".to_string(),
@@ -1299,10 +1312,7 @@ pub fn robot_status(store: &VcStore) -> Result<RobotEnvelope<StatusData>, CliErr
                 status,
                 last_seen: machine.last_seen,
                 health_score,
-                metrics: metrics
-                    .get(&machine.id)
-                    .filter(|m| !m.is_empty())
-                    .cloned(),
+                metrics: metrics.get(&machine.id).filter(|m| !m.is_empty()).cloned(),
                 top_issue: scored.and_then(|(_, worst)| worst.clone()),
             }
         })
@@ -1389,9 +1399,8 @@ pub fn robot_repos(store: &VcStore) -> Result<RobotEnvelope<ReposData>, CliError
             "no repositories in the store - run `vc collect` with the ru collector".to_string(),
         );
     } else if repos.iter().all(|repo| repo.branch.is_none()) {
-        warnings.push(
-            "repositories are inventoried but no git status snapshot exists yet".to_string(),
-        );
+        warnings
+            .push("repositories are inventoried but no git status snapshot exists yet".to_string());
     }
 
     let data = ReposData {
@@ -1425,7 +1434,8 @@ pub fn robot_oracle(store: &VcStore) -> Result<RobotEnvelope<OracleData>, CliErr
             format!("no account usage samples in the last {ORACLE_LOOKBACK_HOURS}h - run `vc collect` with the caut collector"),
         );
     } else if forecasts.is_empty() {
-        warnings.push("usage samples exist but no account had enough history to forecast".to_string());
+        warnings
+            .push("usage samples exist but no account had enough history to forecast".to_string());
     }
 
     let forecast_info: Vec<ForecastInfo> = forecasts
@@ -1653,11 +1663,13 @@ mod tests {
         let envelope = robot_triage(&store).unwrap();
 
         assert!(envelope.data.recommendations.is_empty());
-        assert!(envelope
-            .data
-            .suggested_commands
-            .iter()
-            .any(|c| c.command == "vc collect"));
+        assert!(
+            envelope
+                .data
+                .suggested_commands
+                .iter()
+                .any(|c| c.command == "vc collect")
+        );
     }
 
     #[test]
@@ -1774,7 +1786,9 @@ mod tests {
         assert_eq!(forecast.provider, "claude");
         assert_eq!(forecast.current_usage_pct, 70.0);
         assert!((forecast.velocity_pct_per_min - 0.5).abs() < 0.05);
-        let secs = forecast.time_to_limit_secs.expect("rising usage hits a limit");
+        let secs = forecast
+            .time_to_limit_secs
+            .expect("rising usage hits a limit");
         assert!((3000..=4200).contains(&secs), "time_to_limit_secs={secs}");
     }
 
@@ -1961,11 +1975,13 @@ mod tests {
     #[test]
     fn test_machine_metrics_is_empty() {
         assert!(MachineMetrics::default().is_empty());
-        assert!(!MachineMetrics {
-            load5: Some(0.1),
-            ..MachineMetrics::default()
-        }
-        .is_empty());
+        assert!(
+            !MachineMetrics {
+                load5: Some(0.1),
+                ..MachineMetrics::default()
+            }
+            .is_empty()
+        );
     }
 
     #[test]

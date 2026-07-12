@@ -1557,7 +1557,7 @@ github = true
         config.global.poll_interval_secs = 0;
         let result = config.lint();
         assert!(result.has_errors());
-        assert!(result.error_count == 1);
+        assert_eq!(result.error_count, 1);
         assert!(
             result
                 .issues

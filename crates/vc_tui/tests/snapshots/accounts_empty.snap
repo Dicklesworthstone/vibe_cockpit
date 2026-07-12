@@ -1,32 +1,32 @@
-┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│  ACCOUNTS   [Sort: Program] [0 accounts] [0 active]                                                                  │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-┌ Account Inventory ───────────────────────────────────────────────────────────────────────────────────────────────────┐
-│No accounts tracked. Run collectors to populate data.                                                                 │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-│                                                                                                                      │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│↑↓ Navigate  / Filter  s Sort  Enter Details  q Back                                                                  │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+Vibe Cockpit | Accounts                                                                                                 
+                                                                                                                        
+NO DATA SOURCE YET                                                                                                      
+No query for `account_usage_snapshots` / `account_profile_snapshots` is wired yet.                                      
+Nothing is fetched for this screen, so nothing is shown. Live screens: 1 Overview, 2 Machines, 5 Sessions, 7 Alerts, 0 E
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+1:Overview 2:Machines 3:Repos 4:Accounts 5:Sessions 6:Mail 7:Alerts 8:Guardian 9:Oracle 0:Events b:Beads w:RCH s:Setting

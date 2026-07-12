@@ -93,6 +93,12 @@ impl SchemaRegistry {
     }
 
     /// Load all schemas from the schemas directory
+    ///
+    /// # Errors
+    ///
+    /// Returns [`std::io::Error`] if a schema file listed in the index exists
+    /// but cannot be read (for example, insufficient permissions or a file that
+    /// is not valid UTF-8).
     pub fn load_all(&mut self) -> Result<(), std::io::Error> {
         for entry in &self.index.schemas {
             let path = self.schemas_dir.join(&entry.file);
@@ -159,6 +165,12 @@ pub fn robot_docs_schemas(project_root: impl AsRef<Path>) -> SchemasOutput {
 }
 
 /// Validate that JSON output matches the expected `schema_version` format
+///
+/// # Errors
+///
+/// Returns an error message if `json` is not valid JSON, has no
+/// `schema_version` field, or carries a `schema_version` that does not use the
+/// `vc.robot.<name>.v<N>` prefix.
 pub fn validate_schema_version(json: &str) -> Result<String, String> {
     let value: serde_json::Value =
         serde_json::from_str(json).map_err(|e| format!("Invalid JSON: {e}"))?;
@@ -179,6 +191,12 @@ pub fn validate_schema_version(json: &str) -> Result<String, String> {
 }
 
 /// Check if JSON has required envelope fields
+///
+/// # Errors
+///
+/// Returns the list of problems found: a single-element vector holding the
+/// parse error when `json` is not valid JSON, otherwise one message per missing
+/// envelope field (`schema_version`, `generated_at`, `data`).
 pub fn validate_envelope_fields(json: &str) -> Result<(), Vec<String>> {
     let value: serde_json::Value = serde_json::from_str(json).map_err(|e| vec![e.to_string()])?;
 

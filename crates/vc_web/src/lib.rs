@@ -1020,7 +1020,7 @@ mod tests {
 
             let body = response.into_body().collect().await.unwrap().to_bytes();
             let json: FleetOverview = serde_json::from_slice(&body).unwrap();
-            assert_eq!(json.fleet_health_score, 1.0);
+            assert!((json.fleet_health_score - 1.0).abs() < f64::EPSILON);
         });
     }
 

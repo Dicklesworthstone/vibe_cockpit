@@ -25,6 +25,7 @@
 
 use crate::robot::{HealthData, MachineHealth, StatusData, TriageData};
 use serde::Serialize;
+use std::fmt::Write;
 
 /// Trait for types that can be serialized to TOON format
 pub trait ToToon {
@@ -142,14 +143,17 @@ impl ToToon for StatusData {
                         pct_opt(m.health_score)
                     );
                     if let Some(ref metrics) = m.metrics {
-                        s.push_str(&format!(
+                        write!(
+                            &mut s,
                             ",cpu{},mem{}",
                             metric_opt(metrics.cpu_pct),
                             metric_opt(metrics.mem_pct)
-                        ));
+                        )
+                        .expect("writing to a String cannot fail");
                     }
                     if let Some(ref issue) = m.top_issue {
-                        s.push_str(&format!(",!{}", abbreviate(issue, 15)));
+                        write!(&mut s, ",!{}", abbreviate(issue, 15))
+                            .expect("writing to a String cannot fail");
                     }
                     s
                 })
@@ -214,6 +218,9 @@ pub fn to_toon_via_json<T: Serialize>(value: &T) -> String {
 // ============================================================================
 
 /// Convert a 0.0-1.0 score to a percentage integer (0-100)
+// The NaN guard and the `clamp` to `0.0..=u32::MAX` above the cast mean the
+// value is always a non-negative, in-range `f64` by the time it is cast.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn pct(score: f64) -> u32 {
     if score.is_nan() {
         return 0;
@@ -257,6 +264,10 @@ fn abbreviate(s: &str, max_len: usize) -> String {
 }
 
 /// Convert a `MachineHealth` to a compact TOON segment
+// `cpu_percent` / `memory_percent` are collected percentages (0-100), so the
+// rounded value always fits in a `u32`; a float-to-int `as` cast saturates
+// rather than wrapping, so a nonsensical reading still renders a sane digit.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn machine_health_toon(m: &MachineHealth) -> String {
     let mut s = format!(
         "{}:{},h{},{}ag",
@@ -266,13 +277,13 @@ fn machine_health_toon(m: &MachineHealth) -> String {
         m.agent_count
     );
     if let Some(cpu) = m.cpu_percent {
-        s.push_str(&format!(",cpu{}", cpu.round() as u32));
+        write!(&mut s, ",cpu{}", cpu.round() as u32).expect("writing to a String cannot fail");
     }
     if let Some(mem) = m.memory_percent {
-        s.push_str(&format!(",mem{}", mem.round() as u32));
+        write!(&mut s, ",mem{}", mem.round() as u32).expect("writing to a String cannot fail");
     }
     if let Some(ref issue) = m.top_issue {
-        s.push_str(&format!(",!{}", abbreviate(issue, 15)));
+        write!(&mut s, ",!{}", abbreviate(issue, 15)).expect("writing to a String cannot fail");
     }
     s
 }

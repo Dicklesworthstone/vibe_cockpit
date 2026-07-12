@@ -1217,6 +1217,13 @@ impl Cli {
     }
 
     /// Run the CLI using an explicit Asupersync capability context.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CliError`] if the dispatched subcommand fails: the config or
+    /// store cannot be opened, a required argument is invalid, the command's
+    /// underlying operation reports an error, or the command is cancelled by a
+    /// shutdown signal before it drains.
     pub async fn run_with_cx(self, cx: &Cx) -> Result<(), CliError> {
         match self.command {
             Commands::Tui { inline } => {
@@ -1242,8 +1249,13 @@ impl Cli {
 
                 let controller = ShutdownController::new();
                 let receiver = controller.subscribe();
-                run_with_shutdown_budget(cx, "tui", controller, run_tui(options, context, receiver))
-                    .await?;
+                run_with_shutdown_budget(
+                    cx,
+                    "tui",
+                    controller,
+                    run_tui(options, context, receiver),
+                )
+                .await?;
             }
             Commands::Daemon { foreground } => {
                 let controller = ShutdownController::new();
@@ -1284,10 +1296,7 @@ impl Cli {
                         let fleet = &envelope.data.fleet;
                         println!(
                             "fleet: {} machines ({} online, {} offline)  health {:.2}",
-                            fleet.total_machines,
-                            fleet.online,
-                            fleet.offline,
-                            fleet.health_score
+                            fleet.total_machines, fleet.online, fleet.offline, fleet.health_score
                         );
 
                         if machines.is_empty() {
@@ -1297,10 +1306,9 @@ impl Cli {
                             let health = entry
                                 .health_score
                                 .map_or_else(|| "-".to_string(), |score| format!("{score:.2}"));
-                            let seen = entry.last_seen.map_or_else(
-                                || "never".to_string(),
-                                |ts| ts.to_rfc3339(),
-                            );
+                            let seen = entry
+                                .last_seen
+                                .map_or_else(|| "never".to_string(), |ts| ts.to_rfc3339());
                             let cpu = entry
                                 .metrics
                                 .as_ref()
@@ -1369,7 +1377,7 @@ impl Cli {
                         let output = robot::robot_accounts(&store)?;
                         match self.format {
                             OutputFormat::Toon => {
-                                println!("{}", toon::to_toon_via_json(&output.data))
+                                println!("{}", toon::to_toon_via_json(&output.data));
                             }
                             _ => println!("{}", output.to_json_pretty()),
                         }
@@ -1379,7 +1387,7 @@ impl Cli {
                         let output = robot::robot_oracle(&store)?;
                         match self.format {
                             OutputFormat::Toon => {
-                                println!("{}", toon::to_toon_via_json(&output.data))
+                                println!("{}", toon::to_toon_via_json(&output.data));
                             }
                             _ => println!("{}", output.to_json_pretty()),
                         }
@@ -1389,7 +1397,7 @@ impl Cli {
                         let output = robot::robot_repos(&store)?;
                         match self.format {
                             OutputFormat::Toon => {
-                                println!("{}", toon::to_toon_via_json(&output.data))
+                                println!("{}", toon::to_toon_via_json(&output.data));
                             }
                             _ => println!("{}", output.to_json_pretty()),
                         }
@@ -1408,7 +1416,7 @@ impl Cli {
                         let output = robot::RobotEnvelope::new("vc.robot.machines.v1", data);
                         match self.format {
                             OutputFormat::Toon => {
-                                println!("{}", toon::to_toon_via_json(&output.data))
+                                println!("{}", toon::to_toon_via_json(&output.data));
                             }
                             _ => println!("{}", output.to_json_pretty()),
                         }
@@ -2873,7 +2881,9 @@ impl Cli {
                                 .unwrap_or(vc_guardian::PlaybookTrigger::Manual);
 
                         let confidence = draft_row["confidence"].as_f64().unwrap_or(0.0);
-                        let sample_count = draft_row["sample_count"].as_u64().unwrap_or(0) as usize;
+                        let sample_count =
+                            usize::try_from(draft_row["sample_count"].as_u64().unwrap_or(0))
+                                .unwrap_or(usize::MAX);
 
                         let pattern = autogen::ResolutionPattern {
                             alert_type: draft_row["alert_type"].as_str().unwrap_or("").to_string(),
@@ -3378,7 +3388,12 @@ impl Cli {
                     let json = serde_json::to_string(&report.summary).unwrap_or_default();
                     let md = vc_query::digest::render_markdown(&report);
                     store
-                        .insert_digest_report(&report.report_id, window as i32, &json, &md)
+                        .insert_digest_report(
+                            &report.report_id,
+                            i32::try_from(window).unwrap_or(i32::MAX),
+                            &json,
+                            &md,
+                        )
                         .map_err(|e| {
                             CliError::CommandFailed(format!("Failed to save report: {e}"))
                         })?;
@@ -3806,19 +3821,22 @@ where
                         signal = signal.as_str(),
                         total_children = 1_u32,
                         drained_children = 1_u32,
-                        drain_elapsed_ms = drain_started.elapsed().as_millis() as u64,
-                        budget_remaining_ms = remaining.as_millis() as u64,
+                        drain_elapsed_ms =
+                            u64::try_from(drain_started.elapsed().as_millis()).unwrap_or(u64::MAX),
+                        budget_remaining_ms =
+                            u64::try_from(remaining.as_millis()).unwrap_or(u64::MAX),
                         "Shutdown drain completed"
                     );
                     result
                 }
-                Either::Right((_, _)) => {
+                Either::Right(((), _)) => {
                     tracing::error!(
                         command,
                         signal = signal.as_str(),
                         total_children = 1_u32,
                         drained_children = 0_u32,
-                        drain_elapsed_ms = drain_started.elapsed().as_millis() as u64,
+                        drain_elapsed_ms =
+                            u64::try_from(drain_started.elapsed().as_millis()).unwrap_or(u64::MAX),
                         "Shutdown deadline expired before command drained"
                     );
                     Err(CliError::CommandFailed(format!(
@@ -4183,7 +4201,7 @@ async fn run_daemon(
     if cx.checkpoint().is_ok() {
         match run_collection_tick(&config, &registry, &store, cx).await {
             Ok((runs, failures)) => {
-                tracing::info!(ticks, runs, failures, "collection tick complete")
+                tracing::info!(ticks, runs, failures, "collection tick complete");
             }
             Err(e) => tracing::warn!(error = %e, "collection tick failed"),
         }
@@ -4207,7 +4225,7 @@ async fn run_daemon(
 
         match run_collection_tick(&config, &registry, &store, cx).await {
             Ok((runs, failures)) => {
-                tracing::info!(ticks, runs, failures, "collection tick complete")
+                tracing::info!(ticks, runs, failures, "collection tick complete");
             }
             Err(e) => tracing::warn!(ticks, error = %e, "collection tick failed"),
         }
@@ -4241,7 +4259,7 @@ async fn run_tui(
                 .map_err(|err| CliError::CommandFailed(format!("TUI task failed: {err}")))??;
             Ok(())
         }
-        Either::Right((_, join_handle)) => {
+        Either::Right(((), join_handle)) => {
             shutdown_requested.store(true, Ordering::Release);
             join_handle
                 .await
@@ -4426,7 +4444,7 @@ async fn run_mcp_server(
                 .map_err(|err| CliError::CommandFailed(format!("MCP server error: {err}")))?;
             Ok(())
         }
-        Either::Right((_, join_handle)) => {
+        Either::Right(((), join_handle)) => {
             shutdown_requested.store(true, Ordering::Release);
             join_handle
                 .await

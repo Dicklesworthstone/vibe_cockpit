@@ -388,8 +388,7 @@ pub fn load_alerts(store: &VcStore) -> Result<AlertsData, TuiError> {
                 .iter()
                 .filter(|alert| {
                     str_field(alert, "rule_id").as_deref() == Some(rule_id.as_str())
-                        && ts_field(alert, "fired_at")
-                            .is_some_and(|ts| (now - ts).num_hours() < 24)
+                        && ts_field(alert, "fired_at").is_some_and(|ts| (now - ts).num_hours() < 24)
                 })
                 .count();
 
@@ -684,9 +683,18 @@ mod tests {
     fn age_string_formats_buckets() {
         let now = Utc::now();
         assert_eq!(age_string(None, now), "-");
-        assert_eq!(age_string(Some(now - chrono::Duration::seconds(5)), now), "5s");
-        assert_eq!(age_string(Some(now - chrono::Duration::minutes(5)), now), "5m");
-        assert_eq!(age_string(Some(now - chrono::Duration::hours(5)), now), "5h");
+        assert_eq!(
+            age_string(Some(now - chrono::Duration::seconds(5)), now),
+            "5s"
+        );
+        assert_eq!(
+            age_string(Some(now - chrono::Duration::minutes(5)), now),
+            "5m"
+        );
+        assert_eq!(
+            age_string(Some(now - chrono::Duration::hours(5)), now),
+            "5h"
+        );
         assert_eq!(age_string(Some(now - chrono::Duration::days(5)), now), "5d");
     }
 

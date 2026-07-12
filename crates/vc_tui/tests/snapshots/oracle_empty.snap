@@ -1,32 +1,32 @@
-┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│  ORACLE  Predictions & Forecasts [Updated: just now]                                                                 │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-┌ Rate Limit Forecasts ────────────────────────────────────┐┌ Failure Risk ────────────────────────────────────────────┐
-│No rate limit data available                              ││No agents being monitored                                 │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-└──────────────────────────────────────────────────────────┘└──────────────────────────────────────────────────────────┘
-┌ Cost Trajectory ─────────────────────────────────────────┐┌ Resource Forecasts ──────────────────────────────────────┐
-│Today: $0.00 / $0.00 (0%)                                 ││No resource forecasts available                           │
-│Projection: $0.00 by EOD over budget                      ││                                                          │
-│Week: $0.00 / $0.00 (0%)                                  ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-└──────────────────────────────────────────────────────────┘└──────────────────────────────────────────────────────────┘
-┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│[Tab] Section [r] Refresh [Enter] Details [a] Apply [d] Dismiss [q] Back                                              │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+Vibe Cockpit | Oracle                                                                                                   
+                                                                                                                        
+NO DATA SOURCE YET                                                                                                      
+No query for `predictions` / `resolutions` is wired yet.                                                                
+Nothing is fetched for this screen, so nothing is shown. Live screens: 1 Overview, 2 Machines, 5 Sessions, 7 Alerts, 0 E
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+1:Overview 2:Machines 3:Repos 4:Accounts 5:Sessions 6:Mail 7:Alerts 8:Guardian 9:Oracle 0:Events b:Beads w:RCH s:Setting

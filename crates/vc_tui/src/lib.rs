@@ -242,13 +242,9 @@ impl Screen {
                 "No query for `account_usage_snapshots` / `account_profile_snapshots` is wired yet."
             }
             Screen::Mail => "No query for `mail_messages` / `mail_file_reservations` is wired yet.",
-            Screen::Guardian => {
-                "No query for `guardian_runs` / `guardian_playbooks` is wired yet."
-            }
+            Screen::Guardian => "No query for `guardian_runs` / `guardian_playbooks` is wired yet.",
             Screen::Oracle => "No query for `predictions` / `resolutions` is wired yet.",
-            Screen::Beads => {
-                "No query for `beads_snapshot` / `beads_graph_metrics` is wired yet."
-            }
+            Screen::Beads => "No query for `beads_snapshot` / `beads_graph_metrics` is wired yet.",
             Screen::Rch => "No query for `rch_metrics` / `rch_compilations` is wired yet.",
             Screen::Overview
             | Screen::Machines
@@ -447,50 +443,49 @@ impl App {
         let mut cmds: Vec<ftui::Cmd<AppMessage>> = Vec::with_capacity(6);
 
         let store = context.store();
-        cmds.push(ftui::Cmd::task_named("vc_tui.load_overview", move || {
-            match data::load_overview(&store) {
-                Ok(overview) => {
-                    AppMessage::DataRefreshed(ScreenData::Overview(Box::new(overview)))
-                }
+        cmds.push(ftui::Cmd::task_named(
+            "vc_tui.load_overview",
+            move || match data::load_overview(&store) {
+                Ok(overview) => AppMessage::DataRefreshed(ScreenData::Overview(Box::new(overview))),
                 Err(err) => AppMessage::Error(format!("overview refresh failed: {err}")),
-            }
-        }));
+            },
+        ));
 
         let store = context.store();
-        cmds.push(ftui::Cmd::task_named("vc_tui.load_machines", move || {
-            match data::load_machines(&store) {
-                Ok(machines) => {
-                    AppMessage::DataRefreshed(ScreenData::Machines(Box::new(machines)))
-                }
+        cmds.push(ftui::Cmd::task_named(
+            "vc_tui.load_machines",
+            move || match data::load_machines(&store) {
+                Ok(machines) => AppMessage::DataRefreshed(ScreenData::Machines(Box::new(machines))),
                 Err(err) => AppMessage::Error(format!("machines refresh failed: {err}")),
-            }
-        }));
+            },
+        ));
 
         let store = context.store();
-        cmds.push(ftui::Cmd::task_named("vc_tui.load_alerts", move || {
-            match data::load_alerts(&store) {
+        cmds.push(ftui::Cmd::task_named(
+            "vc_tui.load_alerts",
+            move || match data::load_alerts(&store) {
                 Ok(alerts) => AppMessage::DataRefreshed(ScreenData::Alerts(Box::new(alerts))),
                 Err(err) => AppMessage::Error(format!("alerts refresh failed: {err}")),
-            }
-        }));
+            },
+        ));
 
         let store = context.store();
-        cmds.push(ftui::Cmd::task_named("vc_tui.load_sessions", move || {
-            match data::load_sessions(&store) {
-                Ok(sessions) => {
-                    AppMessage::DataRefreshed(ScreenData::Sessions(Box::new(sessions)))
-                }
+        cmds.push(ftui::Cmd::task_named(
+            "vc_tui.load_sessions",
+            move || match data::load_sessions(&store) {
+                Ok(sessions) => AppMessage::DataRefreshed(ScreenData::Sessions(Box::new(sessions))),
                 Err(err) => AppMessage::Error(format!("sessions refresh failed: {err}")),
-            }
-        }));
+            },
+        ));
 
         let store = context.store();
-        cmds.push(ftui::Cmd::task_named("vc_tui.load_events", move || {
-            match data::load_events(&store) {
+        cmds.push(ftui::Cmd::task_named(
+            "vc_tui.load_events",
+            move || match data::load_events(&store) {
                 Ok(events) => AppMessage::DataRefreshed(ScreenData::Events(Box::new(events))),
                 Err(err) => AppMessage::Error(format!("events refresh failed: {err}")),
-            }
-        }));
+            },
+        ));
 
         cmds.push(ftui::Cmd::tick(TICK_INTERVAL));
         ftui::Cmd::batch(cmds)

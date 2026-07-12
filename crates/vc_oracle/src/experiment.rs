@@ -459,6 +459,12 @@ impl ExperimentManager {
     }
 
     /// Create a new experiment
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExperimentError::InvalidConfig`] if `config` fails validation
+    /// (see [`Self::validate_config`]) — for example too few variants, traffic
+    /// weights that do not sum to a positive value, or a zero sample size.
     #[instrument(skip(self, config), fields(name = %config.name))]
     pub fn create(&mut self, config: ExperimentConfig) -> Result<Experiment, ExperimentError> {
         // Validate configuration
@@ -523,6 +529,12 @@ impl ExperimentManager {
     }
 
     /// Start an experiment
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExperimentError::NotFound`] if no experiment has that id, or
+    /// [`ExperimentError::InvalidState`] if it is not still in
+    /// [`ExperimentStatus::Draft`].
     #[instrument(skip(self), fields(experiment_id = %experiment_id))]
     pub fn start(&mut self, experiment_id: &str) -> Result<(), ExperimentError> {
         let experiment = self
@@ -544,6 +556,12 @@ impl ExperimentManager {
     }
 
     /// Pause an experiment
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExperimentError::NotFound`] if no experiment has that id, or
+    /// [`ExperimentError::InvalidState`] if it is not currently
+    /// [`ExperimentStatus::Running`].
     #[instrument(skip(self), fields(experiment_id = %experiment_id))]
     pub fn pause(&mut self, experiment_id: &str) -> Result<(), ExperimentError> {
         let experiment = self
@@ -564,6 +582,10 @@ impl ExperimentManager {
     }
 
     /// Complete an experiment
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExperimentError::NotFound`] if no experiment has that id.
     #[instrument(skip(self), fields(experiment_id = %experiment_id))]
     pub fn complete(&mut self, experiment_id: &str) -> Result<(), ExperimentError> {
         let experiment = self
@@ -591,6 +613,12 @@ impl ExperimentManager {
     }
 
     /// Assign a session to an experiment variant
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExperimentError::NotFound`] if no experiment has that id or it
+    /// has no variants, and [`ExperimentError::NotRunning`] if the experiment is
+    /// not in [`ExperimentStatus::Running`].
     #[instrument(skip(self), fields(experiment_id = %experiment_id, session_id = %session_id))]
     pub fn assign(
         &mut self,

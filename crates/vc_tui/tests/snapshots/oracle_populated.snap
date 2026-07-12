@@ -1,32 +1,32 @@
-┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│  ORACLE  Predictions & Forecasts [1 rate warnings] [Updated: 1m ago]                                                 │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-┌ Rate Limit Forecasts ────────────────────────────────────┐┌ Failure Risk ────────────────────────────────────────────┐
-│claude (max-5)                                            ││◐ CobaltTurtle on orko                                    │
-│86% used limit in 47 min                                  ││18% risk in 180 min                                       │
-│-> Switch to backup before lunch                          ││Indicators: rate-limit pressure, rising retry count       │
-│Backup: max-6                                             ││Past occurrences: 2                                       │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-└──────────────────────────────────────────────────────────┘└──────────────────────────────────────────────────────────┘
-┌ Cost Trajectory ─────────────────────────────────────────┐┌ Resource Forecasts ──────────────────────────────────────┐
-│Today: $34.50 / $50.00 (69%)                              ││orko disk: 72% ↑ 84% in 7 days                            │
-│Projection: $41.00 by EOD on track                        ││! Clean up old build artifacts before Friday              │
-│Week: $190.00 / $250.00 (76%)                             ││                                                          │
-│-> Pause idle snapshot workers overnight                  ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-│                                                          ││                                                          │
-└──────────────────────────────────────────────────────────┘└──────────────────────────────────────────────────────────┘
-┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│[Tab] Section [r] Refresh [Enter] Details [a] Apply [d] Dismiss [q] Back                                              │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+Vibe Cockpit | Oracle                                                                                                   
+                                                                                                                        
+NO DATA SOURCE YET                                                                                                      
+No query for `predictions` / `resolutions` is wired yet.                                                                
+Nothing is fetched for this screen, so nothing is shown. Live screens: 1 Overview, 2 Machines, 5 Sessions, 7 Alerts, 0 E
+                                                                                                                        
+Error: collector stale: rano                                                                                            
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+1:Overview 2:Machines 3:Repos 4:Accounts 5:Sessions 6:Mail 7:Alerts 8:Guardian 9:Oracle 0:Events b:Beads w:RCH s:Setting

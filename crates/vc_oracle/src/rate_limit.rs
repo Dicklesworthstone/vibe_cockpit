@@ -180,6 +180,11 @@ impl RateLimitForecaster {
     }
 
     /// Calculate time until 100% usage at current velocity
+    // `(u64::MAX / 2) as f64` is only used as a saturation ceiling: rounding it
+    // to the nearest representable `f64` moves the "effectively never" cutoff by
+    // a few nanoseconds out of ~292 billion years, which cannot change the branch
+    // taken for any real velocity.
+    #[allow(clippy::cast_precision_loss)]
     fn calculate_time_to_limit(current_usage: f64, velocity: f64) -> Duration {
         if velocity <= 0.0 || velocity.is_nan() {
             // Not increasing, effectively infinite time

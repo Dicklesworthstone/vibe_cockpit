@@ -495,6 +495,7 @@ struct CollectorStats {
 mod tests {
     use super::*;
     use crate::Severity;
+    use std::fmt::Write;
     use vc_store::VcStore;
 
     /// An RFC3339 timestamp `secs_ago` seconds in the past.
@@ -714,11 +715,13 @@ mod tests {
         for i in 0..10 {
             let ts = ts_ago(60 * (i + 1));
             let success = i32::from(i < 5);
-            sql.push_str(&format!(
+            write!(
+                &mut sql,
                 "INSERT INTO collector_health \
                    (machine_id, collector, collected_at, success) \
                  VALUES ('m1', 'c{i}', '{ts}', {success}); "
-            ));
+            )
+            .expect("writing to a String cannot fail");
         }
         store.execute_batch(&sql).unwrap();
 
