@@ -7060,9 +7060,8 @@ mod tests {
     #[test]
     fn test_cli_run_status() {
         run_async(async {
-            let cli = Cli::parse_from(["vc", "status"]);
-            let result = cli.run().await;
-            assert!(result.is_ok());
+            let result = cli_with_temp_store(&["status"]).run().await;
+            assert!(result.is_ok(), "{result:?}");
         });
     }
 
@@ -7095,64 +7094,68 @@ mod tests {
         assert!(options.inline_mode);
     }
 
+    /// Build a `Cli` for `args`, pointed at a throwaway store.
+    ///
+    /// `vc status` and the `vc robot` commands used to be stubs that printed a
+    /// constant and touched nothing, so parsing them with no `--config` was
+    /// harmless. They read the store now, and without an explicit config they
+    /// would discover — and open — whatever database the developer running the
+    /// tests happens to have.
+    fn cli_with_temp_store(args: &[&str]) -> Cli {
+        let test_dir = std::env::temp_dir().join(format!("vc-cli-test-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&test_dir).expect("create temp test dir");
+
+        let config_path = test_dir.join("config.toml");
+        let mut config = VcConfig::default();
+        config.global.db_path = test_dir.join("test.duckdb");
+        std::fs::write(&config_path, config.to_toml().expect("serialize config"))
+            .expect("write temp config");
+
+        let mut argv = vec![
+            "vc".to_string(),
+            "--config".to_string(),
+            config_path.display().to_string(),
+        ];
+        argv.extend(args.iter().map(|arg| (*arg).to_string()));
+        Cli::parse_from(argv)
+    }
+
     #[test]
     fn test_cli_run_robot_health() {
         run_async(async {
-            let cli = Cli::parse_from(["vc", "robot", "health"]);
-            let result = cli.run().await;
-            assert!(result.is_ok());
+            let result = cli_with_temp_store(&["robot", "health"]).run().await;
+            assert!(result.is_ok(), "{result:?}");
         });
     }
 
     #[test]
     fn test_cli_run_robot_triage() {
         run_async(async {
-            let cli = Cli::parse_from(["vc", "robot", "triage"]);
-            let result = cli.run().await;
-            assert!(result.is_ok());
+            let result = cli_with_temp_store(&["robot", "triage"]).run().await;
+            assert!(result.is_ok(), "{result:?}");
         });
     }
 
     #[test]
     fn test_cli_run_robot_accounts() {
         run_async(async {
-            let cli = Cli::parse_from(["vc", "robot", "accounts"]);
-            let result = cli.run().await;
-            assert!(result.is_ok());
+            let result = cli_with_temp_store(&["robot", "accounts"]).run().await;
+            assert!(result.is_ok(), "{result:?}");
         });
     }
 
     #[test]
     fn test_cli_run_robot_oracle() {
         run_async(async {
-            let cli = Cli::parse_from(["vc", "robot", "oracle"]);
-            let result = cli.run().await;
-            assert!(result.is_ok());
+            let result = cli_with_temp_store(&["robot", "oracle"]).run().await;
+            assert!(result.is_ok(), "{result:?}");
         });
     }
 
     #[test]
     fn test_cli_run_robot_machines() {
         run_async(async {
-            let test_dir =
-                std::env::temp_dir().join(format!("vc-cli-test-{}", uuid::Uuid::new_v4()));
-            std::fs::create_dir_all(&test_dir).expect("create temp test dir");
-
-            let config_path = test_dir.join("config.toml");
-            let db_path = test_dir.join("machines.duckdb");
-            let mut config = VcConfig::default();
-            config.global.db_path = db_path;
-            std::fs::write(&config_path, config.to_toml().expect("serialize config"))
-                .expect("write temp config");
-
-            let cli = Cli::parse_from([
-                "vc".to_string(),
-                "--config".to_string(),
-                config_path.display().to_string(),
-                "robot".to_string(),
-                "machines".to_string(),
-            ]);
-            let result = cli.run().await;
+            let result = cli_with_temp_store(&["robot", "machines"]).run().await;
             assert!(result.is_ok(), "{result:?}");
         });
     }
@@ -7160,18 +7163,16 @@ mod tests {
     #[test]
     fn test_cli_run_robot_repos() {
         run_async(async {
-            let cli = Cli::parse_from(["vc", "robot", "repos"]);
-            let result = cli.run().await;
-            assert!(result.is_ok());
+            let result = cli_with_temp_store(&["robot", "repos"]).run().await;
+            assert!(result.is_ok(), "{result:?}");
         });
     }
 
     #[test]
     fn test_cli_run_robot_status() {
         run_async(async {
-            let cli = Cli::parse_from(["vc", "robot", "status"]);
-            let result = cli.run().await;
-            assert!(result.is_ok());
+            let result = cli_with_temp_store(&["robot", "status"]).run().await;
+            assert!(result.is_ok(), "{result:?}");
         });
     }
 

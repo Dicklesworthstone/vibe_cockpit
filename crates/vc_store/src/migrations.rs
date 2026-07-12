@@ -214,6 +214,11 @@ const MIGRATIONS: &[Migration] = &[
         name: "ntm_sessions_snapshot_reconcile",
         sql: include_str!("migrations/027_ntm_sessions_snapshot_reconcile.sql"),
     },
+    Migration {
+        version: 28,
+        name: "widen_byte_columns_to_bigint",
+        sql: include_str!("migrations/028_widen_byte_columns_to_bigint.sql"),
+    },
 ];
 
 /// Run all pending migrations
