@@ -20,7 +20,7 @@ fn render_all_screens_with_default_state_matches_empty_snapshots() {
     common::init_tracing();
 
     for screen in Screen::all() {
-        let mut app = App::new();
+        let mut app = App::new(None);
         app.current_screen = *screen;
 
         let text = render_screen(&app, &format!("{}_empty", screen_slug(*screen)));
@@ -52,7 +52,7 @@ fn render_all_screens_with_mock_data_matches_populated_snapshots() {
 fn navigation_shortcuts_visit_each_documented_screen() {
     common::init_tracing();
 
-    let mut app = App::new();
+    let mut app = App::new(None);
     let sequence = [
         ('1', Screen::Overview),
         ('2', Screen::Machines),
@@ -162,7 +162,7 @@ fn screen_slug(screen: Screen) -> &'static str {
 }
 
 fn sample_app() -> App {
-    let mut app = App::new();
+    let mut app = App::new(None);
     app.overview_data = sample_overview_data();
     app.machines_data = sample_machines_data();
     app.accounts_data = sample_accounts_data();

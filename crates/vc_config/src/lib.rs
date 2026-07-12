@@ -303,6 +303,13 @@ fn default_ssh_port() -> u16 {
 #[serde(default)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct CollectorConfig {
+    /// Enable the `fallback_probe` collector.
+    ///
+    /// This is the always-on baseline probe: it needs no external tooling and
+    /// is the only source of system telemetry on a machine where sysmoni is
+    /// missing. It defaults to enabled and should stay that way.
+    pub fallback_probe: bool,
+
     /// Enable sysmoni collector
     pub sysmoni: bool,
 
@@ -336,11 +343,21 @@ pub struct CollectorConfig {
     /// Enable pt collector
     pub pt: bool,
 
-    /// Enable `bv_br` (beads) collector
+    /// Enable the beads collector.
+    ///
+    /// The collector registers itself under the name `beads`; this field is
+    /// still spelled `bv_br` for backwards compatibility with existing config
+    /// files and with `vc_tui`'s settings screen. `beads` is accepted as a
+    /// config key alias, and [`VcConfig::is_collector_enabled`] accepts either
+    /// name.
+    #[serde(alias = "beads")]
     pub bv_br: bool,
 
     /// Enable afsc collector
     pub afsc: bool,
+
+    /// Enable the github collector (requires a GitHub token; off by default)
+    pub github: bool,
 
     /// Enable `cloud_benchmarker` collector
     pub cloud_benchmarker: bool,
@@ -358,6 +375,8 @@ pub struct CollectorConfig {
 impl Default for CollectorConfig {
     fn default() -> Self {
         Self {
+            // Always-on baseline: never depends on external tooling.
+            fallback_probe: true,
             sysmoni: true,
             ru: true,
             caut: true,
@@ -371,6 +390,7 @@ impl Default for CollectorConfig {
             pt: true,
             bv_br: true,
             afsc: false,
+            github: false,
             cloud_benchmarker: false,
             timeout_secs: 30,
             max_concurrent_collectors: 8,
@@ -724,7 +744,15 @@ impl VcConfig {
         self.machines.iter().filter(|(_, m)| m.enabled)
     }
 
-    /// Check if a collector is enabled for a specific machine
+    /// Check if a collector is enabled for a specific machine.
+    ///
+    /// `collector_name` is the name the collector registers itself under in the
+    /// `vc_collect` registry (e.g. `fallback_probe`, `beads`, `github`). Every
+    /// registered collector must have an arm here: a missing arm silently
+    /// disables the collector forever, which is how `fallback_probe` — the
+    /// always-on baseline — never ran.
+    ///
+    /// The legacy config key `bv_br` is accepted as an alias for `beads`.
     #[must_use]
     pub fn is_collector_enabled(&self, machine_id: &str, collector_name: &str) -> bool {
         // Check machine-specific override first
@@ -736,6 +764,7 @@ impl VcConfig {
 
         // Fall back to global collector config
         match collector_name {
+            "fallback_probe" => self.collectors.fallback_probe,
             "sysmoni" => self.collectors.sysmoni,
             "ru" => self.collectors.ru,
             "caut" => self.collectors.caut,
@@ -747,8 +776,10 @@ impl VcConfig {
             "rano" => self.collectors.rano,
             "dcg" => self.collectors.dcg,
             "pt" => self.collectors.pt,
-            "bv_br" => self.collectors.bv_br,
+            // Registry name is `beads`; `bv_br` is the legacy config key.
+            "beads" | "bv_br" => self.collectors.bv_br,
             "afsc" => self.collectors.afsc,
+            "github" => self.collectors.github,
             "cloud_benchmarker" => self.collectors.cloud_benchmarker,
             _ => false, // Unknown collectors are disabled
         }
@@ -1027,6 +1058,7 @@ log_level = "info"
 
 [collectors]
 # Enable/disable individual collectors
+fallback_probe = true   # Always-on baseline probe (no external tooling needed)
 sysmoni = true          # System metrics (CPU, memory, disk, network)
 ru = true               # Repo updater status
 caut = true             # Claude usage tracking
@@ -1038,7 +1070,8 @@ rch = true              # Remote Compilation Helper
 rano = true             # Network observer
 dcg = true              # Dangerous command guard
 pt = true               # Process tracker
-bv_br = true            # Beads (issue tracker)
+bv_br = true            # Beads (issue tracker); also accepted as `beads`
+github = false          # GitHub (requires a token)
 
 # Collector timeout in seconds
 timeout_secs = 30
@@ -1297,6 +1330,115 @@ enabled = true
         assert!(!config.is_collector_enabled("override-machine", "sysmoni"));
         // Override enables global-disabled collector
         assert!(config.is_collector_enabled("override-machine", "afsc"));
+    }
+
+    #[test]
+    fn test_fallback_probe_enabled_by_default() {
+        let config = VcConfig::default();
+        assert!(config.collectors.fallback_probe);
+        // The always-on baseline must actually be reported as enabled.
+        assert!(config.is_collector_enabled("any-machine", "fallback_probe"));
+    }
+
+    #[test]
+    fn test_every_registered_collector_has_an_arm() {
+        // These are the names the collectors register themselves under in
+        // `vc_collect`. A name with no arm in `is_collector_enabled` is
+        // silently disabled forever, so assert each one resolves to the value
+        // of its config field rather than to the unknown-collector default.
+        let mut config = VcConfig::default();
+        config.collectors.fallback_probe = true;
+        config.collectors.sysmoni = true;
+        config.collectors.ru = true;
+        config.collectors.caut = true;
+        config.collectors.caam = true;
+        config.collectors.cass = true;
+        config.collectors.mcp_agent_mail = true;
+        config.collectors.ntm = true;
+        config.collectors.rch = true;
+        config.collectors.rano = true;
+        config.collectors.dcg = true;
+        config.collectors.pt = true;
+        config.collectors.bv_br = true;
+        config.collectors.afsc = true;
+        config.collectors.github = true;
+        config.collectors.cloud_benchmarker = true;
+
+        for name in [
+            "fallback_probe",
+            "sysmoni",
+            "ru",
+            "caut",
+            "caam",
+            "cass",
+            "mcp_agent_mail",
+            "ntm",
+            "rch",
+            "rano",
+            "dcg",
+            "pt",
+            "beads",
+            "afsc",
+            "github",
+            "cloud_benchmarker",
+        ] {
+            assert!(
+                config.is_collector_enabled("any-machine", name),
+                "collector `{name}` has no arm in is_collector_enabled"
+            );
+        }
+    }
+
+    #[test]
+    fn test_beads_and_bv_br_are_the_same_collector() {
+        let mut config = VcConfig::default();
+
+        // Registry name and legacy config key resolve to the same field.
+        assert!(config.is_collector_enabled("any-machine", "beads"));
+        assert!(config.is_collector_enabled("any-machine", "bv_br"));
+
+        config.collectors.bv_br = false;
+        assert!(!config.is_collector_enabled("any-machine", "beads"));
+        assert!(!config.is_collector_enabled("any-machine", "bv_br"));
+    }
+
+    #[test]
+    fn test_github_collector_defaults_off_and_is_togglable() {
+        let mut config = VcConfig::default();
+        assert!(!config.is_collector_enabled("any-machine", "github"));
+
+        config.collectors.github = true;
+        assert!(config.is_collector_enabled("any-machine", "github"));
+    }
+
+    #[test]
+    fn test_unknown_collector_is_disabled() {
+        let config = VcConfig::default();
+        assert!(!config.is_collector_enabled("any-machine", "not_a_collector"));
+    }
+
+    #[test]
+    fn test_collectors_parse_beads_alias_and_new_fields() {
+        let toml_src = r#"
+[collectors]
+fallback_probe = false
+beads = false
+github = true
+"#;
+        let config: VcConfig = toml::from_str(toml_src).unwrap();
+        assert!(!config.collectors.fallback_probe);
+        // `beads` is an alias for the `bv_br` field.
+        assert!(!config.collectors.bv_br);
+        assert!(config.collectors.github);
+        assert!(!config.is_collector_enabled("any-machine", "beads"));
+        assert!(!config.is_collector_enabled("any-machine", "fallback_probe"));
+        assert!(config.is_collector_enabled("any-machine", "github"));
+
+        // The legacy key still works.
+        let legacy: VcConfig = toml::from_str("[collectors]\nbv_br = false\n").unwrap();
+        assert!(!legacy.collectors.bv_br);
+        // ...and unset collectors keep their defaults.
+        assert!(legacy.collectors.fallback_probe);
     }
 
     #[test]

@@ -1227,10 +1227,23 @@ impl Cli {
                 }
 
                 let config = load_config(self.config.as_ref())?;
+                // `resolve_tui_options` must run before `config` moves into the Arc.
                 let options = resolve_tui_options(&config, inline);
+                let store = Arc::new(VcStore::open(&config.global.db_path)?);
+                let config_source = self
+                    .config
+                    .as_ref()
+                    .map_or_else(|| "discovered".to_string(), |p| p.display().to_string());
+                let context = Some(vc_tui::AppContext::new(
+                    store,
+                    Arc::new(config),
+                    config_source,
+                ));
+
                 let controller = ShutdownController::new();
                 let receiver = controller.subscribe();
-                run_with_shutdown_budget(cx, "tui", controller, run_tui(options, receiver)).await?;
+                run_with_shutdown_budget(cx, "tui", controller, run_tui(options, context, receiver))
+                    .await?;
             }
             Commands::Daemon { foreground } => {
                 let controller = ShutdownController::new();
@@ -1244,41 +1257,116 @@ impl Cli {
                 .await?;
             }
             Commands::Status { machine } => {
-                println!(
-                    "Status for {:?}",
-                    machine.unwrap_or_else(|| "all".to_string())
-                );
-                // Status implementation will go here
+                // Same store-backed payload `vc robot status` returns, so the
+                // human and the agent can never disagree about the fleet.
+                let store = open_store(self.config.as_ref())?;
+                let mut envelope = robot::robot_status(&store)?;
+
+                // `--machine` narrows the machine list; the fleet, repo and alert
+                // roll-ups stay fleet-wide, which is what they are.
+                if let Some(id) = machine.as_deref() {
+                    envelope.data.machines.retain(|entry| entry.id == id);
+                    if envelope.data.machines.is_empty() {
+                        return Err(CliError::CommandFailed(format!(
+                            "unknown machine {id:?}; `vc robot machines` lists the registry"
+                        )));
+                    }
+                }
+                let machines = &envelope.data.machines;
+
+                match self.format {
+                    OutputFormat::Json => println!("{}", envelope.to_json_pretty()),
+                    OutputFormat::Toon => {
+                        use toon::ToToon;
+                        println!("{}", envelope.data.to_toon());
+                    }
+                    OutputFormat::Text => {
+                        let fleet = &envelope.data.fleet;
+                        println!(
+                            "fleet: {} machines ({} online, {} offline)  health {:.2}",
+                            fleet.total_machines,
+                            fleet.online,
+                            fleet.offline,
+                            fleet.health_score
+                        );
+
+                        if machines.is_empty() {
+                            println!("(no machines in the registry - run `vc machine add`)");
+                        }
+                        for entry in machines {
+                            let health = entry
+                                .health_score
+                                .map_or_else(|| "-".to_string(), |score| format!("{score:.2}"));
+                            let seen = entry.last_seen.map_or_else(
+                                || "never".to_string(),
+                                |ts| ts.to_rfc3339(),
+                            );
+                            let cpu = entry
+                                .metrics
+                                .as_ref()
+                                .and_then(|m| m.cpu_pct)
+                                .map_or_else(|| "-".to_string(), |value| format!("{value:.0}%"));
+                            let mem = entry
+                                .metrics
+                                .as_ref()
+                                .and_then(|m| m.mem_pct)
+                                .map_or_else(|| "-".to_string(), |value| format!("{value:.0}%"));
+                            println!(
+                                "  {:<16} {:<9} health={health:<5} cpu={cpu:<5} mem={mem:<5} last_seen={seen}",
+                                entry.id, entry.status
+                            );
+                            if let Some(issue) = &entry.top_issue {
+                                println!("      top_issue: {issue}");
+                            }
+                        }
+
+                        let repos = &envelope.data.repos;
+                        println!(
+                            "repos: {} tracked ({} dirty, {} ahead, {} behind)",
+                            repos.total, repos.dirty, repos.ahead, repos.behind
+                        );
+                        let alerts = &envelope.data.alerts;
+                        println!(
+                            "alerts: {} critical, {} warning, {} info (unresolved)",
+                            alerts.critical, alerts.warning, alerts.info
+                        );
+                        for warning in &envelope.warnings {
+                            println!("warning: {warning}");
+                        }
+                    }
+                }
             }
             Commands::Robot { command } => {
                 use toon::ToToon;
 
                 match command {
                     RobotCommands::Health => {
-                        let output = robot::robot_health();
+                        let store = open_store(self.config.as_ref())?;
+                        let output = robot::robot_health(&store)?;
                         match self.format {
                             OutputFormat::Toon => println!("{}", output.data.to_toon()),
                             _ => println!("{}", output.to_json_pretty()),
                         }
                     }
                     RobotCommands::Triage => {
-                        let output = robot::robot_triage();
+                        let store = open_store(self.config.as_ref())?;
+                        let output = robot::robot_triage(&store)?;
                         match self.format {
                             OutputFormat::Toon => println!("{}", output.data.to_toon()),
                             _ => println!("{}", output.to_json_pretty()),
                         }
                     }
                     RobotCommands::Status => {
-                        let output = robot::robot_status();
+                        let store = open_store(self.config.as_ref())?;
+                        let output = robot::robot_status(&store)?;
                         match self.format {
                             OutputFormat::Toon => println!("{}", output.data.to_toon()),
                             _ => println!("{}", output.to_json_pretty()),
                         }
                     }
                     RobotCommands::Accounts => {
-                        let data =
-                            serde_json::json!({ "accounts": [], "warning": "not yet implemented" });
-                        let output = robot::RobotEnvelope::new("vc.robot.accounts.v1", data);
+                        let store = open_store(self.config.as_ref())?;
+                        let output = robot::robot_accounts(&store)?;
                         match self.format {
                             OutputFormat::Toon => {
                                 println!("{}", toon::to_toon_via_json(&output.data))
@@ -1287,8 +1375,18 @@ impl Cli {
                         }
                     }
                     RobotCommands::Oracle => {
-                        let data = serde_json::json!({ "predictions": [], "warning": "not yet implemented" });
-                        let output = robot::RobotEnvelope::new("vc.robot.oracle.v1", data);
+                        let store = open_store(self.config.as_ref())?;
+                        let output = robot::robot_oracle(&store)?;
+                        match self.format {
+                            OutputFormat::Toon => {
+                                println!("{}", toon::to_toon_via_json(&output.data))
+                            }
+                            _ => println!("{}", output.to_json_pretty()),
+                        }
+                    }
+                    RobotCommands::Repos => {
+                        let store = open_store(self.config.as_ref())?;
+                        let output = robot::robot_repos(&store)?;
                         match self.format {
                             OutputFormat::Toon => {
                                 println!("{}", toon::to_toon_via_json(&output.data))
@@ -1308,17 +1406,6 @@ impl Cli {
                             data["warning"] = serde_json::Value::String(warning);
                         }
                         let output = robot::RobotEnvelope::new("vc.robot.machines.v1", data);
-                        match self.format {
-                            OutputFormat::Toon => {
-                                println!("{}", toon::to_toon_via_json(&output.data))
-                            }
-                            _ => println!("{}", output.to_json_pretty()),
-                        }
-                    }
-                    RobotCommands::Repos => {
-                        let data =
-                            serde_json::json!({ "repos": [], "warning": "not yet implemented" });
-                        let output = robot::RobotEnvelope::new("vc.robot.repos.v1", data);
                         match self.format {
                             OutputFormat::Toon => {
                                 println!("{}", toon::to_toon_via_json(&output.data))
@@ -3931,7 +4018,140 @@ async fn run_collection_tick(
         }
     }
 
+    // Collection only fills the raw telemetry tables. Scoring and alerting are
+    // what turn that into something the cockpit can show, so they run here on
+    // the same tick — otherwise `health_summary` stays empty forever and every
+    // downstream surface (fleet overview, TUI, `vc robot health`) reports
+    // nothing while the underlying data is sitting right there.
+    score_and_alert(store, cx)?;
+
     Ok((runs, failures))
+}
+
+/// Score the freshly collected telemetry and raise alerts from it.
+///
+/// Failures here are logged rather than propagated: a bad scoring pass must not
+/// discard a tick's worth of successfully collected data.
+fn score_and_alert(store: &VcStore, cx: &Cx) -> Result<(), CliError> {
+    if cx.checkpoint().is_err() {
+        return Ok(());
+    }
+
+    let query = vc_query::QueryBuilder::new(store);
+
+    let scores = match query.compute_and_persist_health_all() {
+        Ok(scores) => scores,
+        Err(e) => {
+            tracing::warn!(error = %e, "health scoring failed for this tick");
+            return Ok(());
+        }
+    };
+    tracing::debug!(machines = scores.len(), "health scores persisted");
+
+    if cx.checkpoint().is_err() {
+        return Ok(());
+    }
+
+    match evaluate_alert_rules(store, &scores) {
+        Ok(raised) if raised > 0 => tracing::info!(raised, "alerts raised"),
+        Ok(_) => {}
+        Err(e) => tracing::warn!(error = %e, "alert evaluation failed for this tick"),
+    }
+
+    Ok(())
+}
+
+/// Evaluate the built-in alert rules against the store and record what fires.
+///
+/// Only `Threshold` rules are evaluated: they carry a SQL query that can be run
+/// directly. `Pattern`, `Absence` and `RateOfChange` are skipped and counted,
+/// because honouring them properly needs per-condition query construction that
+/// does not exist yet — raising nothing is correct; inventing a result is not.
+///
+/// A rule with an already-open (unresolved) alert does not re-fire, so a
+/// persistently unhealthy machine produces one alert rather than one per tick.
+fn evaluate_alert_rules(
+    store: &VcStore,
+    scores: &[vc_query::HealthScore],
+) -> Result<usize, CliError> {
+    use vc_alert::{AlertCondition, AlertEngine};
+
+    let engine = AlertEngine::new();
+    let mut raised = 0_usize;
+    let mut skipped = 0_usize;
+
+    for rule in engine.rules() {
+        if !rule.enabled {
+            continue;
+        }
+
+        let AlertCondition::Threshold {
+            query,
+            operator,
+            value,
+        } = &rule.condition
+        else {
+            skipped += 1;
+            continue;
+        };
+
+        let rows = match store.query_json(query) {
+            Ok(rows) => rows,
+            Err(e) => {
+                tracing::warn!(rule = %rule.rule_id, error = %e, "alert rule query failed");
+                continue;
+            }
+        };
+
+        // A threshold query yields a single scalar. No rows, or a NULL, means
+        // there is simply no telemetry to judge — not a breach.
+        let Some(actual) = rows
+            .first()
+            .and_then(|row| row.as_object())
+            .and_then(|obj| obj.values().next())
+            .and_then(serde_json::Value::as_f64)
+        else {
+            continue;
+        };
+
+        if !operator.check(actual, *value) {
+            continue;
+        }
+
+        if store.has_open_alert(&rule.rule_id, None)? {
+            continue;
+        }
+
+        let context = serde_json::json!({
+            "actual": actual,
+            "threshold": value,
+            "query": query,
+        });
+
+        store.insert_alert(&vc_store::FiredAlert {
+            rule_id: rule.rule_id.clone(),
+            fired_at: Utc::now().to_rfc3339_opts(SecondsFormat::Micros, true),
+            severity: format!("{:?}", rule.severity).to_lowercase(),
+            title: rule.name.clone(),
+            message: format!(
+                "{} is {actual:.1}, which breaches the threshold of {value:.1}",
+                rule.name
+            ),
+            context_json: Some(context.to_string()),
+            machine_id: None,
+        })?;
+        raised += 1;
+    }
+
+    if skipped > 0 {
+        tracing::debug!(
+            skipped,
+            "non-threshold alert conditions are not evaluated yet"
+        );
+    }
+    let _ = scores;
+
+    Ok(raised)
 }
 
 async fn run_daemon(
@@ -4004,12 +4224,13 @@ async fn run_daemon(
 
 async fn run_tui(
     options: vc_tui::RunOptions,
+    context: Option<vc_tui::AppContext>,
     mut shutdown: ShutdownReceiver,
 ) -> Result<(), CliError> {
     let shutdown_requested = Arc::new(AtomicBool::new(false));
     let worker_shutdown = Arc::clone(&shutdown_requested);
     let join_handle = tokio::task::spawn_blocking(move || {
-        vc_tui::run_with_options_and_shutdown_flag(options, worker_shutdown)
+        vc_tui::run_with_options_and_shutdown_flag(options, context, worker_shutdown)
     });
     let join_handle = Box::pin(join_handle);
     let shutdown_wait = Box::pin(shutdown.wait());

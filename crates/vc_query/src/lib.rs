@@ -19,6 +19,8 @@ pub mod cost;
 
 pub mod digest;
 
+pub mod health;
+
 pub mod nl;
 pub use cost::{
     AnomalySeverity, AnomalyType, ConfidenceFactors, CostAnomaly, CostAttribution, CostDriver,

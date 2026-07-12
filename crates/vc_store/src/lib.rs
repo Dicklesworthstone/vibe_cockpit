@@ -375,6 +375,22 @@ pub struct CollectorHealth {
     pub cursor_json: Option<String>,
 }
 
+/// An alert that fired and is being written to `alert_history`.
+///
+/// Deliberately a plain record rather than `vc_alert::Alert`: the store stays
+/// free of a dependency on the alerting crate, and the caller does the
+/// severity/context serialization it already has to do anyway.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FiredAlert {
+    pub rule_id: String,
+    pub fired_at: String,
+    pub severity: String,
+    pub title: String,
+    pub message: String,
+    pub context_json: Option<String>,
+    pub machine_id: Option<String>,
+}
+
 /// Machine baseline profile
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MachineBaseline {
@@ -1211,6 +1227,69 @@ impl VcStore {
             ],
         )?;
         Ok(())
+    }
+
+    /// Record a fired alert in `alert_history`.
+    ///
+    /// `alert_history` had no writer at all before this: the table, the rules and
+    /// the engine all existed, but nothing ever evaluated a rule, so every alert
+    /// surface read an eternally empty table.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] if the insert fails.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal database mutex is poisoned.
+    pub fn insert_alert(&self, alert: &FiredAlert) -> Result<(), StoreError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO alert_history \
+             (rule_id, fired_at, severity, title, message, context_json, machine_id) \
+             VALUES (?, ?, ?, ?, ?, ?, ?)",
+            duckdb::params![
+                alert.rule_id,
+                alert.fired_at,
+                alert.severity,
+                alert.title,
+                alert.message,
+                alert.context_json,
+                alert.machine_id,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Whether an unresolved alert for `rule_id` is already open.
+    ///
+    /// Used to keep a persistently unhealthy machine from re-raising the same
+    /// alert on every tick.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`StoreError`] if the query fails.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal database mutex is poisoned.
+    pub fn has_open_alert(&self, rule_id: &str, machine_id: Option<&str>) -> Result<bool, StoreError> {
+        let conn = self.conn.lock().unwrap();
+        let count: i64 = match machine_id {
+            Some(machine) => conn.query_row(
+                "SELECT COUNT(*) FROM alert_history \
+                 WHERE rule_id = ? AND machine_id = ? AND resolved_at IS NULL",
+                duckdb::params![rule_id, machine],
+                |row| row.get(0),
+            )?,
+            None => conn.query_row(
+                "SELECT COUNT(*) FROM alert_history \
+                 WHERE rule_id = ? AND resolved_at IS NULL",
+                duckdb::params![rule_id],
+                |row| row.get(0),
+            )?,
+        };
+        Ok(count > 0)
     }
 
     /// Get freshness summary for all collectors on a machine (or all machines)

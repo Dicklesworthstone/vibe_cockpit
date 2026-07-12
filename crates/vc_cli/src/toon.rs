@@ -114,7 +114,7 @@ impl ToToon for TriageData {
 ///
 /// Example output:
 /// ```text
-/// TOON1|F:4on1off,h85|M:orko:on,h91,cpu45,mem68|RP:15t2d3a1b|AL:0c1h2m0l
+/// TOON1|F:4on1off,h85|M:orko:on,h91,cpu45,mem68|RP:15t2d3a1b|AL:0c1w2i
 /// ```
 impl ToToon for StatusData {
     fn to_toon(&self) -> String {
@@ -139,13 +139,13 @@ impl ToToon for StatusData {
                         "{}:{},h{}",
                         abbreviate(&m.id, 12),
                         status_abbrev(&m.status),
-                        pct(m.health_score)
+                        pct_opt(m.health_score)
                     );
                     if let Some(ref metrics) = m.metrics {
                         s.push_str(&format!(
                             ",cpu{},mem{}",
-                            metrics.cpu_pct.round() as u32,
-                            metrics.mem_pct.round() as u32
+                            metric_opt(metrics.cpu_pct),
+                            metric_opt(metrics.mem_pct)
                         ));
                     }
                     if let Some(ref issue) = m.top_issue {
@@ -168,11 +168,8 @@ impl ToToon for StatusData {
 
         // Alerts
         let a = &self.alerts;
-        if a.critical > 0 || a.high > 0 || a.medium > 0 || a.low > 0 {
-            parts.push(format!(
-                "AL:{}c{}h{}m{}l",
-                a.critical, a.high, a.medium, a.low
-            ));
+        if a.critical > 0 || a.warning > 0 || a.info > 0 {
+            parts.push(format!("AL:{}c{}w{}i", a.critical, a.warning, a.info));
         }
 
         parts.join("|")
@@ -224,6 +221,17 @@ fn pct(score: f64) -> u32 {
     (score * 100.0).clamp(0.0, f64::from(u32::MAX)).round() as u32
 }
 
+/// Render an optional score. An unknown score is `-`, not `0` — a machine with
+/// no health summary is not a machine scoring zero.
+fn pct_opt(score: Option<f64>) -> String {
+    score.map_or_else(|| "-".to_string(), |value| pct(value).to_string())
+}
+
+/// Render an optional percentage metric, `-` when it was never collected.
+fn metric_opt(value: Option<f64>) -> String {
+    value.map_or_else(|| "-".to_string(), |value| value.round().to_string())
+}
+
 /// Abbreviate a status string
 fn status_abbrev(status: &str) -> &str {
     match status {
@@ -254,7 +262,7 @@ fn machine_health_toon(m: &MachineHealth) -> String {
         "{}:{},h{},{}ag",
         abbreviate(&m.id, 12),
         status_abbrev(&m.status),
-        pct(m.score),
+        pct_opt(m.score),
         m.agent_count
     );
     if let Some(cpu) = m.cpu_percent {
@@ -313,10 +321,10 @@ mod tests {
                 MachineHealth {
                     id: "orko".to_string(),
                     name: "Orko".to_string(),
-                    score: 0.91,
+                    score: Some(0.91),
                     status: "online".to_string(),
                     top_issue: None,
-                    last_seen: Utc::now(),
+                    last_seen: Some(Utc::now()),
                     agent_count: 15,
                     cpu_percent: Some(45.0),
                     memory_percent: Some(68.0),
@@ -324,10 +332,10 @@ mod tests {
                 MachineHealth {
                     id: "backup".to_string(),
                     name: "Backup".to_string(),
-                    score: 0.0,
+                    score: Some(0.0),
                     status: "offline".to_string(),
                     top_issue: Some("no_response".to_string()),
-                    last_seen: Utc::now(),
+                    last_seen: None,
                     agent_count: 0,
                     cpu_percent: None,
                     memory_percent: None,
@@ -414,13 +422,13 @@ mod tests {
             machines: vec![MachineStatus {
                 id: "orko".to_string(),
                 status: "online".to_string(),
-                last_seen: Utc::now(),
-                health_score: 0.91,
+                last_seen: Some(Utc::now()),
+                health_score: Some(0.91),
                 metrics: Some(MachineMetrics {
-                    cpu_pct: 45.2,
-                    mem_pct: 68.0,
-                    load5: 1.8,
-                    disk_free_pct: 35.0,
+                    cpu_pct: Some(45.2),
+                    mem_pct: Some(68.0),
+                    load5: Some(1.8),
+                    disk_free_pct: Some(35.0),
                 }),
                 top_issue: None,
             }],
@@ -432,9 +440,8 @@ mod tests {
             },
             alerts: AlertSummary {
                 critical: 0,
-                high: 1,
-                medium: 2,
-                low: 0,
+                warning: 1,
+                info: 2,
             },
         };
 
@@ -443,7 +450,7 @@ mod tests {
         assert!(toon.contains("F:3on1off,h85"));
         assert!(toon.contains("M:orko:on,h91,cpu45,mem68"));
         assert!(toon.contains("RP:15t2d3a1b"));
-        assert!(toon.contains("AL:0c1h2m0l"));
+        assert!(toon.contains("AL:0c1w2i"));
 
         // Verify significant token reduction
         let json = serde_json::to_string(&status).unwrap();

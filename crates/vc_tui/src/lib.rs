@@ -13,7 +13,10 @@ use std::sync::{
 };
 use std::time::Duration;
 use thiserror::Error;
+use vc_config::VcConfig;
+use vc_store::VcStore;
 
+pub mod data;
 pub mod screens;
 pub mod theme;
 pub mod widgets;
@@ -38,6 +41,45 @@ pub enum TuiError {
 
     #[error("Query error: {0}")]
     QueryError(#[from] vc_query::QueryError),
+
+    #[error("Store error: {0}")]
+    StoreError(#[from] vc_store::StoreError),
+}
+
+/// Handles the TUI needs to fetch live data.
+///
+/// The store is shared with the background refresh tasks spawned by
+/// [`ftui::Cmd::task`], so it is held behind an [`Arc`].
+#[derive(Clone)]
+pub struct AppContext {
+    store: Arc<VcStore>,
+    config: Arc<VcConfig>,
+    config_source: String,
+}
+
+impl AppContext {
+    /// Build a context from an already-opened store and the loaded config.
+    ///
+    /// `config_source` is the provenance string shown on the Settings screen
+    /// (for example the config file path, or `"defaults"`).
+    #[must_use]
+    pub fn new(
+        store: Arc<VcStore>,
+        config: Arc<VcConfig>,
+        config_source: impl Into<String>,
+    ) -> Self {
+        Self {
+            store,
+            config,
+            config_source: config_source.into(),
+        }
+    }
+
+    /// The shared store handle.
+    #[must_use]
+    pub fn store(&self) -> Arc<VcStore> {
+        Arc::clone(&self.store)
+    }
 }
 
 /// Runtime launch options for the `FrankenTUI` entry point.
@@ -162,6 +204,62 @@ impl Screen {
         }
     }
 
+    /// Whether this screen is backed by a real query against the store/config.
+    ///
+    /// Screens that return `false` have no collector query wired yet; the app
+    /// renders an explicit "no data source yet" state for them instead of an
+    /// empty dashboard that would look like real (but zeroed) data.
+    #[must_use]
+    pub fn has_data_source(self) -> bool {
+        match self {
+            // Backed by `data::load_*` (store) or `SettingsData::from_config`.
+            Screen::Overview
+            | Screen::Machines
+            | Screen::Alerts
+            | Screen::Sessions
+            | Screen::Events
+            | Screen::Settings
+            | Screen::Help => true,
+            // No query layer yet — see `Screen::missing_data_source_note`.
+            Screen::Repos
+            | Screen::Accounts
+            | Screen::Mail
+            | Screen::Guardian
+            | Screen::Oracle
+            | Screen::Beads
+            | Screen::Rch => false,
+        }
+    }
+
+    /// Explanation shown on screens that have no backing query yet.
+    #[must_use]
+    pub fn missing_data_source_note(self) -> &'static str {
+        match self {
+            Screen::Repos => {
+                "Repo status lives in `repo_status_snapshots`, but this screen has no renderer or query yet. (The Overview repo panel does show it.)"
+            }
+            Screen::Accounts => {
+                "No query for `account_usage_snapshots` / `account_profile_snapshots` is wired yet."
+            }
+            Screen::Mail => "No query for `mail_messages` / `mail_file_reservations` is wired yet.",
+            Screen::Guardian => {
+                "No query for `guardian_runs` / `guardian_playbooks` is wired yet."
+            }
+            Screen::Oracle => "No query for `predictions` / `resolutions` is wired yet.",
+            Screen::Beads => {
+                "No query for `beads_snapshot` / `beads_graph_metrics` is wired yet."
+            }
+            Screen::Rch => "No query for `rch_metrics` / `rch_compilations` is wired yet.",
+            Screen::Overview
+            | Screen::Machines
+            | Screen::Alerts
+            | Screen::Sessions
+            | Screen::Events
+            | Screen::Settings
+            | Screen::Help => "",
+        }
+    }
+
     /// All screens in order
     #[must_use]
     pub fn all() -> &'static [Screen] {
@@ -262,6 +360,10 @@ pub struct App {
     pub should_quit: bool,
     pub last_error: Option<String>,
     shutdown_requested: Option<Arc<AtomicBool>>,
+    /// Store/config handles used to refresh screen data. `None` means the app
+    /// was constructed without a data source (tests, or a caller that has no
+    /// store); every data screen then renders the "no data source" state.
+    context: Option<AppContext>,
     pub theme: Theme,
     // Screen data — all screens represented
     pub overview_data: OverviewData,
@@ -279,15 +381,32 @@ pub struct App {
 }
 
 impl App {
-    /// Create a new app instance
+    /// Create a new app instance.
+    ///
+    /// Pass `Some(context)` to give the app a live store/config handle; the
+    /// theme and Settings screen are then derived from the config and every
+    /// tick refreshes the store-backed screens. Pass `None` for a detached app
+    /// with no data source.
     #[must_use]
-    pub fn new() -> Self {
+    pub fn new(context: Option<AppContext>) -> Self {
+        let settings_data = context.as_ref().map_or_else(SettingsData::default, |ctx| {
+            SettingsData::from_config(&ctx.config, ctx.config_source.clone())
+        });
+        let theme = context.as_ref().map_or_else(Theme::default, |ctx| {
+            match ctx.config.tui.theme.to_ascii_lowercase().as_str() {
+                "light" => Theme::from_mode(false),
+                "dark" => Theme::from_mode(true),
+                _ => Theme::default(),
+            }
+        });
+
         Self {
             current_screen: Screen::Overview,
             should_quit: false,
             last_error: None,
             shutdown_requested: None,
-            theme: Theme::default(),
+            context,
+            theme,
             overview_data: OverviewData::default(),
             machines_data: MachinesData::default(),
             accounts_data: AccountsData::default(),
@@ -299,16 +418,104 @@ impl App {
             events_data: EventsData::default(),
             beads_data: BeadsData::default(),
             rch_data: RchData::default(),
-            settings_data: SettingsData::default(),
+            settings_data,
         }
     }
 
     /// Create a new app instance that can be asked to quit externally.
     #[must_use]
-    pub fn with_shutdown_flag(shutdown_requested: Arc<AtomicBool>) -> Self {
-        let mut app = Self::new();
+    pub fn with_shutdown_flag(
+        context: Option<AppContext>,
+        shutdown_requested: Arc<AtomicBool>,
+    ) -> Self {
+        let mut app = Self::new(context);
         app.shutdown_requested = Some(shutdown_requested);
         app
+    }
+
+    /// Build the refresh command executed on every tick.
+    ///
+    /// Each store-backed screen gets its own background task so a slow or
+    /// failing query cannot block the others or the render loop. The trailing
+    /// [`ftui::Cmd::tick`] re-arms the refresh interval.
+    fn refresh_cmd(&self) -> ftui::Cmd<AppMessage> {
+        let Some(context) = self.context.as_ref() else {
+            // No data source: nothing to fetch, just keep the clock running.
+            return ftui::Cmd::tick(TICK_INTERVAL);
+        };
+
+        let mut cmds: Vec<ftui::Cmd<AppMessage>> = Vec::with_capacity(6);
+
+        let store = context.store();
+        cmds.push(ftui::Cmd::task_named("vc_tui.load_overview", move || {
+            match data::load_overview(&store) {
+                Ok(overview) => {
+                    AppMessage::DataRefreshed(ScreenData::Overview(Box::new(overview)))
+                }
+                Err(err) => AppMessage::Error(format!("overview refresh failed: {err}")),
+            }
+        }));
+
+        let store = context.store();
+        cmds.push(ftui::Cmd::task_named("vc_tui.load_machines", move || {
+            match data::load_machines(&store) {
+                Ok(machines) => {
+                    AppMessage::DataRefreshed(ScreenData::Machines(Box::new(machines)))
+                }
+                Err(err) => AppMessage::Error(format!("machines refresh failed: {err}")),
+            }
+        }));
+
+        let store = context.store();
+        cmds.push(ftui::Cmd::task_named("vc_tui.load_alerts", move || {
+            match data::load_alerts(&store) {
+                Ok(alerts) => AppMessage::DataRefreshed(ScreenData::Alerts(Box::new(alerts))),
+                Err(err) => AppMessage::Error(format!("alerts refresh failed: {err}")),
+            }
+        }));
+
+        let store = context.store();
+        cmds.push(ftui::Cmd::task_named("vc_tui.load_sessions", move || {
+            match data::load_sessions(&store) {
+                Ok(sessions) => {
+                    AppMessage::DataRefreshed(ScreenData::Sessions(Box::new(sessions)))
+                }
+                Err(err) => AppMessage::Error(format!("sessions refresh failed: {err}")),
+            }
+        }));
+
+        let store = context.store();
+        cmds.push(ftui::Cmd::task_named("vc_tui.load_events", move || {
+            match data::load_events(&store) {
+                Ok(events) => AppMessage::DataRefreshed(ScreenData::Events(Box::new(events))),
+                Err(err) => AppMessage::Error(format!("events refresh failed: {err}")),
+            }
+        }));
+
+        cmds.push(ftui::Cmd::tick(TICK_INTERVAL));
+        ftui::Cmd::batch(cmds)
+    }
+
+    /// Render the explicit "no data source yet" state for an unbacked screen.
+    fn render_no_data_source(&self, frame: &mut ftui::Frame, screen: Screen) {
+        let title = format!("Vibe Cockpit | {}", screen.title());
+        Self::write_line(&mut frame.buffer, 0, &title);
+        Self::write_line(&mut frame.buffer, 2, "NO DATA SOURCE YET");
+        Self::write_line(&mut frame.buffer, 3, screen.missing_data_source_note());
+        Self::write_line(
+            &mut frame.buffer,
+            4,
+            "Nothing is fetched for this screen, so nothing is shown. Live screens: 1 Overview, 2 Machines, 5 Sessions, 7 Alerts, 0 Events, s Settings.",
+        );
+
+        if let Some(ref err) = self.last_error {
+            let err_line = format!("Error: {err}");
+            Self::write_line(&mut frame.buffer, 6, &err_line);
+        }
+
+        let nav = "1:Overview 2:Machines 3:Repos 4:Accounts 5:Sessions 6:Mail 7:Alerts 8:Guardian 9:Oracle 0:Events b:Beads w:RCH s:Settings ?:Help q:Quit";
+        let bottom_y = frame.height().saturating_sub(1);
+        Self::write_line(&mut frame.buffer, bottom_y, nav);
     }
 
     /// Write a string into an ftui buffer at the given row.
@@ -336,16 +543,14 @@ impl ftui::Model for App {
     fn update(&mut self, msg: Self::Message) -> ftui::Cmd<Self::Message> {
         match msg {
             AppMessage::Key(k) => self.handle_ftui_key(k),
-            AppMessage::Tick => {
-                // In the future, this returns a Cmd::Task that fetches data.
-                // For now, just schedule the next tick.
-                ftui::Cmd::tick(TICK_INTERVAL)
-            }
+            AppMessage::Tick => self.refresh_cmd(),
             AppMessage::ScreenChanged(screen) => {
                 self.current_screen = screen;
                 ftui::Cmd::none()
             }
             AppMessage::DataRefreshed(data) => {
+                // A successful refresh clears any stale failure banner.
+                self.last_error = None;
                 match data {
                     ScreenData::Overview(d) => self.overview_data = *d,
                     ScreenData::Machines(d) => self.machines_data = *d,
@@ -389,13 +594,6 @@ impl ftui::Model for App {
                     &self.theme,
                 );
             }
-            Screen::Accounts => {
-                crate::screens::accounts::render_accounts_ftui(
-                    frame,
-                    &self.accounts_data,
-                    &self.theme,
-                );
-            }
             Screen::Sessions => {
                 crate::screens::sessions::render_sessions_ftui(
                     frame,
@@ -403,30 +601,11 @@ impl ftui::Model for App {
                     &self.theme,
                 );
             }
-            Screen::Mail => {
-                crate::screens::mail::render_mail_ftui(frame, &self.mail_data, &self.theme);
-            }
             Screen::Alerts => {
                 crate::screens::alerts::render_alerts_ftui(frame, &self.alerts_data, &self.theme);
             }
-            Screen::Guardian => {
-                crate::screens::guardian::render_guardian_ftui(
-                    frame,
-                    &self.guardian_data,
-                    &self.theme,
-                );
-            }
-            Screen::Oracle => {
-                crate::screens::oracle::render_oracle_ftui(frame, &self.oracle_data, &self.theme);
-            }
             Screen::Events => {
                 crate::screens::events::render_events_ftui(frame, &self.events_data, &self.theme);
-            }
-            Screen::Beads => {
-                crate::screens::beads::render_beads_ftui(frame, &self.beads_data, &self.theme);
-            }
-            Screen::Rch => {
-                crate::screens::rch::render_rch_ftui(frame, &self.rch_data, &self.theme);
             }
             Screen::Settings => {
                 crate::screens::settings::render_settings_ftui(
@@ -435,31 +614,14 @@ impl ftui::Model for App {
                     &self.theme,
                 );
             }
-            _ => {
-                // Stub dispatch — remaining screens still render placeholders until
-                // their ftui port beads land.
+            Screen::Help => {
                 let title = format!("Vibe Cockpit | {}", self.current_screen.title());
                 Self::write_line(&mut frame.buffer, 0, &title);
-
-                let hint = match self.current_screen {
-                    Screen::Repos => "Repository status and sync state",
-                    Screen::Help => {
-                        "Keyboard shortcuts: 1-9, 0, b, w, s, ? | Tab / Shift+Tab cycle | Esc returns | q quits"
-                    }
-                    Screen::Overview
-                    | Screen::Machines
-                    | Screen::Accounts
-                    | Screen::Sessions
-                    | Screen::Mail
-                    | Screen::Alerts
-                    | Screen::Guardian
-                    | Screen::Oracle
-                    | Screen::Events
-                    | Screen::Beads
-                    | Screen::Rch
-                    | Screen::Settings => unreachable!(),
-                };
-                Self::write_line(&mut frame.buffer, 2, hint);
+                Self::write_line(
+                    &mut frame.buffer,
+                    2,
+                    "Keyboard shortcuts: 1-9, 0, b, w, s, ? | Tab / Shift+Tab cycle | Esc returns | q quits",
+                );
 
                 if let Some(ref err) = self.last_error {
                     let err_line = format!("Error: {err}");
@@ -469,6 +631,17 @@ impl ftui::Model for App {
                 let nav = "1:Overview 2:Machines 3:Repos 4:Accounts 5:Sessions 6:Mail 7:Alerts 8:Guardian 9:Oracle 0:Events b:Beads w:RCH s:Settings ?:Help q:Quit";
                 let bottom_y = frame.height().saturating_sub(1);
                 Self::write_line(&mut frame.buffer, bottom_y, nav);
+            }
+            // Screens with no backing query: say so explicitly rather than
+            // rendering an empty dashboard that reads as real, zeroed data.
+            screen @ (Screen::Repos
+            | Screen::Accounts
+            | Screen::Mail
+            | Screen::Guardian
+            | Screen::Oracle
+            | Screen::Beads
+            | Screen::Rch) => {
+                self.render_no_data_source(frame, screen);
             }
         }
     }
@@ -530,14 +703,21 @@ fn run_app_with_options(app: App, options: RunOptions) -> Result<(), TuiError> {
 
 /// Run the TUI application with an external shutdown flag.
 ///
+/// `context` carries the store/config handles the dashboard queries on every
+/// tick. Passing `None` runs the TUI with no data source.
+///
 /// # Errors
 ///
 /// Returns [`TuiError`] if terminal setup or the `FrankenTUI` runtime fails.
 pub fn run_with_options_and_shutdown_flag(
     options: RunOptions,
+    context: Option<AppContext>,
     shutdown_requested: Arc<AtomicBool>,
 ) -> Result<(), TuiError> {
-    run_app_with_options(App::with_shutdown_flag(shutdown_requested), options)
+    run_app_with_options(
+        App::with_shutdown_flag(context, shutdown_requested),
+        options,
+    )
 }
 
 /// Run the TUI application with the requested screen mode.
@@ -545,8 +725,8 @@ pub fn run_with_options_and_shutdown_flag(
 /// # Errors
 ///
 /// Returns [`TuiError`] if terminal setup or the `FrankenTUI` runtime fails.
-pub fn run_with_options(options: RunOptions) -> Result<(), TuiError> {
-    run_app_with_options(App::default(), options)
+pub fn run_with_options(options: RunOptions, context: Option<AppContext>) -> Result<(), TuiError> {
+    run_app_with_options(App::new(context), options)
 }
 impl App {
     /// Handle an ftui key event (Elm path).
@@ -583,8 +763,9 @@ impl App {
 }
 
 impl Default for App {
+    /// A detached app with no data source.
     fn default() -> Self {
-        Self::new()
+        Self::new(None)
     }
 }
 
@@ -715,7 +896,7 @@ mod tests {
 
     #[test]
     fn test_app_new() {
-        let app = App::new();
+        let app = App::new(None);
         assert_eq!(app.current_screen, Screen::Overview);
         assert!(!app.should_quit);
         assert!(app.last_error.is_none());
@@ -723,7 +904,7 @@ mod tests {
 
     #[test]
     fn test_app_default() {
-        let app1 = App::new();
+        let app1 = App::new(None);
         let app2 = App::default();
         assert_eq!(app1.current_screen, app2.current_screen);
         assert_eq!(app1.should_quit, app2.should_quit);
@@ -738,7 +919,7 @@ mod tests {
         use ftui::Model;
 
         let shutdown_requested = Arc::new(AtomicBool::new(false));
-        let app = App::with_shutdown_flag(shutdown_requested);
+        let app = App::with_shutdown_flag(None, shutdown_requested);
         let subscriptions = app.subscriptions();
 
         assert_eq!(subscriptions.len(), 2);
@@ -751,7 +932,7 @@ mod tests {
     #[test]
     fn test_model_init_returns_overview() {
         use ftui::Model;
-        let mut app = App::new();
+        let mut app = App::new(None);
         let _cmd = app.init();
         assert_eq!(app.current_screen, Screen::Overview);
     }
@@ -759,7 +940,7 @@ mod tests {
     #[test]
     fn test_model_init_returns_tick_cmd() {
         use ftui::Model;
-        let mut app = App::new();
+        let mut app = App::new(None);
         let cmd = app.init();
         // init() returns Cmd::Msg(Tick) to trigger first data load
         assert!(matches!(cmd, ftui::Cmd::Msg(AppMessage::Tick)));
@@ -768,7 +949,7 @@ mod tests {
     #[test]
     fn test_model_update_screen_changed() {
         use ftui::Model;
-        let mut app = App::new();
+        let mut app = App::new(None);
         assert_eq!(app.current_screen, Screen::Overview);
 
         let cmd = app.update(AppMessage::ScreenChanged(Screen::Machines));
@@ -779,7 +960,7 @@ mod tests {
     #[test]
     fn test_model_update_key_tab_cycles() {
         use ftui::Model;
-        let mut app = App::new();
+        let mut app = App::new(None);
         assert_eq!(app.current_screen, Screen::Overview);
 
         let cmd = app.update(AppMessage::Key(ftui::KeyEvent::new(ftui::KeyCode::Tab)));
@@ -793,7 +974,7 @@ mod tests {
     #[test]
     fn test_model_update_key_shortcut_navigates() {
         use ftui::Model;
-        let mut app = App::new();
+        let mut app = App::new(None);
 
         let cmd = app.update(AppMessage::Key(ftui::KeyEvent::new(ftui::KeyCode::Char(
             '0',
@@ -807,7 +988,7 @@ mod tests {
     #[test]
     fn test_model_update_key_settings_shortcut_navigates() {
         use ftui::Model;
-        let mut app = App::new();
+        let mut app = App::new(None);
 
         let cmd = app.update(AppMessage::Key(ftui::KeyEvent::new(ftui::KeyCode::Char(
             's',
@@ -821,16 +1002,104 @@ mod tests {
     #[test]
     fn test_model_update_tick_returns_tick_cmd() {
         use ftui::Model;
-        let mut app = App::new();
+        let mut app = App::new(None);
+
+        let cmd = app.update(AppMessage::Tick);
+        assert!(matches!(cmd, ftui::Cmd::Tick(_)));
+    }
+
+    fn test_context() -> AppContext {
+        let store = Arc::new(VcStore::open_memory().expect("in-memory store"));
+        AppContext::new(store, Arc::new(VcConfig::default()), "test")
+    }
+
+    #[test]
+    fn test_tick_with_context_spawns_refresh_tasks() {
+        use ftui::Model;
+        let mut app = App::new(Some(test_context()));
+
+        let cmd = app.update(AppMessage::Tick);
+        let ftui::Cmd::Batch(cmds) = cmd else {
+            panic!("tick with a data source must return a batch of refresh tasks");
+        };
+
+        let tasks = cmds
+            .iter()
+            .filter(|cmd| matches!(cmd, ftui::Cmd::Task(..)))
+            .count();
+        // overview, machines, alerts, sessions, events
+        assert_eq!(tasks, 5);
+        // The batch re-arms the refresh interval.
+        assert!(matches!(cmds.last(), Some(ftui::Cmd::Tick(_))));
+    }
+
+    #[test]
+    fn test_tick_without_context_only_reticks() {
+        use ftui::Model;
+        let mut app = App::new(None);
 
         let cmd = app.update(AppMessage::Tick);
         assert!(matches!(cmd, ftui::Cmd::Tick(_)));
     }
 
     #[test]
+    fn test_context_populates_settings_screen_from_config() {
+        let app = App::new(Some(test_context()));
+        assert_eq!(app.settings_data.config_source, "test");
+    }
+
+    #[test]
+    fn test_backed_screens_are_exactly_the_wired_ones() {
+        for screen in Screen::all() {
+            let backed = screen.has_data_source();
+            let expected = matches!(
+                screen,
+                Screen::Overview
+                    | Screen::Machines
+                    | Screen::Alerts
+                    | Screen::Sessions
+                    | Screen::Events
+                    | Screen::Settings
+                    | Screen::Help
+            );
+            assert_eq!(backed, expected, "{screen:?}");
+            assert_eq!(
+                screen.missing_data_source_note().is_empty(),
+                backed,
+                "{screen:?} note"
+            );
+        }
+    }
+
+    #[test]
+    fn test_unbacked_screen_renders_no_data_source_notice() {
+        use ftui::Model;
+        let mut pool = ftui::GraphemePool::default();
+        let mut app = App::new(None);
+        app.current_screen = Screen::Beads;
+
+        let mut frame = ftui::Frame::new(120, 24, &mut pool);
+        app.view(&mut frame);
+
+        let row: String = (0..frame.buffer.width())
+            .map(|x| {
+                frame
+                    .buffer
+                    .get(x, 2)
+                    .and_then(|cell| cell.content.as_char())
+                    .unwrap_or(' ')
+            })
+            .collect();
+        assert!(
+            row.contains("NO DATA SOURCE YET"),
+            "unbacked screen must say so: {row:?}"
+        );
+    }
+
+    #[test]
     fn test_model_update_data_refreshed() {
         use ftui::Model;
-        let mut app = App::new();
+        let mut app = App::new(None);
 
         let new_overview = OverviewData {
             fleet_health: 95.0,
@@ -846,7 +1115,7 @@ mod tests {
     #[test]
     fn test_model_update_key_tab_applies_screen_change() {
         use ftui::Model;
-        let mut app = App::new();
+        let mut app = App::new(None);
 
         let cmd = app.update(AppMessage::Key(ftui::KeyEvent::new(ftui::KeyCode::Tab)));
         apply_cmd(&mut app, cmd);
@@ -857,7 +1126,7 @@ mod tests {
     #[test]
     fn test_model_update_key_shortcut_applies_screen_change() {
         use ftui::Model;
-        let mut app = App::new();
+        let mut app = App::new(None);
 
         let cmd = app.update(AppMessage::Key(ftui::KeyEvent::new(ftui::KeyCode::Char(
             '8',
@@ -870,7 +1139,7 @@ mod tests {
     #[test]
     fn test_model_update_key_escape_applies_screen_change() {
         use ftui::Model;
-        let mut app = App::new();
+        let mut app = App::new(None);
         app.current_screen = Screen::Oracle;
 
         let cmd = app.update(AppMessage::Key(ftui::KeyEvent::new(ftui::KeyCode::Escape)));
@@ -882,7 +1151,7 @@ mod tests {
     #[test]
     fn test_model_update_key_ctrl_c_applies_quit() {
         use ftui::Model;
-        let mut app = App::new();
+        let mut app = App::new(None);
 
         let key =
             ftui::KeyEvent::new(ftui::KeyCode::Char('c')).with_modifiers(ftui::Modifiers::CTRL);
@@ -895,7 +1164,7 @@ mod tests {
     #[test]
     fn test_model_update_quit() {
         use ftui::Model;
-        let mut app = App::new();
+        let mut app = App::new(None);
 
         let cmd = app.update(AppMessage::Quit);
         assert!(app.should_quit);
@@ -905,7 +1174,7 @@ mod tests {
     #[test]
     fn test_model_update_error() {
         use ftui::Model;
-        let mut app = App::new();
+        let mut app = App::new(None);
         assert!(app.last_error.is_none());
 
         let _cmd = app.update(AppMessage::Error("test error".to_string()));
@@ -915,7 +1184,7 @@ mod tests {
     #[test]
     fn test_model_update_key_q_quits() {
         use ftui::Model;
-        let mut app = App::new();
+        let mut app = App::new(None);
 
         let cmd = app.update(AppMessage::Key(ftui::KeyEvent::new(ftui::KeyCode::Char(
             'q',
@@ -926,7 +1195,7 @@ mod tests {
     #[test]
     fn test_model_update_key_ctrl_c_quits() {
         use ftui::Model;
-        let mut app = App::new();
+        let mut app = App::new(None);
 
         let key =
             ftui::KeyEvent::new(ftui::KeyCode::Char('c')).with_modifiers(ftui::Modifiers::CTRL);
@@ -937,7 +1206,7 @@ mod tests {
     #[test]
     fn test_model_update_key_backtab_cycles_backward() {
         use ftui::Model;
-        let mut app = App::new();
+        let mut app = App::new(None);
 
         let cmd = app.update(AppMessage::Key(ftui::KeyEvent::new(ftui::KeyCode::BackTab)));
         assert!(matches!(
@@ -949,7 +1218,7 @@ mod tests {
     #[test]
     fn test_model_update_key_shift_tab_cycles_backward() {
         use ftui::Model;
-        let mut app = App::new();
+        let mut app = App::new(None);
 
         let key = ftui::KeyEvent::new(ftui::KeyCode::Tab).with_modifiers(ftui::Modifiers::SHIFT);
         let cmd = app.update(AppMessage::Key(key));
@@ -962,7 +1231,7 @@ mod tests {
     #[test]
     fn test_model_update_key_escape_returns_overview() {
         use ftui::Model;
-        let mut app = App::new();
+        let mut app = App::new(None);
         app.current_screen = Screen::Guardian;
 
         let cmd = app.update(AppMessage::Key(ftui::KeyEvent::new(ftui::KeyCode::Escape)));
@@ -975,7 +1244,7 @@ mod tests {
     #[test]
     fn test_model_update_key_unknown_returns_none() {
         use ftui::Model;
-        let mut app = App::new();
+        let mut app = App::new(None);
 
         let cmd = app.update(AppMessage::Key(ftui::KeyEvent::new(ftui::KeyCode::Left)));
         assert!(matches!(cmd, ftui::Cmd::None));
@@ -984,7 +1253,7 @@ mod tests {
     #[test]
     fn test_model_update_key_enter_is_currently_a_noop() {
         use ftui::Model;
-        let mut app = App::new();
+        let mut app = App::new(None);
         app.current_screen = Screen::Mail;
 
         let cmd = app.update(AppMessage::Key(ftui::KeyEvent::new(ftui::KeyCode::Enter)));
@@ -999,7 +1268,7 @@ mod tests {
         let mut pool = ftui::GraphemePool::default();
 
         for screen in Screen::all() {
-            let mut app = App::new();
+            let mut app = App::new(None);
             app.current_screen = *screen;
             let mut frame = ftui::Frame::new(80, 24, &mut pool);
             // Should not panic for any screen
@@ -1010,7 +1279,7 @@ mod tests {
     #[test]
     fn test_model_subscriptions_returns_tick() {
         use ftui::Model;
-        let app = App::new();
+        let app = App::new(None);
         let subs = app.subscriptions();
         assert_eq!(subs.len(), 1);
     }

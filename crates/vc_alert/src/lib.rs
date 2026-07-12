@@ -152,7 +152,7 @@ impl AlertEngine {
                 severity: Severity::Warning,
                 enabled: true,
                 condition: AlertCondition::Threshold {
-                    query: "SELECT MAX(usage_pct) FROM account_usage_snapshots WHERE collected_at > datetime('now', '-5 minutes')".to_string(),
+                    query: "SELECT MAX(usage_pct) FROM account_usage_snapshots WHERE CAST(collected_at AS TIMESTAMP) > current_timestamp - INTERVAL '5 minutes'".to_string(),
                     operator: ThresholdOp::Gte,
                     value: 80.0,
                 },
@@ -168,7 +168,7 @@ impl AlertEngine {
                 condition: AlertCondition::Threshold {
                     // Extract max disk usage pct from the first mount point in disk_usage_json
                     // JSON format: [{mount, total, used, avail, pct}, ...]
-                    query: "SELECT COALESCE(CAST(json_extract(disk_usage_json, '$[0].pct') AS REAL), 0.0) FROM sys_fallback_samples WHERE collected_at > datetime('now', '-5 minutes') AND disk_usage_json IS NOT NULL ORDER BY collected_at DESC LIMIT 1".to_string(),
+                    query: "SELECT COALESCE(CAST(json_extract(disk_usage_json, '$[0].pct') AS DOUBLE), 0.0) FROM sys_fallback_samples WHERE CAST(collected_at AS TIMESTAMP) > current_timestamp - INTERVAL '5 minutes' AND disk_usage_json IS NOT NULL ORDER BY collected_at DESC LIMIT 1".to_string(),
                     operator: ThresholdOp::Gte,
                     value: 90.0,
                 },
@@ -223,7 +223,7 @@ impl AlertEngine {
                 severity: Severity::Critical,
                 enabled: true,
                 condition: AlertCondition::Threshold {
-                    query: "SELECT 100.0 * (1 - CAST(mem_available_bytes AS REAL) / CAST(mem_total_bytes AS REAL)) FROM sys_fallback_samples WHERE collected_at > datetime('now', '-5 minutes') ORDER BY collected_at DESC LIMIT 1".to_string(),
+                    query: "SELECT 100.0 * (1 - CAST(mem_available_bytes AS DOUBLE) / CAST(mem_total_bytes AS DOUBLE)) FROM sys_fallback_samples WHERE CAST(collected_at AS TIMESTAMP) > current_timestamp - INTERVAL '5 minutes' AND mem_total_bytes > 0 ORDER BY collected_at DESC LIMIT 1".to_string(),
                     operator: ThresholdOp::Gte,
                     value: 95.0,
                 },

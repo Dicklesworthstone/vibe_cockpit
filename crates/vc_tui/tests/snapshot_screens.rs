@@ -18,7 +18,7 @@ const SNAPSHOT_HEIGHT: u16 = 32;
 #[test]
 fn snapshot_screens_empty() {
     for screen in Screen::all() {
-        let mut app = App::new();
+        let mut app = App::new(None);
         app.current_screen = *screen;
         let name = format!("{}_empty", screen_slug(*screen));
         assert_app_snapshot(&name, &app);
@@ -232,7 +232,7 @@ fn screen_slug(screen: Screen) -> &'static str {
 }
 
 fn sample_app() -> App {
-    let mut app = App::new();
+    let mut app = App::new(None);
     app.overview_data = sample_overview_data();
     app.machines_data = sample_machines_data();
     app.accounts_data = sample_accounts_data();

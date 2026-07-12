@@ -332,9 +332,25 @@ fn collect_sqlite_rows(
         .collect()
 }
 
+/// Normalize a value read straight out of DuckDB, for comparison against the
+/// same row after it has been migrated into FrankenSQLite.
+///
+/// The `nested` flag is the whole subtlety here. A *scalar* DuckDB BOOLEAN
+/// column lands in SQLite as an integer, so at the top level a bool must
+/// normalize to 1/0. But a BOOLEAN *inside* a LIST or STRUCT is carried across
+/// as JSON, and the migration writes it as a real JSON boolean (see
+/// `duck_value_to_json`). Applying the top-level 1/0 rule recursively made
+/// `system_metrics` — whose `details` is `STRUCT(samples INTEGER, hot BOOLEAN)`,
+/// the only nested bool in the fixture — mismatch on checksum while every other
+/// table passed.
 fn normalize_duck_value(value: DuckValue) -> Value {
+    normalize_duck_value_inner(value, false)
+}
+
+fn normalize_duck_value_inner(value: DuckValue, nested: bool) -> Value {
     match value {
         DuckValue::Null => Value::Null,
+        DuckValue::Boolean(flag) if nested => Value::Bool(flag),
         DuckValue::Boolean(flag) => Value::from(i64::from(u8::from(flag))),
         DuckValue::TinyInt(number) => Value::from(i64::from(number)),
         DuckValue::SmallInt(number) => Value::from(i64::from(number)),
@@ -365,13 +381,19 @@ fn normalize_duck_value(value: DuckValue) -> Value {
             "days": days,
             "nanos": nanos,
         }),
-        DuckValue::List(values) | DuckValue::Array(values) => {
-            Value::Array(values.into_iter().map(normalize_duck_value).collect())
-        }
+        DuckValue::List(values) | DuckValue::Array(values) => Value::Array(
+            values
+                .into_iter()
+                .map(|value| normalize_duck_value_inner(value, true))
+                .collect(),
+        ),
         DuckValue::Struct(fields) => {
             let mut object = serde_json::Map::new();
             for (key, value) in fields.iter() {
-                object.insert(key.clone(), normalize_duck_value(value.clone()));
+                object.insert(
+                    key.clone(),
+                    normalize_duck_value_inner(value.clone(), true),
+                );
             }
             Value::Object(object)
         }
@@ -380,13 +402,13 @@ fn normalize_duck_value(value: DuckValue) -> Value {
                 .iter()
                 .map(|(key, value)| {
                     serde_json::json!({
-                        "key": normalize_duck_value(key.clone()),
-                        "value": normalize_duck_value(value.clone()),
+                        "key": normalize_duck_value_inner(key.clone(), true),
+                        "value": normalize_duck_value_inner(value.clone(), true),
                     })
                 })
                 .collect(),
         ),
-        DuckValue::Union(value) => normalize_duck_value(*value),
+        DuckValue::Union(value) => normalize_duck_value_inner(*value, nested),
     }
 }
 
