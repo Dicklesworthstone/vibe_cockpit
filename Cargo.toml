@@ -25,7 +25,7 @@ repository = "https://github.com/Dicklesworthstone/vibe_cockpit"
 [workspace.dependencies]
 # Async runtime (primary) — from crates.io since the v0.3.0 release so
 # remote RCH workers and fresh clones resolve without a sibling checkout.
-asupersync = { version = "0.3.5" }
+asupersync = { version = "0.3.9" }
 # Latest published compat bridge is 0.3.4; it is not released in lockstep with
 # asupersync. Pin it explicitly rather than letting a caret range imply a 0.3.5
 # that does not exist.
