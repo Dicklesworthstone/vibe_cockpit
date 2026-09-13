@@ -57,7 +57,11 @@ fn main() -> Result<()> {
             Cx::current().expect("Runtime::block_on installs an ambient Cx for the polled future");
         tracing::debug!("root Cx established (region={:?})", root_cx.region_id());
         let cli_cx = root_cx.clone();
-        with_tokio_context(&root_cx, || async move { cli.run_with_cx(&cli_cx).await }).await
+        let drain_cleanup = matches!(&cli.command, vc_cli::Commands::MigrateDb { .. });
+        run_cli_operation(&root_cx, drain_cleanup, || async move {
+            cli.run_with_cx(&cli_cx).await
+        })
+        .await
     });
     let Some(cli_result) = cli_result else {
         tracing::warn!("CLI execution was cancelled before completion");
@@ -69,6 +73,29 @@ fn main() -> Result<()> {
 
     tracing::info!("graceful shutdown complete");
     Ok(())
+}
+
+async fn run_cli_operation<F, Fut, T>(cx: &Cx, drain_cleanup: bool, operation: F) -> Option<T>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = T>,
+{
+    if !drain_cleanup {
+        return with_tokio_context(cx, operation).await;
+    }
+    if cx.is_cancel_requested() {
+        return None;
+    }
+    // The migration checks cancellation around its borrowed copy work. Its
+    // connection-owning future must remain driven through asynchronous close;
+    // the compat adapter can stop polling after its first cancelled Pending.
+    // Runtime::block_on keeps the same root Cx installed on every poll here.
+    let result = operation().await;
+    if cx.is_cancel_requested() {
+        None
+    } else {
+        Some(result)
+    }
 }
 
 fn build_asupersync_runtime() -> Result<Runtime> {
@@ -178,6 +205,93 @@ mod tests {
             assert_eq!(
                 Cx::current().expect("parent restored").capabilities(),
                 parent.capabilities()
+            );
+        });
+    }
+
+    #[test]
+    fn migration_owner_drains_close_after_cancellation_and_pending() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let mut directory = tempfile::tempdir().expect("retained migration fixture");
+        directory.disable_cleanup(true);
+        let path = directory.path().join("cancelled-migration.sqlite");
+        let runtime = build_asupersync_runtime().expect("native runtime");
+        let closes = Arc::new(AtomicUsize::new(0));
+        let cleanup_polls = std::cell::Cell::new(0);
+        let result = runtime.block_on(async {
+            let owner = Cx::current().expect("native owner");
+            run_cli_operation(&owner, true, || async {
+                let target = fsqlite::Connection::open(path.to_string_lossy().as_ref())
+                    .await
+                    .expect("open owned target");
+                let observed_closes = Arc::clone(&closes);
+                target.trace_v2(
+                    fsqlite::TraceMask::CLOSE,
+                    Some(Arc::new(move |event| {
+                        if matches!(event, fsqlite::TraceEvent::Close) {
+                            observed_closes.fetch_add(1, Ordering::SeqCst);
+                        }
+                    })),
+                );
+                target
+                    .execute("CREATE TABLE demo (id INTEGER);")
+                    .await
+                    .unwrap();
+                target.execute("BEGIN;").await.unwrap();
+                target
+                    .execute("INSERT INTO demo VALUES (42);")
+                    .await
+                    .unwrap();
+                assert_eq!(target.query("SELECT id FROM demo;").await.unwrap().len(), 1);
+                owner.cancel_with(asupersync::CancelKind::User, Some("migration cancellation"));
+                for _ in 0..2 {
+                    asupersync::runtime::yield_now().await;
+                    cleanup_polls.set(cleanup_polls.get() + 1);
+                }
+                target
+                    .close()
+                    .await
+                    .expect("await cancelled target teardown");
+            })
+            .await
+        });
+        assert_eq!(result, None, "cancelled migration must not report success");
+        assert_eq!(cleanup_polls.get(), 2, "owner drove cleanup across Pending");
+        assert_eq!(closes.load(Ordering::SeqCst), 1);
+
+        runtime.block_on(async {
+            let target = fsqlite::Connection::open(path.to_string_lossy().as_ref())
+                .await
+                .expect("reopen after awaited close");
+            assert!(
+                target
+                    .query("SELECT id FROM demo;")
+                    .await
+                    .unwrap()
+                    .is_empty()
+            );
+            target.execute("BEGIN;").await.unwrap();
+            target
+                .execute("INSERT INTO demo VALUES (7);")
+                .await
+                .unwrap();
+            target.execute("COMMIT;").await.unwrap();
+            target.close().await.unwrap();
+
+            let owner = Cx::current().expect("native owner");
+            owner.cancel_with(asupersync::CancelKind::User, Some("before migration"));
+            let called = std::cell::Cell::new(false);
+            let result = run_cli_operation(&owner, true, || {
+                called.set(true);
+                async { 1_u8 }
+            })
+            .await;
+            assert_eq!(result, None);
+            assert!(
+                !called.get(),
+                "pre-cancelled migration must not create resources"
             );
         });
     }

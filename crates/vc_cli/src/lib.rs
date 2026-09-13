@@ -7959,7 +7959,8 @@ mod tests {
         std::fs::write(&target_path, "already exists").unwrap();
 
         run_async(async {
-            let error = run_duckdb_migration(&source_path, &target_path, OutputFormat::Json)
+            let cx = Cx::current().expect("runtime context");
+            let error = run_duckdb_migration(&cx, &source_path, &target_path, OutputFormat::Json)
                 .await
                 .expect_err("existing target should be rejected");
             assert!(
@@ -7978,7 +7979,8 @@ mod tests {
         let target_path = dir.path().join("target.sqlite");
 
         run_async(async {
-            let error = run_duckdb_migration(&source_path, &target_path, OutputFormat::Json)
+            let cx = Cx::current().expect("runtime context");
+            let error = run_duckdb_migration(&cx, &source_path, &target_path, OutputFormat::Json)
                 .await
                 .expect_err("missing source should be rejected");
             assert!(
@@ -7999,7 +8001,8 @@ mod tests {
         DuckConnection::open(&source_path).unwrap();
 
         run_async(async {
-            run_duckdb_migration(&source_path, &target_path, OutputFormat::Json)
+            let cx = Cx::current().expect("runtime context");
+            run_duckdb_migration(&cx, &source_path, &target_path, OutputFormat::Json)
                 .await
                 .unwrap();
 
@@ -8037,7 +8040,8 @@ mod tests {
                 .await
                 .unwrap();
 
-            let error = copy_table_rows(&source, &target, &plan)
+            let cx = Cx::current().expect("runtime context");
+            let error = copy_table_rows(&cx, &source, &target, &plan)
                 .await
                 .expect_err("the second insert must reject the duplicate key");
             assert!(
@@ -8101,7 +8105,8 @@ mod tests {
                 .await
                 .unwrap();
 
-            let error = copy_table_rows(&source, &target, &plan)
+            let cx = Cx::current().expect("runtime context");
+            let error = copy_table_rows(&cx, &source, &target, &plan)
                 .await
                 .expect_err("the missing deferred parent must reject COMMIT");
             assert!(matches!(
@@ -8115,7 +8120,10 @@ mod tests {
                 .await
                 .unwrap();
             target.execute("COMMIT;").await.unwrap();
-            assert_eq!(copy_table_rows(&source, &target, &plan).await.unwrap(), 1);
+            assert_eq!(
+                copy_table_rows(&cx, &source, &target, &plan).await.unwrap(),
+                1
+            );
             target.close().await.unwrap();
 
             let reopened = FrankenConnection::open(target_path.to_string_lossy().as_ref())
@@ -8130,6 +8138,75 @@ mod tests {
             assert_eq!(rows[0].values()[1], SqliteValue::Integer(7));
             reopened.close().await.unwrap();
         });
+    }
+
+    #[test]
+    fn duckdb_migration_cancellation_rolls_back_before_copying_another_row() {
+        let mut dir = tempdir().unwrap();
+        dir.disable_cleanup(true);
+        let source_path = dir.path().join("source.duckdb");
+        let target_path = dir.path().join("target.sqlite");
+        let source = DuckConnection::open(&source_path).unwrap();
+        source
+            .execute_batch("CREATE TABLE demo (id INTEGER); INSERT INTO demo VALUES (1), (2);")
+            .unwrap();
+        drop(source);
+        let source_before = std::fs::read(&source_path).unwrap();
+        let source = DuckConnection::open_with_flags(
+            &source_path,
+            duckdb::Config::default()
+                .access_mode(duckdb::AccessMode::ReadOnly)
+                .unwrap(),
+        )
+        .unwrap();
+        let plan = load_table_migration_plan(&source, "demo").unwrap();
+
+        run_async(async {
+            let cx = Cx::current().expect("native migration owner");
+            let target = FrankenConnection::open(target_path.to_string_lossy().as_ref())
+                .await
+                .unwrap();
+            target
+                .execute("CREATE TABLE demo (id INTEGER);")
+                .await
+                .unwrap();
+            let inserted = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+            let observed_inserts = Arc::clone(&inserted);
+            let cancel_owner = cx.clone();
+            target.trace_v2(
+                fsqlite::TraceMask::PROFILE,
+                Some(Arc::new(move |event| {
+                    if let fsqlite::TraceEvent::Profile { sql, .. } = event
+                        && sql.starts_with("INSERT INTO \"demo\"")
+                    {
+                        observed_inserts.fetch_add(1, Ordering::SeqCst);
+                        cancel_owner.cancel_with(CancelKind::User, Some("after first copied row"));
+                    }
+                })),
+            );
+            let error = copy_table_rows(&cx, &source, &target, &plan)
+                .await
+                .expect_err("copy must observe cancellation before the next row or COMMIT");
+            assert!(
+                matches!(error, CliError::CommandFailed(ref message) if message == "Database migration cancelled")
+            );
+            assert_eq!(inserted.load(Ordering::SeqCst), 1);
+            assert_eq!(target_table_row_count(&target, "demo").await.unwrap(), 0);
+            target.close().await.unwrap();
+            let reopened = FrankenConnection::open(target_path.to_string_lossy().as_ref())
+                .await
+                .unwrap();
+            assert_eq!(target_table_row_count(&reopened, "demo").await.unwrap(), 0);
+            reopened.execute("BEGIN;").await.unwrap();
+            reopened
+                .execute("INSERT INTO demo VALUES (7);")
+                .await
+                .unwrap();
+            reopened.execute("COMMIT;").await.unwrap();
+            reopened.close().await.unwrap();
+        });
+        drop(source);
+        assert_eq!(std::fs::read(&source_path).unwrap(), source_before);
     }
 
     #[test]
@@ -8168,7 +8245,8 @@ mod tests {
         drop(source);
 
         run_async(async {
-            run_duckdb_migration(&source_path, &target_path, OutputFormat::Json)
+            let cx = Cx::current().expect("runtime context");
+            run_duckdb_migration(&cx, &source_path, &target_path, OutputFormat::Json)
                 .await
                 .unwrap();
 
