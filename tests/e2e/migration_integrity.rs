@@ -48,7 +48,8 @@ const TABLE_SPECS: [TableSpec; 3] = [
 fn migration_integrity_matches_representative_source_data() {
     common::init_tracing();
 
-    let dir = tempdir().unwrap();
+    let mut dir = tempdir().unwrap();
+    dir.disable_cleanup(true);
     let source_path = dir.path().join("source.duckdb");
     let target_path = dir.path().join("target.sqlite");
 
@@ -83,11 +84,18 @@ fn migration_integrity_matches_representative_source_data() {
     assert!(stderr.contains("Migrating system_metrics: 1000 rows..."));
 
     let source = DuckConnection::open(&source_path).unwrap();
-    let target = FrankenConnection::open(target_path.to_string_lossy().as_ref()).unwrap();
+    let runtime = asupersync::runtime::RuntimeBuilder::new()
+        .build()
+        .expect("native verification runtime");
+    runtime.block_on(async {
+        let target = FrankenConnection::open(target_path.to_string_lossy().as_ref())
+            .await
+            .unwrap();
 
-    for spec in TABLE_SPECS {
-        assert_table_integrity(&source, &target, spec);
-    }
+        for spec in TABLE_SPECS {
+            assert_table_integrity(&source, &target, spec).await;
+        }
+    });
 }
 
 fn create_source_fixture(source: &DuckConnection) {
@@ -249,7 +257,11 @@ fn create_source_fixture(source: &DuckConnection) {
     source.execute_batch(&metric_sql).unwrap();
 }
 
-fn assert_table_integrity(source: &DuckConnection, target: &FrankenConnection, spec: TableSpec) {
+async fn assert_table_integrity(
+    source: &DuckConnection,
+    target: &FrankenConnection,
+    spec: TableSpec,
+) {
     let source_rows = collect_duck_rows(
         source,
         &format!("SELECT * FROM \"{}\" ORDER BY {}", spec.name, spec.order_by),
@@ -258,7 +270,8 @@ fn assert_table_integrity(source: &DuckConnection, target: &FrankenConnection, s
         target,
         &format!("SELECT * FROM \"{}\" ORDER BY {}", spec.name, spec.order_by),
         spec.json_columns,
-    );
+    )
+    .await;
 
     assert_eq!(
         source_rows.len(),
@@ -321,13 +334,13 @@ fn collect_duck_rows(source: &DuckConnection, sql: &str) -> Vec<Vec<Value>> {
     collected
 }
 
-fn collect_sqlite_rows(
+async fn collect_sqlite_rows(
     target: &FrankenConnection,
     sql: &str,
     json_columns: &[usize],
 ) -> Vec<Vec<Value>> {
-    let stmt = target.prepare(sql).unwrap();
-    let rows = stmt.query().unwrap();
+    let stmt = target.prepare(sql).await.unwrap();
+    let rows = stmt.query().await.unwrap();
     rows.into_iter()
         .map(|row| {
             row.values()

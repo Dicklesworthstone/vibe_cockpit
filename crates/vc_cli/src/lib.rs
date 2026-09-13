@@ -3170,7 +3170,7 @@ impl Cli {
                 }
             }
             Commands::MigrateDb { from, to } => {
-                run_duckdb_migration(Path::new(&from), Path::new(&to), self.format)?;
+                run_duckdb_migration(Path::new(&from), Path::new(&to), self.format).await?;
             }
             Commands::Profile { command } => {
                 let store = open_store(self.config.as_ref())?;
@@ -4608,7 +4608,7 @@ struct TableMigrationPlan {
     foreign_keys: Vec<ForeignKeyConstraint>,
 }
 
-fn run_duckdb_migration(
+async fn run_duckdb_migration(
     source_path: &Path,
     target_path: &Path,
     format: OutputFormat,
@@ -4631,8 +4631,8 @@ fn run_duckdb_migration(
 
     let started_at = Instant::now();
     let source = DuckConnection::open(source_path)?;
-    let target = FrankenConnection::open(target_path.to_string_lossy().as_ref())?;
-    target.execute("PRAGMA foreign_keys = OFF;")?;
+    let target = FrankenConnection::open(target_path.to_string_lossy().as_ref()).await?;
+    target.execute("PRAGMA foreign_keys = OFF;").await?;
 
     let tables = source_user_tables(&source)?;
     let mut summaries = Vec::with_capacity(tables.len());
@@ -4644,9 +4644,9 @@ fn run_duckdb_migration(
         let source_rows = source_table_row_count(&source, &plan.table)?;
 
         eprintln!("Migrating {}: {} rows...", plan.table, source_rows);
-        target.execute(&build_create_table_sql(&plan))?;
-        let migrated_rows = copy_table_rows(&source, &target, &plan)?;
-        let target_rows = target_table_row_count(&target, &plan.table)?;
+        target.execute(&build_create_table_sql(&plan)).await?;
+        let migrated_rows = copy_table_rows(&source, &target, &plan).await?;
+        let target_rows = target_table_row_count(&target, &plan.table).await?;
 
         if source_rows != target_rows || source_rows != migrated_rows {
             return Err(CliError::CommandFailed(format!(
@@ -4655,8 +4655,8 @@ fn run_duckdb_migration(
             )));
         }
 
-        verify_null_counts(&source, &target, &plan)?;
-        verify_sample_rows(&source, &target, &plan, source_rows)?;
+        verify_null_counts(&source, &target, &plan).await?;
+        verify_sample_rows(&source, &target, &plan, source_rows).await?;
 
         total_rows += migrated_rows;
         let elapsed_ms = table_started_at.elapsed().as_millis();
@@ -4676,14 +4676,18 @@ fn run_duckdb_migration(
         }));
     }
 
-    target.execute("PRAGMA foreign_keys = ON;")?;
-    let fk_violations = target.query("PRAGMA foreign_key_check;")?;
+    target.execute("PRAGMA foreign_keys = ON;").await?;
+    let fk_violations = target.query("PRAGMA foreign_key_check;").await?;
     if !fk_violations.is_empty() {
         return Err(CliError::CommandFailed(format!(
             "Foreign-key verification failed with {} violation(s)",
             fk_violations.len()
         )));
     }
+
+    // Finish WAL checkpointing and runtime teardown before reporting a
+    // completed export or allowing the caller to reopen the output.
+    target.close().await?;
 
     let result = serde_json::json!({
         "status": "ok",
@@ -5001,7 +5005,7 @@ fn build_insert_sql(plan: &TableMigrationPlan) -> String {
     )
 }
 
-fn copy_table_rows(
+async fn copy_table_rows(
     source: &DuckConnection,
     target: &FrankenConnection,
     plan: &TableMigrationPlan,
@@ -5009,8 +5013,8 @@ fn copy_table_rows(
     let select_sql = format!("SELECT * FROM \"{}\"", escape_sql_identifier(&plan.table));
     let insert_sql = build_insert_sql(plan);
 
-    target.execute("BEGIN;")?;
-    let copy_result = (|| -> Result<i64, CliError> {
+    target.execute("BEGIN;").await?;
+    let copy_result = async {
         let mut stmt = source.prepare(&select_sql)?;
         let mut rows = stmt.query([])?;
         let mut migrated_rows = 0_i64;
@@ -5026,19 +5030,20 @@ fn copy_table_rows(
                     )
                 })
                 .collect::<Result<Vec<_>, _>>()?;
-            target.execute_with_params(&insert_sql, &params)?;
+            target.execute_with_params(&insert_sql, &params).await?;
             migrated_rows += 1;
         }
-        Ok(migrated_rows)
-    })();
+        Ok::<i64, CliError>(migrated_rows)
+    }
+    .await;
 
     match copy_result {
         Ok(migrated_rows) => {
-            target.execute("COMMIT;")?;
+            target.execute("COMMIT;").await?;
             Ok(migrated_rows)
         }
         Err(error) => {
-            let _ = target.execute("ROLLBACK;");
+            let _ = target.execute("ROLLBACK;").await;
             Err(error)
         }
     }
@@ -5279,9 +5284,11 @@ fn source_table_row_count(source: &DuckConnection, table: &str) -> Result<i64, C
     )?)
 }
 
-fn target_table_row_count(target: &FrankenConnection, table: &str) -> Result<i64, CliError> {
+async fn target_table_row_count(target: &FrankenConnection, table: &str) -> Result<i64, CliError> {
     let safe_table = escape_sql_identifier(table);
-    let row = target.query_row(&format!("SELECT COUNT(*) FROM \"{safe_table}\""))?;
+    let row = target
+        .query_row(&format!("SELECT COUNT(*) FROM \"{safe_table}\""))
+        .await?;
     match row.get(0) {
         Some(SqliteValue::Integer(number)) => Ok(*number),
         other => Err(CliError::CommandFailed(format!(
@@ -5290,7 +5297,7 @@ fn target_table_row_count(target: &FrankenConnection, table: &str) -> Result<i64
     }
 }
 
-fn verify_null_counts(
+async fn verify_null_counts(
     source: &DuckConnection,
     target: &FrankenConnection,
     plan: &TableMigrationPlan,
@@ -5303,7 +5310,7 @@ fn verify_null_counts(
              FROM \"{safe_table}\""
         );
         let source_nulls: i64 = source.query_row(&sql, [], |row| row.get(0))?;
-        let target_row = target.query_row(&sql)?;
+        let target_row = target.query_row(&sql).await?;
         let target_nulls = match target_row.get(0) {
             Some(SqliteValue::Integer(number)) => *number,
             Some(SqliteValue::Null) | None => 0,
@@ -5325,7 +5332,7 @@ fn verify_null_counts(
     Ok(())
 }
 
-fn verify_sample_rows(
+async fn verify_sample_rows(
     source: &DuckConnection,
     target: &FrankenConnection,
     plan: &TableMigrationPlan,
@@ -5333,7 +5340,7 @@ fn verify_sample_rows(
 ) -> Result<(), CliError> {
     for offset in sample_offsets(&plan.table, row_count) {
         let source_row = fetch_source_row_snapshot(source, plan, offset)?;
-        let target_row = fetch_target_row_snapshot(target, plan, offset)?;
+        let target_row = fetch_target_row_snapshot(target, plan, offset).await?;
         if source_row != target_row {
             return Err(CliError::CommandFailed(format!(
                 "Sample-row mismatch for {} at offset {}",
@@ -5396,7 +5403,7 @@ fn fetch_source_row_snapshot(
     Ok(serde_json::Value::Object(object))
 }
 
-fn fetch_target_row_snapshot(
+async fn fetch_target_row_snapshot(
     target: &FrankenConnection,
     plan: &TableMigrationPlan,
     offset: i64,
@@ -5406,8 +5413,8 @@ fn fetch_target_row_snapshot(
         "SELECT * FROM \"{}\" ORDER BY {order_by} LIMIT 1 OFFSET {offset}",
         escape_sql_identifier(&plan.table)
     );
-    let stmt = target.prepare(&sql)?;
-    let rows = stmt.query()?;
+    let stmt = target.prepare(&sql).await?;
+    let rows = stmt.query().await?;
     let row = rows.into_iter().next().ok_or_else(|| {
         CliError::CommandFailed(format!(
             "Target row missing for {} at offset {offset}",
@@ -7904,7 +7911,8 @@ mod tests {
 
     #[test]
     fn duckdb_migration_rejects_existing_target_database() {
-        let dir = tempdir().unwrap();
+        let mut dir = tempdir().unwrap();
+        dir.disable_cleanup(true);
         let source_path = dir.path().join("source.duckdb");
         let target_path = dir.path().join("target.sqlite");
 
@@ -7914,52 +7922,68 @@ mod tests {
             .unwrap();
         std::fs::write(&target_path, "already exists").unwrap();
 
-        let error = run_duckdb_migration(&source_path, &target_path, OutputFormat::Json)
-            .expect_err("existing target should be rejected");
-        assert!(
-            error
-                .to_string()
-                .contains("Refusing to overwrite existing target database")
-        );
+        run_async(async {
+            let error = run_duckdb_migration(&source_path, &target_path, OutputFormat::Json)
+                .await
+                .expect_err("existing target should be rejected");
+            assert!(
+                error
+                    .to_string()
+                    .contains("Refusing to overwrite existing target database")
+            );
+        });
     }
 
     #[test]
     fn duckdb_migration_rejects_missing_source_database() {
-        let dir = tempdir().unwrap();
+        let mut dir = tempdir().unwrap();
+        dir.disable_cleanup(true);
         let source_path = dir.path().join("missing.duckdb");
         let target_path = dir.path().join("target.sqlite");
 
-        let error = run_duckdb_migration(&source_path, &target_path, OutputFormat::Json)
-            .expect_err("missing source should be rejected");
-        assert!(
-            error
-                .to_string()
-                .contains("Source DuckDB file does not exist")
-        );
+        run_async(async {
+            let error = run_duckdb_migration(&source_path, &target_path, OutputFormat::Json)
+                .await
+                .expect_err("missing source should be rejected");
+            assert!(
+                error
+                    .to_string()
+                    .contains("Source DuckDB file does not exist")
+            );
+        });
     }
 
     #[test]
     fn duckdb_migration_handles_empty_database() {
-        let dir = tempdir().unwrap();
+        let mut dir = tempdir().unwrap();
+        dir.disable_cleanup(true);
         let source_path = dir.path().join("source.duckdb");
         let target_path = dir.path().join("target.sqlite");
 
         DuckConnection::open(&source_path).unwrap();
 
-        run_duckdb_migration(&source_path, &target_path, OutputFormat::Json).unwrap();
+        run_async(async {
+            run_duckdb_migration(&source_path, &target_path, OutputFormat::Json)
+                .await
+                .unwrap();
 
-        let target = FrankenConnection::open(target_path.to_string_lossy().as_ref()).unwrap();
-        let rows = target
-            .query(
-                "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
-            )
-            .unwrap();
-        assert!(rows.is_empty());
+            let target = FrankenConnection::open(target_path.to_string_lossy().as_ref())
+                .await
+                .unwrap();
+            let rows = target
+                .query(
+                    "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+                )
+                .await
+                .unwrap();
+            assert!(rows.is_empty());
+        });
     }
 
     #[test]
     fn duckdb_migration_copies_rows_and_converts_values() {
-        let dir = tempdir().unwrap();
+        let mut dir = tempdir().unwrap();
+        dir.disable_cleanup(true);
         let source_path = dir.path().join("source.duckdb");
         let target_path = dir.path().join("target.sqlite");
 
@@ -7990,48 +8014,56 @@ mod tests {
             )
             .unwrap();
 
-        run_duckdb_migration(&source_path, &target_path, OutputFormat::Json).unwrap();
+        run_async(async {
+            run_duckdb_migration(&source_path, &target_path, OutputFormat::Json)
+                .await
+                .unwrap();
 
-        let target = FrankenConnection::open(target_path.to_string_lossy().as_ref()).unwrap();
-        let account_rows = target
-            .query("SELECT id, enabled, created_at, name, notes FROM accounts ORDER BY id")
-            .unwrap();
-        assert_eq!(account_rows.len(), 2);
-        assert_eq!(account_rows[0].values()[0], SqliteValue::Integer(1));
-        assert_eq!(account_rows[0].values()[1], SqliteValue::Integer(1));
-        assert_eq!(
-            account_rows[0].values()[2],
-            SqliteValue::Text("2026-01-02T03:04:05.123456Z".into())
-        );
-        assert_eq!(account_rows[0].values()[3], SqliteValue::Text("Zoë".into()));
-        assert_eq!(account_rows[0].values()[4], SqliteValue::Null);
-        assert_eq!(account_rows[1].values()[1], SqliteValue::Integer(0));
-        assert_eq!(
-            account_rows[1].values()[3],
-            SqliteValue::Text("李雷".into())
-        );
-        assert_eq!(account_rows[1].values()[4], SqliteValue::Text("ok".into()));
+            let target = FrankenConnection::open(target_path.to_string_lossy().as_ref())
+                .await
+                .unwrap();
+            let account_rows = target
+                .query("SELECT id, enabled, created_at, name, notes FROM accounts ORDER BY id")
+                .await
+                .unwrap();
+            assert_eq!(account_rows.len(), 2);
+            assert_eq!(account_rows[0].values()[0], SqliteValue::Integer(1));
+            assert_eq!(account_rows[0].values()[1], SqliteValue::Integer(1));
+            assert_eq!(
+                account_rows[0].values()[2],
+                SqliteValue::Text("2026-01-02T03:04:05.123456Z".into())
+            );
+            assert_eq!(account_rows[0].values()[3], SqliteValue::Text("Zoë".into()));
+            assert_eq!(account_rows[0].values()[4], SqliteValue::Null);
+            assert_eq!(account_rows[1].values()[1], SqliteValue::Integer(0));
+            assert_eq!(
+                account_rows[1].values()[3],
+                SqliteValue::Text("李雷".into())
+            );
+            assert_eq!(account_rows[1].values()[4], SqliteValue::Text("ok".into()));
 
-        let metric_rows = target
-            .query("SELECT tags, scores FROM metrics ORDER BY id")
-            .unwrap();
-        assert_eq!(metric_rows.len(), 2);
-        assert_eq!(
-            metric_rows[0].values()[0],
-            SqliteValue::Text(r#"["alpha","beta"]"#.into())
-        );
-        assert_eq!(
-            metric_rows[0].values()[1],
-            SqliteValue::Text("[1.25,2.5]".into())
-        );
-        assert_eq!(
-            metric_rows[1].values()[0],
-            SqliteValue::Text(r#"["solo"]"#.into())
-        );
-        assert_eq!(
-            metric_rows[1].values()[1],
-            SqliteValue::Text("[9.0]".into())
-        );
+            let metric_rows = target
+                .query("SELECT tags, scores FROM metrics ORDER BY id")
+                .await
+                .unwrap();
+            assert_eq!(metric_rows.len(), 2);
+            assert_eq!(
+                metric_rows[0].values()[0],
+                SqliteValue::Text(r#"["alpha","beta"]"#.into())
+            );
+            assert_eq!(
+                metric_rows[0].values()[1],
+                SqliteValue::Text("[1.25,2.5]".into())
+            );
+            assert_eq!(
+                metric_rows[1].values()[0],
+                SqliteValue::Text(r#"["solo"]"#.into())
+            );
+            assert_eq!(
+                metric_rows[1].values()[1],
+                SqliteValue::Text("[9.0]".into())
+            );
+        });
     }
 
     #[test]

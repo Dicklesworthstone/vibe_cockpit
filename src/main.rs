@@ -101,20 +101,85 @@ mod tests {
         let asupersync_rt = build_asupersync_runtime().expect("build asupersync runtime");
         let tokio_rt = build_tokio_compat_runtime().expect("build tokio compat runtime");
         let _tokio_guard = tokio_rt.enter();
-        let root_cx = Cx::for_request();
-
         let result = asupersync_rt.block_on(async {
+            let root_cx = Cx::current().expect("runtime-owned root context");
             with_tokio_context(&root_cx, || async {
+                let current = Cx::current().expect("bridge installs the owning context");
+                assert_eq!(current.region_id(), root_cx.region_id());
+                assert_eq!(current.capabilities(), root_cx.capabilities());
                 let task = tokio::spawn(async {
                     tokio::time::sleep(Duration::from_millis(1)).await;
                     42_u8
                 });
-                task.await.expect("tokio task should complete")
+                let value = task.await.expect("tokio task should complete");
+                let output = asupersync::process::Command::new("sh")
+                    .arg("-c")
+                    .arg("printf cockpit-owner")
+                    .stdout(asupersync::process::Stdio::Pipe)
+                    .stderr(asupersync::process::Stdio::Pipe)
+                    .kill_on_drop(true)
+                    .spawn()
+                    .expect("spawn native collector-style command")
+                    .wait_with_output_async(&current)
+                    .await
+                    .expect("native command completes under owner context");
+                assert!(output.status.success());
+                assert_eq!(output.stdout, b"cockpit-owner");
+                assert!(output.stderr.is_empty());
+                value
             })
             .await
         });
 
         assert_eq!(result, Some(42));
+    }
+
+    #[test]
+    fn runtime_bridge_preserves_restricted_owner_and_cancellation() {
+        let asupersync_rt = build_asupersync_runtime().expect("build asupersync runtime");
+        let tokio_rt = build_tokio_compat_runtime().expect("build tokio compat runtime");
+        let _tokio_guard = tokio_rt.enter();
+        let budget = asupersync::Budget::new().with_poll_quota(8);
+        let owner = asupersync_rt.request_cx_with_budget(budget);
+
+        asupersync_rt.block_on(async {
+            let parent = Cx::current().expect("runtime-owned parent");
+            let captured = {
+                let restricted = owner.restrict::<asupersync::cx::cap::None>();
+                let _guard = restricted.set_current_restricted();
+                Cx::current().expect("restricted ambient context")
+            };
+            let caps = captured.capabilities();
+            assert!(!caps.spawn && !caps.time && !caps.entropy && !caps.io && !caps.remote);
+            let result = with_tokio_context(&captured, || async {
+                assert_eq!(Cx::current().expect("first poll").capabilities(), caps);
+                tokio::task::yield_now().await;
+                let current = Cx::current().expect("context restored on later poll");
+                assert_eq!(current.capabilities(), caps);
+                assert_eq!(current.budget(), budget);
+                current.checkpoint().expect("live owner checkpoint");
+                7_u8
+            })
+            .await;
+            assert_eq!(result, Some(7));
+
+            owner.cancel_with(asupersync::CancelKind::User, Some("owner cancelled"));
+            let factory_called = std::cell::Cell::new(false);
+            let result = with_tokio_context(&captured, || {
+                factory_called.set(true);
+                async { 9_u8 }
+            })
+            .await;
+            assert_eq!(result, None);
+            assert!(!factory_called.get());
+            assert_eq!(captured.capabilities(), caps);
+            assert_eq!(captured.budget(), budget);
+            assert!(!parent.is_cancel_requested());
+            assert_eq!(
+                Cx::current().expect("parent restored").capabilities(),
+                parent.capabilities()
+            );
+        });
     }
 
     #[test]
