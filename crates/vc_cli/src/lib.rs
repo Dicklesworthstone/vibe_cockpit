@@ -3170,7 +3170,7 @@ impl Cli {
                 }
             }
             Commands::MigrateDb { from, to } => {
-                run_duckdb_migration(Path::new(&from), Path::new(&to), self.format).await?;
+                run_duckdb_migration(cx, Path::new(&from), Path::new(&to), self.format).await?;
             }
             Commands::Profile { command } => {
                 let store = open_store(self.config.as_ref())?;
@@ -4608,11 +4608,18 @@ struct TableMigrationPlan {
     foreign_keys: Vec<ForeignKeyConstraint>,
 }
 
+fn migration_checkpoint(cx: &Cx) -> Result<(), CliError> {
+    cx.checkpoint()
+        .map_err(|_| CliError::CommandFailed("Database migration cancelled".to_owned()))
+}
+
 async fn run_duckdb_migration(
+    cx: &Cx,
     source_path: &Path,
     target_path: &Path,
     format: OutputFormat,
 ) -> Result<(), CliError> {
+    migration_checkpoint(cx)?;
     if !source_path.exists() {
         return Err(CliError::CommandFailed(format!(
             "Source DuckDB file does not exist: {}",
@@ -4630,64 +4637,89 @@ async fn run_duckdb_migration(
     }
 
     let started_at = Instant::now();
-    let source = DuckConnection::open(source_path)?;
-    let target = FrankenConnection::open(target_path.to_string_lossy().as_ref()).await?;
-    target.execute("PRAGMA foreign_keys = OFF;").await?;
+    let source = DuckConnection::open_with_flags(
+        source_path,
+        duckdb::Config::default().access_mode(duckdb::AccessMode::ReadOnly)?,
+    )?;
+    let mut target = FrankenConnection::open(target_path.to_string_lossy().as_ref()).await?;
+    let export = async {
+        target.execute("PRAGMA foreign_keys = OFF;").await?;
 
-    let tables = source_user_tables(&source)?;
-    let mut summaries = Vec::with_capacity(tables.len());
-    let mut total_rows = 0_i64;
+        let tables = source_user_tables(&source)?;
+        let mut summaries = Vec::with_capacity(tables.len());
+        let mut total_rows = 0_i64;
 
-    for table in tables {
-        let table_started_at = Instant::now();
-        let plan = load_table_migration_plan(&source, &table)?;
-        let source_rows = source_table_row_count(&source, &plan.table)?;
+        for table in tables {
+            migration_checkpoint(cx)?;
+            let table_started_at = Instant::now();
+            let plan = load_table_migration_plan(&source, &table)?;
+            let source_rows = source_table_row_count(&source, &plan.table)?;
 
-        eprintln!("Migrating {}: {} rows...", plan.table, source_rows);
-        target.execute(&build_create_table_sql(&plan)).await?;
-        let migrated_rows = copy_table_rows(&source, &target, &plan).await?;
-        let target_rows = target_table_row_count(&target, &plan.table).await?;
+            eprintln!("Migrating {}: {} rows...", plan.table, source_rows);
+            target.execute(&build_create_table_sql(&plan)).await?;
+            let migrated_rows = copy_table_rows(cx, &source, &target, &plan).await?;
+            let target_rows = target_table_row_count(&target, &plan.table).await?;
 
-        if source_rows != target_rows || source_rows != migrated_rows {
-            return Err(CliError::CommandFailed(format!(
-                "Row-count mismatch for {}: source={}, copied={}, target={}",
-                plan.table, source_rows, migrated_rows, target_rows
-            )));
+            if source_rows != target_rows || source_rows != migrated_rows {
+                return Err(CliError::CommandFailed(format!(
+                    "Row-count mismatch for {}: source={}, copied={}, target={}",
+                    plan.table, source_rows, migrated_rows, target_rows
+                )));
+            }
+
+            verify_null_counts(&source, &target, &plan).await?;
+            verify_sample_rows(&source, &target, &plan, source_rows).await?;
+
+            total_rows += migrated_rows;
+            let elapsed_ms = table_started_at.elapsed().as_millis();
+            eprintln!(
+                "Migrating {}: {} rows... done ({} ms)",
+                plan.table, migrated_rows, elapsed_ms
+            );
+
+            summaries.push(serde_json::json!({
+                "table": plan.table,
+                "row_count": migrated_rows,
+                "verified": {
+                    "row_count": true,
+                    "null_counts": true,
+                    "sample_rows": true,
+                },
+            }));
         }
 
-        verify_null_counts(&source, &target, &plan).await?;
-        verify_sample_rows(&source, &target, &plan, source_rows).await?;
+        target.execute("PRAGMA foreign_keys = ON;").await?;
+        let fk_violations = target.query("PRAGMA foreign_key_check;").await?;
+        if !fk_violations.is_empty() {
+            return Err(CliError::CommandFailed(format!(
+                "Foreign-key verification failed with {} violation(s)",
+                fk_violations.len()
+            )));
+        }
+        Ok((summaries, total_rows))
+    };
+    let export_result = {
+        let mut export = std::pin::pin!(export);
+        std::future::poll_fn(|task_cx| {
+            if let Err(error) = migration_checkpoint(cx) {
+                return std::task::Poll::Ready(Err(error));
+            }
+            std::future::Future::poll(export.as_mut(), task_cx)
+        })
+        .await
+    };
 
-        total_rows += migrated_rows;
-        let elapsed_ms = table_started_at.elapsed().as_millis();
-        eprintln!(
-            "Migrating {}: {} rows... done ({} ms)",
-            plan.table, migrated_rows, elapsed_ms
-        );
-
-        summaries.push(serde_json::json!({
-            "table": plan.table,
-            "row_count": migrated_rows,
-            "verified": {
-                "row_count": true,
-                "null_counts": true,
-                "sample_rows": true,
-            },
-        }));
+    // Returned export errors must also finish transaction/runtime teardown.
+    // Keep the handle available for best-effort cleanup if closing itself fails.
+    let close_result = target.close_in_place().await;
+    if let Err(error) = &close_result {
+        tracing::warn!(%error, "Failed to close migration target; retrying best-effort teardown");
+        target.close_best_effort_in_place().await;
     }
-
-    target.execute("PRAGMA foreign_keys = ON;").await?;
-    let fk_violations = target.query("PRAGMA foreign_key_check;").await?;
-    if !fk_violations.is_empty() {
-        return Err(CliError::CommandFailed(format!(
-            "Foreign-key verification failed with {} violation(s)",
-            fk_violations.len()
-        )));
-    }
-
-    // Finish WAL checkpointing and runtime teardown before reporting a
-    // completed export or allowing the caller to reopen the output.
-    target.close().await?;
+    // Preserve the export error if both the export and close failed.
+    let (summaries, total_rows) = export_result?;
+    close_result?;
+    migration_checkpoint(cx)?;
 
     let result = serde_json::json!({
         "status": "ok",
@@ -5006,6 +5038,7 @@ fn build_insert_sql(plan: &TableMigrationPlan) -> String {
 }
 
 async fn copy_table_rows(
+    cx: &Cx,
     source: &DuckConnection,
     target: &FrankenConnection,
     plan: &TableMigrationPlan,
@@ -5013,12 +5046,14 @@ async fn copy_table_rows(
     let select_sql = format!("SELECT * FROM \"{}\"", escape_sql_identifier(&plan.table));
     let insert_sql = build_insert_sql(plan);
 
+    migration_checkpoint(cx)?;
     target.execute("BEGIN;").await?;
     let copy_result = async {
         let mut stmt = source.prepare(&select_sql)?;
         let mut rows = stmt.query([])?;
         let mut migrated_rows = 0_i64;
         while let Some(row) = rows.next()? {
+            migration_checkpoint(cx)?;
             let params = plan
                 .columns
                 .iter()
@@ -5033,17 +5068,18 @@ async fn copy_table_rows(
             target.execute_with_params(&insert_sql, &params).await?;
             migrated_rows += 1;
         }
+        migration_checkpoint(cx)?;
+        target.execute("COMMIT;").await?;
         Ok::<i64, CliError>(migrated_rows)
     }
     .await;
 
     match copy_result {
-        Ok(migrated_rows) => {
-            target.execute("COMMIT;").await?;
-            Ok(migrated_rows)
-        }
+        Ok(migrated_rows) => Ok(migrated_rows),
         Err(error) => {
-            let _ = target.execute("ROLLBACK;").await;
+            if let Err(rollback_error) = target.execute("ROLLBACK;").await {
+                tracing::warn!(%rollback_error, "Failed to roll back migration transaction");
+            }
             Err(error)
         }
     }
@@ -7977,6 +8013,122 @@ mod tests {
                 .await
                 .unwrap();
             assert!(rows.is_empty());
+            target.close().await.unwrap();
+        });
+    }
+
+    #[test]
+    fn duckdb_migration_rolls_back_rows_after_insert_constraint_failure() {
+        let mut dir = tempdir().unwrap();
+        dir.disable_cleanup(true);
+        let target_path = dir.path().join("target.sqlite");
+        let source = DuckConnection::open_in_memory().unwrap();
+        source
+            .execute_batch("CREATE TABLE demo (id INTEGER); INSERT INTO demo VALUES (1), (1);")
+            .unwrap();
+        let plan = load_table_migration_plan(&source, "demo").unwrap();
+
+        run_async(async {
+            let target = FrankenConnection::open(target_path.to_string_lossy().as_ref())
+                .await
+                .unwrap();
+            target
+                .execute("CREATE TABLE demo (id INTEGER PRIMARY KEY);")
+                .await
+                .unwrap();
+
+            let error = copy_table_rows(&source, &target, &plan)
+                .await
+                .expect_err("the second insert must reject the duplicate key");
+            assert!(
+                matches!(
+                    error,
+                    CliError::FrankenSqliteError(
+                        FrankenError::PrimaryKeyViolation | FrankenError::UniqueViolation { .. }
+                    )
+                ),
+                "expected a duplicate-key constraint error, got {error}"
+            );
+            assert_eq!(target_table_row_count(&target, "demo").await.unwrap(), 0);
+            target.execute("BEGIN;").await.unwrap();
+            target
+                .execute("INSERT INTO demo VALUES (2);")
+                .await
+                .unwrap();
+            target.execute("COMMIT;").await.unwrap();
+            target.close().await.unwrap();
+
+            let reopened = FrankenConnection::open(target_path.to_string_lossy().as_ref())
+                .await
+                .unwrap();
+            let rows = reopened.query("SELECT id FROM demo;").await.unwrap();
+            assert_eq!(rows.len(), 1);
+            assert_eq!(rows[0].values()[0], SqliteValue::Integer(2));
+            reopened.close().await.unwrap();
+        });
+    }
+
+    #[test]
+    fn duckdb_migration_rolls_back_rows_after_deferred_commit_failure() {
+        let mut dir = tempdir().unwrap();
+        dir.disable_cleanup(true);
+        let target_path = dir.path().join("target.sqlite");
+        let source = DuckConnection::open_in_memory().unwrap();
+        source
+            .execute_batch(
+                "CREATE TABLE child (id INTEGER, parent_id INTEGER); \
+                 INSERT INTO child VALUES (1, 7);",
+            )
+            .unwrap();
+        let plan = load_table_migration_plan(&source, "child").unwrap();
+
+        run_async(async {
+            let target = FrankenConnection::open(target_path.to_string_lossy().as_ref())
+                .await
+                .unwrap();
+            target.execute("PRAGMA foreign_keys = ON;").await.unwrap();
+            target
+                .execute("CREATE TABLE parent (id INTEGER PRIMARY KEY);")
+                .await
+                .unwrap();
+            target
+                .execute(
+                    "CREATE TABLE child (\
+                     id INTEGER PRIMARY KEY, \
+                     parent_id INTEGER REFERENCES parent(id) \
+                     DEFERRABLE INITIALLY DEFERRED);",
+                )
+                .await
+                .unwrap();
+
+            let error = copy_table_rows(&source, &target, &plan)
+                .await
+                .expect_err("the missing deferred parent must reject COMMIT");
+            assert!(matches!(
+                error,
+                CliError::FrankenSqliteError(FrankenError::ForeignKeyViolation)
+            ));
+            assert_eq!(target_table_row_count(&target, "child").await.unwrap(), 0);
+            target.execute("BEGIN;").await.unwrap();
+            target
+                .execute("INSERT INTO parent VALUES (7);")
+                .await
+                .unwrap();
+            target.execute("COMMIT;").await.unwrap();
+            assert_eq!(copy_table_rows(&source, &target, &plan).await.unwrap(), 1);
+            target.close().await.unwrap();
+
+            let reopened = FrankenConnection::open(target_path.to_string_lossy().as_ref())
+                .await
+                .unwrap();
+            let rows = reopened
+                .query("SELECT id, parent_id FROM child;")
+                .await
+                .unwrap();
+            assert_eq!(rows.len(), 1);
+            assert_eq!(rows[0].values()[0], SqliteValue::Integer(1));
+            assert_eq!(rows[0].values()[1], SqliteValue::Integer(7));
+            reopened.close().await.unwrap();
         });
     }
 
@@ -8013,6 +8165,7 @@ mod tests {
                 ",
             )
             .unwrap();
+        drop(source);
 
         run_async(async {
             run_duckdb_migration(&source_path, &target_path, OutputFormat::Json)
@@ -8063,6 +8216,7 @@ mod tests {
                 metric_rows[1].values()[1],
                 SqliteValue::Text("[9.0]".into())
             );
+            target.close().await.unwrap();
         });
     }
 

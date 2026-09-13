@@ -8,8 +8,8 @@ use duckdb::{
 };
 use fsqlite::{Connection as FrankenConnection, SqliteValue};
 use serde_json::Value;
-use std::collections::BTreeSet;
 use std::collections::hash_map::DefaultHasher;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 use std::hash::{Hash, Hasher};
 use std::process::Command;
@@ -57,6 +57,23 @@ fn migration_integrity_matches_representative_source_data() {
     create_source_fixture(&source);
     drop(source);
 
+    // Freeze the source and any WAL sidecars before the exporter can open it.
+    // Compare before the verifier reopens DuckDB, which could itself checkpoint.
+    let source_snapshot = || {
+        std::fs::read_dir(dir.path())
+            .unwrap()
+            .map(|entry| entry.unwrap())
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("source.duckdb")
+            })
+            .map(|entry| (entry.file_name(), std::fs::read(entry.path()).unwrap()))
+            .collect::<BTreeMap<_, _>>()
+    };
+    let original_source = source_snapshot();
+
     let output = Command::new(env!("CARGO_BIN_EXE_vc"))
         .args([
             "--format",
@@ -70,6 +87,11 @@ fn migration_integrity_matches_representative_source_data() {
         .output()
         .unwrap();
 
+    assert!(
+        source_snapshot() == original_source,
+        "export changed the source DuckDB bytes or sidecar namespace at {}",
+        source_path.display()
+    );
     assert!(
         output.status.success(),
         "migration command failed\nstdout:\n{}\nstderr:\n{}",
@@ -95,6 +117,7 @@ fn migration_integrity_matches_representative_source_data() {
         for spec in TABLE_SPECS {
             assert_table_integrity(&source, &target, spec).await;
         }
+        target.close().await.unwrap();
     });
 }
 
