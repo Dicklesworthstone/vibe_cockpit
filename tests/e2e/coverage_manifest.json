@@ -20,9 +20,6 @@
   "remote": [],
   "tui": [],
   "web": [],
-  "system": [
-    "system/test_full_poll_cycle.sh",
-    "system/test_smoke.sh"
-  ],
+  "system": ["system/test_full_poll_cycle.sh", "system/test_smoke.sh"],
   "notes": "Populate this manifest as feature beads add their E2E scripts. Each entry should be a test script path under tests/e2e/."
 }

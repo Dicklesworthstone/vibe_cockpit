@@ -80,10 +80,7 @@
           "description": "Health score (0.0 to 1.0)"
         },
         "metrics": {
-          "oneOf": [
-            { "$ref": "#/$defs/MachineMetrics" },
-            { "type": "null" }
-          ],
+          "oneOf": [{ "$ref": "#/$defs/MachineMetrics" }, { "type": "null" }],
           "description": "Current metrics (None if offline)"
         },
         "top_issue": {

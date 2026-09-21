@@ -27,7 +27,7 @@
         "type": "integer",
         "minimum": 0
       },
-      "examples": [{"sysmoni": 60, "ru": 120}]
+      "examples": [{ "sysmoni": 60, "ru": 120 }]
     },
     "warnings": {
       "type": "array",
