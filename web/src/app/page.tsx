@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { HealthCard } from "@/components/HealthCard";
-import { api, FleetOverview } from "@/lib/api";
+import { api, type FleetOverview } from "@/lib/api";
 
 export default function OverviewPage() {
   const [data, setData] = useState<FleetOverview | null>(null);
@@ -41,8 +41,7 @@ export default function OverviewPage() {
   }
 
   const healthPct = Math.round(data.fleet_health * 100);
-  const healthColor =
-    healthPct >= 85 ? "#16a34a" : healthPct >= 70 ? "#d97706" : "#dc2626";
+  const healthColor = healthPct >= 85 ? "#16a34a" : healthPct >= 70 ? "#d97706" : "#dc2626";
 
   return (
     <div>
@@ -55,17 +54,11 @@ export default function OverviewPage() {
       >
         <h1>Fleet Overview</h1>
         {lastUpdated && (
-          <span style={{ fontSize: "12px", color: "#6b7280" }}>
-            Updated {lastUpdated}
-          </span>
+          <span style={{ fontSize: "12px", color: "#6b7280" }}>Updated {lastUpdated}</span>
         )}
       </div>
       <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-        <HealthCard
-          title="Fleet Health"
-          value={`${healthPct}%`}
-          color={healthColor}
-        />
+        <HealthCard title="Fleet Health" value={`${healthPct}%`} color={healthColor} />
         <HealthCard
           title="Machines"
           value={`${data.online_machines}/${data.total_machines}`}

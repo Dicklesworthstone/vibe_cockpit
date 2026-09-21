@@ -70,15 +70,12 @@ export const api = {
   fleet: () => fetchJson<FleetOverview>("/api/fleet"),
   machines: (limit = 50, offset = 0) =>
     fetchJson<{ machines: Machine[]; total: number }>(
-      `/api/machines?limit=${limit}&offset=${offset}`
+      `/api/machines?limit=${limit}&offset=${offset}`,
     ),
   machine: (id: string) => fetchJson<Machine>(`/api/machines/${id}`),
-  machineHealth: (id: string) =>
-    fetchJson<HealthScore>(`/api/machines/${id}/health`),
+  machineHealth: (id: string) => fetchJson<HealthScore>(`/api/machines/${id}/health`),
   alerts: (limit = 50) =>
     fetchJson<{ alerts: Alert[]; limit: number }>(`/api/alerts?limit=${limit}`),
-  guardianPlaybooks: () =>
-    fetchJson<{ playbooks: GuardianPlaybook[] }>("/api/guardian/playbooks"),
-  guardianRuns: () =>
-    fetchJson<{ runs: GuardianRun[] }>("/api/guardian/runs"),
+  guardianPlaybooks: () => fetchJson<{ playbooks: GuardianPlaybook[] }>("/api/guardian/playbooks"),
+  guardianRuns: () => fetchJson<{ runs: GuardianRun[] }>("/api/guardian/runs"),
 };

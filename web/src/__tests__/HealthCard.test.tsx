@@ -1,5 +1,5 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
 import { HealthCard } from "@/components/HealthCard";
 
 describe("HealthCard", () => {
@@ -21,9 +21,7 @@ describe("HealthCard", () => {
   });
 
   it("applies custom border color", () => {
-    const { container } = render(
-      <HealthCard title="Test" value="1" color="#dc2626" />
-    );
+    const { container } = render(<HealthCard title="Test" value="1" color="#dc2626" />);
     const card = container.firstElementChild as HTMLElement;
     expect(card.style.border).toContain("#dc2626");
   });

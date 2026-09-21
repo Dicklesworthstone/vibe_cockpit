@@ -12,8 +12,7 @@ describe("api client", () => {
   it("fetches health endpoint", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () =>
-        Promise.resolve({ status: "ok", version: "0.1.0", uptime_secs: 42 }),
+      json: () => Promise.resolve({ status: "ok", version: "0.1.0", uptime_secs: 42 }),
     });
     const result = await api.health();
     expect(result.status).toBe("ok");

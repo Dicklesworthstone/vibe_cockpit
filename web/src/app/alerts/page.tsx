@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
-import { api, Alert } from "@/lib/api";
+import { type Alert, api } from "@/lib/api";
 
 export default function AlertsPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -43,20 +43,14 @@ export default function AlertsPage() {
               </td>
               <td style={{ padding: "8px" }}>{a.machine}</td>
               <td style={{ padding: "8px" }}>{a.message}</td>
-              <td style={{ padding: "8px", color: "#9ca3af" }}>
-                {a.created_at}
-              </td>
-              <td style={{ padding: "8px" }}>
-                {a.acknowledged ? "Yes" : "No"}
-              </td>
+              <td style={{ padding: "8px", color: "#9ca3af" }}>{a.created_at}</td>
+              <td style={{ padding: "8px" }}>{a.acknowledged ? "Yes" : "No"}</td>
             </tr>
           ))}
         </tbody>
       </table>
       {alerts.length === 0 && !error && (
-        <p style={{ color: "#6b7280", textAlign: "center", padding: "24px" }}>
-          No alerts
-        </p>
+        <p style={{ color: "#6b7280", textAlign: "center", padding: "24px" }}>No alerts</p>
       )}
     </div>
   );

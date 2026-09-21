@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
-import { api, Machine } from "@/lib/api";
+import { api, type Machine } from "@/lib/api";
 
 export default function MachinesPage() {
   const [machines, setMachines] = useState<Machine[]>([]);
@@ -41,31 +41,20 @@ export default function MachinesPage() {
         </thead>
         <tbody>
           {machines.map((m) => (
-            <tr
-              key={m.machine_id}
-              style={{ borderBottom: "1px solid #1f2937" }}
-            >
-              <td style={{ padding: "8px", fontWeight: 600 }}>
-                {m.machine_id}
-              </td>
+            <tr key={m.machine_id} style={{ borderBottom: "1px solid #1f2937" }}>
+              <td style={{ padding: "8px", fontWeight: 600 }}>{m.machine_id}</td>
               <td style={{ padding: "8px" }}>{m.hostname}</td>
               <td style={{ padding: "8px" }}>
                 <StatusBadge status={m.status} />
               </td>
-              <td style={{ padding: "8px", color: "#9ca3af" }}>
-                {m.ip_address || "-"}
-              </td>
-              <td style={{ padding: "8px", color: "#9ca3af" }}>
-                {m.tags || "-"}
-              </td>
+              <td style={{ padding: "8px", color: "#9ca3af" }}>{m.ip_address || "-"}</td>
+              <td style={{ padding: "8px", color: "#9ca3af" }}>{m.tags || "-"}</td>
             </tr>
           ))}
         </tbody>
       </table>
       {machines.length === 0 && !error && (
-        <p style={{ color: "#6b7280", textAlign: "center", padding: "24px" }}>
-          No machines found
-        </p>
+        <p style={{ color: "#6b7280", textAlign: "center", padding: "24px" }}>No machines found</p>
       )}
     </div>
   );

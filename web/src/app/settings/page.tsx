@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, HealthResponse } from "@/lib/api";
+import { api, type HealthResponse } from "@/lib/api";
 
 export default function SettingsPage() {
   const [health, setHealth] = useState<HealthResponse | null>(null);

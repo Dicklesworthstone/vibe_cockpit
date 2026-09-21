@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { StatusBadge } from "@/components/StatusBadge";
-import { api, GuardianPlaybook, GuardianRun } from "@/lib/api";
+import { api, type GuardianPlaybook, type GuardianRun } from "@/lib/api";
 
 export default function GuardianPage() {
   const [playbooks, setPlaybooks] = useState<GuardianPlaybook[]>([]);
@@ -24,9 +24,7 @@ export default function GuardianPage() {
       {error && <p style={{ color: "#ef4444" }}>{error}</p>}
 
       <h2 style={{ fontSize: "16px", marginTop: "24px" }}>Playbooks</h2>
-      <table
-        style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}
-      >
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
         <thead>
           <tr style={{ borderBottom: "1px solid #374151", textAlign: "left" }}>
             <th style={{ padding: "8px" }}>ID</th>
@@ -40,7 +38,10 @@ export default function GuardianPage() {
               <td style={{ padding: "8px", fontWeight: 600 }}>{p.id}</td>
               <td style={{ padding: "8px" }}>{p.name}</td>
               <td style={{ padding: "8px" }}>
-                <StatusBadge status={p.enabled ? "ok" : "offline"} label={p.enabled ? "enabled" : "disabled"} />
+                <StatusBadge
+                  status={p.enabled ? "ok" : "offline"}
+                  label={p.enabled ? "enabled" : "disabled"}
+                />
               </td>
             </tr>
           ))}
@@ -48,9 +49,7 @@ export default function GuardianPage() {
       </table>
 
       <h2 style={{ fontSize: "16px", marginTop: "24px" }}>Recent Runs</h2>
-      <table
-        style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}
-      >
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
         <thead>
           <tr style={{ borderBottom: "1px solid #374151", textAlign: "left" }}>
             <th style={{ padding: "8px" }}>Run ID</th>
@@ -67,9 +66,7 @@ export default function GuardianPage() {
               <td style={{ padding: "8px" }}>
                 <StatusBadge status={r.status === "completed" ? "ok" : r.status} label={r.status} />
               </td>
-              <td style={{ padding: "8px", color: "#9ca3af" }}>
-                {r.started_at}
-              </td>
+              <td style={{ padding: "8px", color: "#9ca3af" }}>{r.started_at}</td>
             </tr>
           ))}
         </tbody>
