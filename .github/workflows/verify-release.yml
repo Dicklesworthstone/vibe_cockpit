@@ -1,0 +1,129 @@
+name: verify released Linux binary
+
+on:
+  workflow_run:
+    workflows: [release]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published version tag to verify (for example v0.1.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  installed-binary:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      ARCHIVE: vc-x86_64-unknown-linux-gnu.tar.xz
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || inputs.tag }}
+          persist-credentials: false
+      - name: Verify release source identity
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${INPUT_TAG:-$(cat RELEASE_VERSION)}"
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          sha=$(git ls-remote --tags origin "refs/tags/$tag" "refs/tags/$tag^{}" |
+            awk '/\^\{\}$/ {peeled=$1; next} {direct=$1} END {print peeled ? peeled : direct}')
+          [[ "$sha" == "$(git rev-parse HEAD)" ]] || { echo 'Release tag does not match the tested source'; exit 1; }
+          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
+          echo "RELEASE_SHA=$sha" >> "$GITHUB_ENV"
+      - name: Retrieve original build checksums
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          name: x86_64-unknown-linux-gnu
+          path: expected
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: Download and verify unauthenticated public release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir downloaded extracted
+          for asset in "$ARCHIVE" "$ARCHIVE.sha256" SHA256SUMS install.sh install.sh.sha256; do
+            curl --fail --location --silent --show-error --retry 5 --retry-all-errors \
+              --connect-timeout 20 --max-time 180 \
+              --output "downloaded/$asset" \
+              "https://github.com/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG/$asset"
+          done
+          if [[ -f "expected/$ARCHIVE.sha256" ]]; then
+            cmp "expected/$ARCHIVE.sha256" "downloaded/$ARCHIVE.sha256"
+          fi
+          # Only the Linux archive is downloaded; the aggregate manifest also
+          # covers ARM and macOS. The explicit sidecar check requires our file.
+          (cd downloaded; sha256sum -c SHA256SUMS --ignore-missing; sha256sum -c "$ARCHIVE.sha256"; sha256sum -c install.sh.sha256)
+          cmp install.sh downloaded/install.sh
+          python3 - <<'PY'
+          import os, pathlib, tarfile
+          with tarfile.open('downloaded/' + os.environ['ARCHIVE'], 'r:xz') as archive:
+              for member in archive.getmembers():
+                  path = pathlib.PurePosixPath(member.name)
+                  if path.is_absolute() or '..' in path.parts or not (member.isfile() or member.isdir()):
+                      raise SystemExit(f'Unsafe release archive member: {member.name}')
+          PY
+          tar -xJf "downloaded/$ARCHIVE" -C extracted
+          test -x extracted/vc
+          file extracted/vc | grep -q 'ELF 64-bit.*x86-64'
+      - name: Install using the released prebuilt-only installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/vc-home" "$RUNNER_TEMP/compiler-guards"
+          # Make any accidental compiler fallback fail even on a developer runner.
+          for tool in cargo rustc; do
+            printf '#!/bin/sh\necho "Unexpected source build during binary installation" >&2\nexit 99\n' > "$RUNNER_TEMP/compiler-guards/$tool"
+            chmod 755 "$RUNNER_TEMP/compiler-guards/$tool"
+          done
+          HOME="$RUNNER_TEMP/vc-home" PATH="$RUNNER_TEMP/compiler-guards:$PATH" \
+            bash downloaded/install.sh --version "$RELEASE_TAG" --dest "$RUNNER_TEMP/vc-bin" --verify
+          cmp extracted/vc "$RUNNER_TEMP/vc-bin/vc"
+          "$RUNNER_TEMP/vc-bin/vc" --version | tee verification.txt
+          "$RUNNER_TEMP/vc-bin/vc" --help > /dev/null
+          "$RUNNER_TEMP/vc-bin/vc" robot --help > /dev/null
+          "$RUNNER_TEMP/vc-bin/vc" health --help > /dev/null
+          "$RUNNER_TEMP/vc-bin/vc" machines --help > /dev/null
+      - name: Execute on a compiler-free glibc 2.35 runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          # DuckDB is bundled C++; libstdc++ is an OS runtime, not a compiler.
+          # Install runtime libraries only, then execute with networking disabled.
+          docker build -t vc-release-runtime - <<'DOCKER'
+          FROM ubuntu:22.04
+          RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libstdc++6 libssl3 && apt-get clean
+          DOCKER
+          for command in --version --help; do
+            docker run --rm --network none -v "$RUNNER_TEMP/vc-bin:/opt/vc:ro" \
+              vc-release-runtime /opt/vc/vc "$command"
+          done
+          {
+            echo "Release: $RELEASE_TAG"
+            echo "Source: $RELEASE_SHA"
+            cat "downloaded/$ARCHIVE.sha256"
+            cat verification.txt
+            echo 'PASS: public checksums, released installer, exact installed bytes, and compiler-free Linux execution'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: public-linux-install-verification
+          path: |
+            verification.txt
+            downloaded/SHA256SUMS
+            downloaded/*.sha256
+          if-no-files-found: error
