@@ -9,7 +9,7 @@ on:
         type: string
   push:
     branches: [main]
-    paths: [RELEASE_VERSION]
+    paths: [RELEASE_VERSION, .github/workflows/release.yml]
     tags:
       - "v*"
 
@@ -93,24 +93,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Siblings live inside $GITHUB_WORKSPACE so that any Dockerized action
-          # mounting only the workspace still resolves them. Cargo.lock records
-          # path deps by name+version, not location, so the rewrite is lock-safe.
-          project_root="$GITHUB_WORKSPACE/.ci/franken-stack/projects"
-          mkdir -p "$project_root"
-          git clone --depth 1 https://github.com/Dicklesworthstone/frankentui.git "$project_root/frankentui"
-          git clone --depth 1 https://github.com/Dicklesworthstone/frankensqlite.git "$project_root/frankensqlite"
-
-          CARGO_PATH_ROOT=".ci/franken-stack/projects" perl -0pi -e '
-            s{/data/projects/(frankentui|frankensqlite)}{$ENV{CARGO_PATH_ROOT}/$1}g;
-            s{\.\./(frankentui|frankensqlite)}{$ENV{CARGO_PATH_ROOT}/$1}g;
-          ' Cargo.toml
-
-          echo "Rewritten path dependencies:"
-          grep -nE 'frankentui|frankensqlite' Cargo.toml
+          # Keep the dependencies as real siblings. Nesting path crates inside
+          # this workspace makes Cargo inherit vc's workspace metadata instead
+          # of their own (including license-file and internal dependencies).
+          project_root="$(dirname "$GITHUB_WORKSPACE")"
+          for spec in \
+            frankentui:befbd2471a1ec4a6b8ce0a0df32116c317cca9db \
+            frankensqlite:66463dd1012e49f25e617e928e93a3c74ced54e7
+          do
+            repo="${spec%%:*}"
+            revision="${spec#*:}"
+            git init "$project_root/$repo"
+            git -C "$project_root/$repo" remote add origin "https://github.com/Dicklesworthstone/$repo.git"
+            git -C "$project_root/$repo" fetch --depth 1 origin "$revision"
+            git -C "$project_root/$repo" checkout --detach FETCH_HEAD
+          done
 
       - name: Install pinned Rust toolchain
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@nightly
         with:
           toolchain: nightly-2026-08-31
           targets: ${{ matrix.target }}
