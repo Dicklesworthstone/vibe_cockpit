@@ -9,7 +9,7 @@ on:
         type: string
   push:
     branches: [main]
-    paths: [RELEASE_VERSION, .github/workflows/release.yml]
+    paths: [RELEASE_VERSION]
     tags:
       - "v*"
 
@@ -42,6 +42,12 @@ jobs:
             tag="$(cat RELEASE_VERSION)"
           fi
           [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Invalid release version'; exit 1; }
+          existing="$(git ls-remote origin "refs/tags/$tag" "refs/tags/$tag^{}")"
+          tagged_commit="$(printf '%s\n' "$existing" | awk '/\^\{\}$/ { peeled=$1 } NR==1 { direct=$1 } END { print peeled ? peeled : direct }')"
+          if [[ -n "$tagged_commit" && "$tagged_commit" != "$GITHUB_SHA" ]]; then
+            echo 'Release tag points at different source; choose a new version.'
+            exit 1
+          fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
   # ===========================================================================
   # BUILD — cross-platform release binaries
@@ -116,10 +122,8 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build release binary
-        # Deliberately NOT --locked. The sibling repos are cloned at HEAD, so
-        # their crate versions can legitimately be ahead of what Cargo.lock
-        # recorded from the local dev checkout; --locked would hard-fail on that
-        # instead of letting cargo re-resolve the two path entries.
+        # The sibling revisions are fixed above. Cargo.lock must be refreshed
+        # when those revisions change, since it records path crate versions.
         run: cargo build --release --bin vc --target ${{ matrix.target }}
 
       - name: Strip binary
@@ -181,6 +185,17 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
+          {
+            echo "commit=$GITHUB_SHA"
+            rustc -Vv
+            git -C "$(dirname "$GITHUB_WORKSPACE")/frankentui" rev-parse HEAD
+            git -C "$(dirname "$GITHUB_WORKSPACE")/frankensqlite" rev-parse HEAD
+            if command -v sha256sum >/dev/null 2>&1; then
+              sha256sum Cargo.lock
+            else
+              shasum -a 256 Cargo.lock
+            fi
+          } > dist/BUILD_INFO-${{ matrix.target }}.txt
           TARBALL="vc-${{ matrix.target }}.tar.xz"
           cd "target/${{ matrix.target }}/release"
           # Force mode 755 inside the tarball. macOS release builds have been
@@ -195,6 +210,16 @@ jobs:
             shasum -a 256 "$TARBALL" > "$TARBALL.sha256"
           fi
           cat "$TARBALL.sha256"
+
+      - name: Verify extracted archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p extracted
+          tar -xJf "dist/vc-${{ matrix.target }}.tar.xz" -C extracted
+          test -x extracted/vc
+          extracted/vc --version
+          extracted/vc --help
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -277,3 +302,20 @@ jobs:
             dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download and execute published Linux x86_64 asset
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p downloaded installed
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'vc-x86_64-unknown-linux-gnu.tar.xz*' \
+            --pattern SHA256SUMS --dir downloaded
+          (cd downloaded; sha256sum -c SHA256SUMS --ignore-missing; sha256sum -c vc-*.sha256)
+          tar -xJf downloaded/vc-x86_64-unknown-linux-gnu.tar.xz -C installed
+          file installed/vc | grep -q 'ELF 64-bit.*x86-64'
+          installed/vc --version
+          installed/vc --help
