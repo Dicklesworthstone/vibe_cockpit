@@ -666,7 +666,11 @@ impl ftui::runtime::Subscription<AppMessage> for ShutdownSubscription {
         0x5643_5f53_4855_5444
     }
 
-    fn run(&self, sender: std::sync::mpsc::Sender<AppMessage>, stop: ftui::runtime::StopSignal) {
+    fn run(
+        &self,
+        sender: ftui::runtime::SubscriptionSender<AppMessage>,
+        stop: ftui::runtime::StopSignal,
+    ) {
         while !stop.wait_timeout(Duration::from_millis(50)) {
             if self.shutdown_requested.load(Ordering::Acquire) {
                 let _ = sender.send(AppMessage::Quit);
