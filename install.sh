@@ -254,10 +254,10 @@ resolve_version() {
 
   if has_cmd curl; then
     tag=$(curl -fsSL -H "Accept: application/vnd.github.v3+json" "$latest_url" 2>/dev/null \
-      | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | head -1) || tag=""
+      | grep -o '"tag_name": *"[^"]*"' | head -n 1 | sed -E 's/.*"([^"]*)"$/\1/') || tag=""
   elif has_cmd wget; then
     tag=$(wget -qO- "$latest_url" 2>/dev/null \
-      | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | head -1) || tag=""
+      | grep -o '"tag_name": *"[^"]*"' | head -n 1 | sed -E 's/.*"([^"]*)"$/\1/') || tag=""
   else
     err "Neither curl nor wget found. Please install one."
     exit 1
