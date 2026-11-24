@@ -136,3 +136,18 @@ A bare clone now builds without sibling checkouts, and so do remote build worker
 - `cargo test --workspace --no-fail-fast` on a remote worker; counts are in the commit body.
 - No perf A/B: the previous tree did not build anywhere (vibe_cockpit#9 and the path
   dependencies), so there was no baseline.
+
+## Security fixes (lock only)
+
+h2 0.4.20, quinn-proto 0.11.19, quinn-udp 0.5.16, rustls 0.23.46 (aws-lc-rs 1.19.0,
+aws-lc-sys 0.47.0), rustls-webpki 0.103.17, webpki-roots / webpki-root-certs 1.0.12, url 2.5.9,
+ctutils 0.4.8. `cargo audit`: 33 vulnerabilities -> 15.
+
+Still open, each needing a major bump of its own:
+
+- **russh 0.49** (5 advisories, plus russh-cryptovec, rsa and crypto-bigint through it): fixed in
+  russh 0.60.
+- **zip 6.0.0** (7 advisories): build-time only, inside libduckdb-sys; the next duckdb crate
+  release drops it but bundles DuckDB 2.0.1, which is held.
+- **Not taken from a full `cargo update`**: DuckDB 2.0.1, and serde_json, regex, tokio and
+  hashbrown (hot paths, no benchmark).
