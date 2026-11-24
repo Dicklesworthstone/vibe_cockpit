@@ -405,15 +405,16 @@ fn normalize_duck_value_inner(value: DuckValue, nested: bool) -> Value {
         DuckValue::Float(number) => serde_json::json!(f64::from(number)),
         DuckValue::Double(number) => serde_json::json!(number),
         DuckValue::Text(text) => Value::String(text),
-        DuckValue::Blob(bytes) => {
+        DuckValue::Blob(bytes) | DuckValue::Geometry(bytes) => {
             Value::Array(bytes.into_iter().map(Value::from).collect::<Vec<_>>())
         }
         DuckValue::Timestamp(unit, value) => Value::String(format_timestamp(unit, value)),
         DuckValue::Date32(days) => Value::String(format_date(days)),
         DuckValue::Time64(unit, value) => Value::String(format_time(unit, value)),
         DuckValue::HugeInt(number) => Value::String(number.to_string()),
+        DuckValue::UHugeInt(number) => Value::String(number.to_string()),
         DuckValue::UBigInt(number) => Value::String(number.to_string()),
-        DuckValue::Decimal(decimal) => Value::String(decimal.normalize().to_string()),
+        DuckValue::Decimal(decimal) => Value::String(decimal_without_scale_padding(decimal)),
         DuckValue::Enum(value) => Value::String(value),
         DuckValue::Interval {
             months,
@@ -449,6 +450,23 @@ fn normalize_duck_value_inner(value: DuckValue, nested: bool) -> Value {
                 .collect(),
         ),
         DuckValue::Union(value) => normalize_duck_value_inner(*value, nested),
+        other => panic!("no expected-value rule for DuckDB value {other:?}"),
+    }
+}
+
+/// `1.500` in a `DECIMAL(9,3)` column is expected to arrive as `"1.5"`, `0.00` as `"0"`.
+fn decimal_without_scale_padding(decimal: duckdb::types::Decimal) -> String {
+    let text = decimal.to_string();
+    match text.split_once('.') {
+        Some((whole, fraction)) => {
+            let fraction = fraction.trim_end_matches('0');
+            if fraction.is_empty() {
+                whole.to_string()
+            } else {
+                format!("{whole}.{fraction}")
+            }
+        }
+        None => text,
     }
 }
 

@@ -6,6 +6,10 @@
 //! - TOON output support
 //! - All subcommands (status, tui, daemon, robot, etc.)
 
+// `Cli::run` awaits every subcommand, and computing that future's layout needs more than
+// rustc's default query depth of 128.
+#![recursion_limit = "256"]
+
 use asupersync::signal::{ShutdownController, ShutdownReceiver};
 use asupersync::time::BudgetTimeExt;
 use asupersync::{Budget, CancelKind, Cx};
@@ -5110,8 +5114,11 @@ fn duck_value_to_sqlite_value(
         DuckValue::Date32(days) => SqliteValue::Text(format_date(days)?.into()),
         DuckValue::Time64(unit, value) => SqliteValue::Text(format_time(unit, value).into()),
         DuckValue::HugeInt(number) => SqliteValue::Text(number.to_string().into()),
+        DuckValue::UHugeInt(number) => SqliteValue::Text(number.to_string().into()),
         DuckValue::UBigInt(number) => SqliteValue::Text(number.to_string().into()),
-        DuckValue::Decimal(decimal) => SqliteValue::Text(decimal.normalize().to_string().into()),
+        DuckValue::Decimal(decimal) => SqliteValue::Text(normalized_decimal_text(decimal).into()),
+        // WKB bytes, kept as the blob they are.
+        DuckValue::Geometry(wkb) => SqliteValue::Blob(Arc::from(wkb)),
         DuckValue::Enum(value) => SqliteValue::Text(value.into()),
         DuckValue::Interval {
             months,
@@ -5133,6 +5140,9 @@ fn duck_value_to_sqlite_value(
         | DuckValue::Union(_)) => {
             SqliteValue::Text(duck_value_to_json(complex)?.to_string().into())
         }
+        // `Value` is non-exhaustive: refuse a kind this exporter does not know rather than
+        // write a guess into the migrated database.
+        other => return Err(unsupported_duck_value(&other)),
     };
 
     if is_text_json_type(&normalized_type)
@@ -5145,6 +5155,22 @@ fn duck_value_to_sqlite_value(
         ));
     }
     Ok(sqlite_value)
+}
+
+/// A `DuckDB` `DECIMAL` as canonical text, the same value whatever its declared scale.
+///
+/// duckdb's own `Decimal` (which replaced `rust_decimal::Decimal` in `Value::Decimal`)
+/// prints every digit of its scale: `1.5` in a `DECIMAL(9,3)` column is `1.500`. Drop
+/// trailing fractional zeros and a bare decimal point, so it exports as `1.5`, and `0.000`
+/// as `0`, as the earlier `rust_decimal` `normalize()` did. The payload is an exact scaled
+/// integer, so no rounding happens and every digit of the 38-digit range survives.
+fn normalized_decimal_text(decimal: duckdb::types::Decimal) -> String {
+    let mut text = decimal.to_string();
+    if text.contains('.') {
+        let kept = text.trim_end_matches('0').trim_end_matches('.').len();
+        text.truncate(kept);
+    }
+    text
 }
 
 fn duck_value_to_json(value: DuckValue) -> Result<serde_json::Value, CliError> {
@@ -5161,11 +5187,12 @@ fn duck_value_to_json(value: DuckValue) -> Result<serde_json::Value, CliError> {
         DuckValue::Float(number) => finite_f64_json(f64::from(number)),
         DuckValue::Double(number) => finite_f64_json(number),
         DuckValue::HugeInt(number) => serde_json::json!(number.to_string()),
+        DuckValue::UHugeInt(number) => serde_json::json!(number.to_string()),
         DuckValue::UBigInt(number) => serde_json::json!(number.to_string()),
-        DuckValue::Decimal(decimal) => serde_json::json!(decimal.normalize().to_string()),
+        DuckValue::Decimal(decimal) => serde_json::json!(normalized_decimal_text(decimal)),
         DuckValue::Timestamp(unit, value) => serde_json::json!(format_timestamp(unit, value)?),
         DuckValue::Text(text) => serde_json::json!(text),
-        DuckValue::Blob(bytes) => {
+        DuckValue::Blob(bytes) | DuckValue::Geometry(bytes) => {
             serde_json::Value::Array(bytes.into_iter().map(serde_json::Value::from).collect())
         }
         DuckValue::Date32(days) => serde_json::json!(format_date(days)?),
@@ -5205,8 +5232,14 @@ fn duck_value_to_json(value: DuckValue) -> Result<serde_json::Value, CliError> {
                 .collect::<Result<Vec<_>, CliError>>()?,
         ),
         DuckValue::Union(value) => duck_value_to_json(*value)?,
+        other => return Err(unsupported_duck_value(&other)),
     };
     Ok(json)
+}
+
+/// Error for a `DuckDB` value kind added after this exporter was written.
+fn unsupported_duck_value(value: &DuckValue) -> CliError {
+    CliError::CommandFailed(format!("Unsupported DuckDB value in migration: {value:?}"))
 }
 
 fn sqlite_value_to_normalized_json(
@@ -7154,13 +7187,13 @@ mod tests {
         std::fs::write(&config_path, config.to_toml().expect("serialize config"))
             .expect("write temp config");
 
-        let mut argv = vec![
+        let mut command_line = vec![
             "vc".to_string(),
             "--config".to_string(),
             config_path.display().to_string(),
         ];
-        argv.extend(args.iter().map(|arg| (*arg).to_string()));
-        Cli::parse_from(argv)
+        command_line.extend(args.iter().map(|arg| (*arg).to_string()));
+        Cli::parse_from(command_line)
     }
 
     #[test]
@@ -7914,6 +7947,85 @@ mod tests {
         };
 
         assert_eq!(sample_row_order_by(&plan), "rowid");
+    }
+
+    /// Read one row of `DuckDB` values exactly as the migration does.
+    fn duck_row(sql: &str, columns: usize) -> Vec<DuckValue> {
+        let source = DuckConnection::open_in_memory().unwrap();
+        source
+            .query_row(sql, [], |row| {
+                Ok((0..columns)
+                    .map(|index| row.get_ref_unwrap(index).to_owned())
+                    .collect())
+            })
+            .unwrap()
+    }
+
+    #[test]
+    fn duck_value_to_sqlite_value_exports_decimals_without_scale_padding() {
+        let values = duck_row(
+            "SELECT 1.500::DECIMAL(9,3), 0.00::DECIMAL(5,2), (-12.340)::DECIMAL(10,3), \
+             100::DECIMAL(10,0), 0.000001::DECIMAL(18,6), \
+             12345678901234567890123456789012345678::DECIMAL(38,0), \
+             (-0.5)::DECIMAL(38,37)",
+            7,
+        );
+        let expected = [
+            "1.5",
+            "0",
+            "-12.34",
+            "100",
+            "0.000001",
+            "12345678901234567890123456789012345678",
+            "-0.5",
+        ];
+        assert_eq!(values.len(), expected.len());
+        for (value, want) in values.into_iter().zip(expected) {
+            assert!(matches!(value, DuckValue::Decimal(_)), "{value:?}");
+            assert_eq!(
+                duck_value_to_sqlite_value(value, "DECIMAL(38,6)").unwrap(),
+                SqliteValue::Text(want.into())
+            );
+        }
+    }
+
+    #[test]
+    fn duck_value_to_sqlite_value_exports_nested_decimals_as_json_strings() {
+        let values = duck_row("SELECT [1.50::DECIMAL(4,2), 2.00::DECIMAL(4,2)]", 1);
+        let value = values.into_iter().next().unwrap();
+        assert_eq!(
+            duck_value_to_sqlite_value(value, "DECIMAL(4,2)[]").unwrap(),
+            SqliteValue::Text(r#"["1.5","2"]"#.into())
+        );
+    }
+
+    #[test]
+    fn duck_value_to_sqlite_value_exports_uhugeint_beyond_i128_and_geometry_bytes() {
+        let top = duck_row(
+            "SELECT 340282366920938463463374607431768211455::UHUGEINT",
+            1,
+        )
+        .remove(0);
+        assert!(matches!(top, DuckValue::UHugeInt(u128::MAX)), "{top:?}");
+        assert_eq!(
+            duck_value_to_sqlite_value(top, "UHUGEINT").unwrap(),
+            SqliteValue::Text(u128::MAX.to_string().into())
+        );
+        // Values inside lists, structs and maps are converted through the JSON path.
+        assert_eq!(
+            duck_value_to_json(DuckValue::List(vec![DuckValue::UHugeInt(u128::MAX)])).unwrap(),
+            serde_json::json!([u128::MAX.to_string()])
+        );
+
+        let wkb = vec![1_u8, 1, 0, 0, 0];
+        assert_eq!(
+            duck_value_to_sqlite_value(DuckValue::Geometry(wkb.clone()), "GEOMETRY").unwrap(),
+            SqliteValue::Blob(Arc::from(wkb.clone()))
+        );
+        assert_eq!(
+            duck_value_to_json(DuckValue::Geometry(wkb)).unwrap(),
+            serde_json::json!([1, 1, 0, 0, 0])
+        );
     }
 
     #[test]

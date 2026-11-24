@@ -5,6 +5,10 @@
 //! for downstream crates that still call Tokio APIs directly (Phases 2a–2e
 //! will migrate those crates individually).
 
+// The `block_on` future below awaits `Cli::run`, which awaits every subcommand; computing
+// its layout needs more than rustc's default query depth of 128.
+#![recursion_limit = "256"]
+
 use anyhow::Result;
 use asupersync::Cx;
 use asupersync::runtime::{Runtime, RuntimeBuilder};
