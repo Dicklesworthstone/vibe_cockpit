@@ -11,6 +11,19 @@
 -- This went unnoticed because the collector logs an insert failure and carries
 -- on (collectors are fail-soft by design), so the symptom was silently missing
 -- memory and disk rows rather than a crash.
+--
+-- DuckDB refuses to change a column's type while an index depends on the table
+-- ("Dependency Error: Cannot alter entry "sys_samples" because there are
+-- entries that depend on it"), so the indexes on the altered tables are dropped
+-- first and recreated unchanged at the end.
+
+DROP INDEX IF EXISTS idx_sys_samples_ts;
+DROP INDEX IF EXISTS idx_sys_samples_machine;
+DROP INDEX IF EXISTS idx_pt_snapshots_machine;
+DROP INDEX IF EXISTS idx_collector_health_machine;
+DROP INDEX IF EXISTS idx_collector_health_ts;
+DROP INDEX IF EXISTS idx_redaction_machine;
+DROP INDEX IF EXISTS idx_redaction_collected;
 
 ALTER TABLE sys_samples ALTER COLUMN mem_used_bytes TYPE BIGINT;
 ALTER TABLE sys_samples ALTER COLUMN mem_total_bytes TYPE BIGINT;
@@ -41,3 +54,15 @@ ALTER TABLE cass_index_status ALTER COLUMN index_size_bytes TYPE BIGINT;
 ALTER TABLE collector_health ALTER COLUMN bytes_parsed TYPE BIGINT;
 
 ALTER TABLE redaction_events ALTER COLUMN redacted_bytes TYPE BIGINT;
+
+CREATE INDEX IF NOT EXISTS idx_sys_samples_ts ON sys_samples(collected_at);
+CREATE INDEX IF NOT EXISTS idx_sys_samples_machine ON sys_samples(machine_id);
+CREATE INDEX IF NOT EXISTS idx_pt_snapshots_machine ON pt_snapshots(machine_id);
+CREATE INDEX IF NOT EXISTS idx_collector_health_machine
+    ON collector_health(machine_id, collector);
+CREATE INDEX IF NOT EXISTS idx_collector_health_ts
+    ON collector_health(collected_at);
+CREATE INDEX IF NOT EXISTS idx_redaction_machine
+    ON redaction_events(machine_id, collector);
+CREATE INDEX IF NOT EXISTS idx_redaction_collected
+    ON redaction_events(collected_at);

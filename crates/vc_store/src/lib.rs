@@ -3877,6 +3877,56 @@ mod tests {
         // No panic = success
     }
 
+    // Regression: migration 028 changed column types on tables that have indexes, which
+    // DuckDB refuses ("Cannot alter entry ... because there are entries that depend on
+    // it"), so no store could be opened. It now drops those indexes and recreates them.
+    #[test]
+    fn test_widen_byte_columns_migration_widens_and_keeps_indexes() {
+        let store = VcStore::open_memory().unwrap();
+
+        let migration = include_str!("migrations/028_widen_byte_columns_to_bigint.sql");
+        let mut widened = 0;
+        for line in migration.lines() {
+            let Some(statement) = line.strip_prefix("ALTER TABLE ") else {
+                continue;
+            };
+            let words: Vec<&str> = statement.split_whitespace().collect();
+            let [table, "ALTER", "COLUMN", column, "TYPE", "BIGINT;"] = words.as_slice() else {
+                panic!("unexpected statement in migration 028: {line}");
+            };
+            let data_type: String = store
+                .query_scalar(&format!(
+                    "SELECT data_type FROM information_schema.columns \
+                     WHERE table_name = '{table}' AND column_name = '{column}'"
+                ))
+                .unwrap();
+            assert_eq!(data_type, "BIGINT", "{table}.{column}");
+            widened += 1;
+        }
+        assert_eq!(widened, 21);
+
+        let indexes: i64 = store
+            .query_scalar(
+                "SELECT count(*) FROM duckdb_indexes() WHERE index_name IN (\
+                 'idx_sys_samples_ts', 'idx_sys_samples_machine', 'idx_pt_snapshots_machine', \
+                 'idx_collector_health_machine', 'idx_collector_health_ts', \
+                 'idx_redaction_machine', 'idx_redaction_collected')",
+            )
+            .unwrap();
+        assert_eq!(indexes, 7);
+
+        let row = serde_json::json!({
+            "machine_id": "host",
+            "collected_at": "2026-11-23T00:00:00Z",
+            "mem_total_bytes": 16_000_000_000_i64,
+        });
+        store.insert_json("sys_samples", &row).unwrap();
+        let stored: i64 = store
+            .query_scalar("SELECT mem_total_bytes FROM sys_samples WHERE machine_id = 'host'")
+            .unwrap();
+        assert_eq!(stored, 16_000_000_000);
+    }
+
     // Regression: migration 001 created ntm_sessions_snapshot without the
     // columns the NTM collector emits, and migration 006 used CREATE TABLE
     // IF NOT EXISTS so it didn't reconcile them. Migration 027 reconciles
