@@ -779,10 +779,12 @@ mod tests {
             ftui::Cmd::None
             | ftui::Cmd::Quit
             | ftui::Cmd::Tick(_)
-            | ftui::Cmd::Log(_)
+            | ftui::Cmd::Log { .. }
             | ftui::Cmd::SaveState
             | ftui::Cmd::RestoreState
             | ftui::Cmd::SetMouseCapture(_)
+            | ftui::Cmd::SetClipboard(_)
+            | ftui::Cmd::GetClipboard
             | ftui::Cmd::SetTickStrategy(_) => {}
             ftui::Cmd::Msg(msg) => {
                 let follow_up = app.update(msg);

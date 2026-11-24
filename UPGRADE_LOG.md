@@ -106,3 +106,33 @@
 - `cargo test --workspace`: All tests pass
 - `cargo fmt --check`: Pass (after formatting)
 - Pre-existing clippy pedantic warnings in vc_config (not introduced by this upgrade)
+
+---
+
+# 2026-11-22: Franken crates from crates.io
+
+## Path dependencies replaced by published releases
+
+| Crate | Before | After | Notes |
+|-------|--------|-------|-------|
+| ftui | 0.7.0 (path `../frankentui`) | 0.11.0 | Optional asupersync executor feature stays off |
+| fsqlite, fsqlite-error, fsqlite-types | 0.4.x (path `../frankensqlite`) | 0.4.13 | Newest release on asupersync 0.5 |
+
+A bare clone now builds without sibling checkouts, and so do remote build workers.
+
+## Held
+
+- **fsqlite 0.5.x**: built on asupersync 0.6 and shares runtime thread-local state with its
+  caller, so it has to move together with this workspace's `asupersync` (0.5.0) and
+  `asupersync-tokio-compat`.
+
+## Validation
+
+- `cargo fmt --check`: clean.
+- `cargo clippy --workspace --all-targets` (pinned nightly): every target compiles. 143 pedantic
+  findings remain, all in code this change does not touch (mostly `large_futures` in vc_cli and
+  the pinned nightly's `assert_is_empty`), so `-D warnings` still fails; none is on a changed
+  line. The previous tree could not be linted at all.
+- `cargo test --workspace --no-fail-fast` on a remote worker; counts are in the commit body.
+- No perf A/B: the previous tree did not build anywhere (vibe_cockpit#9 and the path
+  dependencies), so there was no baseline.

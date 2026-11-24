@@ -57,11 +57,11 @@ vc --version
 
 Prebuilt binaries for Linux (x86-64, arm64) and macOS (Intel, Apple Silicon).
 
-> **Note on building from source.** `vc` cannot be `cargo install`ed today. It has path
-> dependencies on two sibling checkouts, [`frankentui`](https://github.com/Dicklesworthstone/frankentui)
-> and [`frankensqlite`](https://github.com/Dicklesworthstone/frankensqlite), so a source
-> build needs them cloned alongside this repo. `make siblings` checks your layout and
-> tells you what is missing.
+> **Note on building from source.** A clone of this repository is all a source build needs:
+> [`frankentui`](https://github.com/Dicklesworthstone/frankentui) (`ftui`) and
+> [`frankensqlite`](https://github.com/Dicklesworthstone/frankensqlite) (`fsqlite`) resolve
+> from their crates.io releases, so `cargo build --release` produces `target/release/vc`
+> without sibling checkouts.
 
 ## Quick Start
 
@@ -232,7 +232,6 @@ user = "ubuntu"
 
 ```bash
 make help
-make siblings      # check frankentui / frankensqlite are checked out next door
 make check         # fmt + clippy + check
 make test
 ```

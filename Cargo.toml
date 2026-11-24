@@ -36,10 +36,14 @@ tokio = { version = "1", features = ["fs", "macros", "net", "process", "rt-multi
 
 # Database
 duckdb = { version = "1.4", features = ["bundled"] }
-# FrankenSQLite – replaces DuckDB once migration complete
-fsqlite = { path = "../frankensqlite/crates/fsqlite", features = ["json"] }
-fsqlite-error = { path = "../frankensqlite/crates/fsqlite-error" }
-fsqlite-types = { path = "../frankensqlite/crates/fsqlite-types", features = ["native"] }
+# FrankenSQLite – replaces DuckDB once migration complete. Published releases,
+# so a bare clone (and a remote build worker) resolves it without a sibling checkout.
+# 0.4.x is the line built on asupersync 0.5, the runtime this workspace uses; fsqlite 0.5
+# moves to asupersync 0.6 and shares runtime state with its caller, so it has to move
+# together with `asupersync` above.
+fsqlite = { version = "0.4.13", features = ["json"] }
+fsqlite-error = { version = "0.4.13" }
+fsqlite-types = { version = "0.4.13", features = ["native"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -50,8 +54,8 @@ toml = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 
 # TUI
-# FrankenTUI – Elm-architecture TUI framework
-ftui = { path = "../frankentui/crates/ftui" }
+# FrankenTUI – Elm-architecture TUI framework (published release)
+ftui = { version = "0.11.0" }
 
 # Web
 axum = "0.8"

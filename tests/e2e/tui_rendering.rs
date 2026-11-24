@@ -105,10 +105,12 @@ fn apply_cmd(app: &mut App, cmd: Cmd<AppMessage>) {
         Cmd::None
         | Cmd::Quit
         | Cmd::Tick(_)
-        | Cmd::Log(_)
+        | Cmd::Log { .. }
         | Cmd::SaveState
         | Cmd::RestoreState
         | Cmd::SetMouseCapture(_)
+        | Cmd::SetClipboard(_)
+        | Cmd::GetClipboard
         | Cmd::SetTickStrategy(_) => {}
         Cmd::Msg(msg) => {
             let follow_up = app.update(msg);

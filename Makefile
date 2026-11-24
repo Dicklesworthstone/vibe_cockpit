@@ -79,30 +79,10 @@ clean:
 deps:
 	$(CARGO) fetch
 
-## Verify the sibling path-dependency checkouts exist
+## Kept for old scripts: no sibling checkouts are needed any more
 siblings:
-	@missing=0; \
-	for d in ../frankentui/crates/ftui \
-	         ../frankensqlite/crates/fsqlite \
-	         ../frankensqlite/crates/fsqlite-error \
-	         ../frankensqlite/crates/fsqlite-types; do \
-		if [ -d "$$d" ]; then \
-			echo "  ok      $$d"; \
-		else \
-			echo "  MISSING $$d"; \
-			missing=1; \
-		fi; \
-	done; \
-	if [ "$$missing" -eq 1 ]; then \
-		echo ""; \
-		echo "vc has path dependencies on sibling checkouts and will not build without them."; \
-		echo "Clone them next to this repo:"; \
-		echo "  git clone https://github.com/Dicklesworthstone/frankentui.git ../frankentui"; \
-		echo "  git clone https://github.com/Dicklesworthstone/frankensqlite.git ../frankensqlite"; \
-		exit 1; \
-	fi; \
-	echo ""; \
-	echo "All path dependencies present."
+	@echo "vc resolves ftui (frankentui) and fsqlite (frankensqlite) from crates.io;"
+	@echo "no sibling checkouts are needed to build it."
 
 ## Show version
 version:
@@ -116,7 +96,3 @@ help:
 	@echo ""
 	@echo "Targets:"
 	@grep -E '^## ' $(MAKEFILE_LIST) | sed 's/## /  /'
-	@echo ""
-	@echo "Note: vc has path dependencies on the frankentui and frankensqlite"
-	@echo "sibling checkouts, so it cannot be built from a bare clone and cannot"
-	@echo "be 'cargo install'ed. Run 'make siblings' to check your layout."
