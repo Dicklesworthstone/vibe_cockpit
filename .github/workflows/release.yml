@@ -51,11 +51,6 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
   # ===========================================================================
   # BUILD — cross-platform release binaries
-  #
-  # Every job here re-does the frankentui / frankensqlite sibling checkout,
-  # because vc's Cargo.toml carries path dependencies on them and a bare
-  # actions/checkout cannot compile the workspace. See .github/workflows/ci.yml
-  # for the full rationale.
   # ===========================================================================
   build:
     strategy:
@@ -95,26 +90,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Checkout Franken stack path dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          # Keep the dependencies as real siblings. Nesting path crates inside
-          # this workspace makes Cargo inherit vc's workspace metadata instead
-          # of their own (including license-file and internal dependencies).
-          project_root="$(dirname "$GITHUB_WORKSPACE")"
-          for spec in \
-            frankentui:befbd2471a1ec4a6b8ce0a0df32116c317cca9db \
-            frankensqlite:66463dd1012e49f25e617e928e93a3c74ced54e7
-          do
-            repo="${spec%%:*}"
-            revision="${spec#*:}"
-            git init "$project_root/$repo"
-            git -C "$project_root/$repo" remote add origin "https://github.com/Dicklesworthstone/$repo.git"
-            git -C "$project_root/$repo" fetch --depth 1 origin "$revision"
-            git -C "$project_root/$repo" checkout --detach FETCH_HEAD
-          done
-
       - name: Install pinned Rust toolchain
         uses: dtolnay/rust-toolchain@nightly
         with:
@@ -122,9 +97,7 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build release binary
-        # The sibling revisions are fixed above. Cargo.lock must be refreshed
-        # when those revisions change, since it records path crate versions.
-        run: cargo build --release --bin vc --target ${{ matrix.target }}
+        run: cargo build --release --locked --bin vc --target ${{ matrix.target }}
 
       - name: Strip binary
         shell: bash
@@ -188,8 +161,6 @@ jobs:
           {
             echo "commit=$GITHUB_SHA"
             rustc -Vv
-            git -C "$(dirname "$GITHUB_WORKSPACE")/frankentui" rev-parse HEAD
-            git -C "$(dirname "$GITHUB_WORKSPACE")/frankensqlite" rev-parse HEAD
             if command -v sha256sum >/dev/null 2>&1; then
               sha256sum Cargo.lock
             else

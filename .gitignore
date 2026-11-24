@@ -67,11 +67,5 @@ storage.sqlite3-wal.corrupt-*
 # `git rm -r --cached .beads/.br_history`.
 .beads/.br_history/
 
-# Sibling path-dependency checkouts staged by the CI workflows. vc's Cargo.toml
-# points at ../frankentui and ../frankensqlite; CI clones them here and rewrites
-# the manifest (see .github/workflows/ci.yml). Never commit either the clones or
-# a rewritten Cargo.toml.
-/.ci/
-
 # Nested crate build artifacts (e.g., crates/vc_tui/target/)
 crates/*/target/

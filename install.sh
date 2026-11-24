@@ -22,20 +22,11 @@
 #
 # NOTE ON SOURCE BUILDS
 # ---------------------
-# Unlike the other Rust CLIs in this ecosystem, vc CANNOT be built from a bare
-# `git clone` (and therefore cannot be `cargo install`ed). Its workspace
-# Cargo.toml carries PATH dependencies on sibling checkouts:
-#
-#   ftui           = { path = "../frankentui/crates/ftui" }
-#   fsqlite        = { path = "../frankensqlite/crates/fsqlite" }
-#   fsqlite-error  = { path = "../frankensqlite/crates/fsqlite-error" }
-#   fsqlite-types  = { path = "../frankensqlite/crates/fsqlite-types" }
-#
-# A source build requires Dicklesworthstone/frankentui and
-# Dicklesworthstone/frankensqlite checked out as siblings of this repo. So this
-# installer only ever fetches a PREBUILT BINARY from GitHub Releases — there is
-# deliberately no --from-source path. See .github/workflows/release.yml for how
-# the release binaries are produced.
+# This installer only fetches a PREBUILT BINARY from GitHub Releases; it has
+# no --from-source path. To build from source instead, clone this repo and run
+# `cargo build --release` (or `make install-user`): every dependency, including
+# ftui and fsqlite, comes from crates.io. See .github/workflows/release.yml for
+# how the release binaries are produced.
 #
 set -euo pipefail
 umask 022
@@ -110,9 +101,8 @@ Examples:
   # Uninstall
   curl -fsSL https://raw.githubusercontent.com/${OWNER}/${REPO}/main/install.sh | bash -s -- --uninstall
 
-vc ships as a prebuilt binary only. It cannot be 'cargo install'ed because its
-workspace has path dependencies on the frankentui and frankensqlite sibling
-checkouts. See the header of this script for details.
+This script installs a prebuilt binary. To build from source instead:
+  git clone https://github.com/${OWNER}/${REPO}.git && cd ${REPO} && make install-user
 EOFU
 }
 
@@ -320,12 +310,7 @@ detect_platform() {
     err "  linux  x86_64 / aarch64"
     err "  macOS  x86_64 / aarch64 (Apple Silicon)"
     err ""
-    err "There is no build-from-source fallback: vc's Cargo.toml has path"
-    err "dependencies on the frankentui and frankensqlite sibling repos, so a"
-    err "clone of this repo alone will not compile. To build it yourself, check"
-    err "out all three repos side by side:"
-    err "  git clone https://github.com/${OWNER}/frankentui.git"
-    err "  git clone https://github.com/${OWNER}/frankensqlite.git"
+    err "To build it yourself from source:"
     err "  git clone https://github.com/${OWNER}/${REPO}.git && cd ${REPO} && cargo build --release"
     exit 1
   fi
